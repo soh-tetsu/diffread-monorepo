@@ -1,9 +1,17 @@
 import {
-  generateQuizQuestions as runQuestionEngine,
-  type QuestionWorkflowResult,
+  runHookWorkflow,
+  runInstructionWorkflow,
+  type HookWorkflowResult,
+  type InstructionWorkflowResult,
+  type ArticleMetadata,
 } from "@diffread/question-engine";
 
 import type { ArticleRow } from "@/types/db";
+import {
+  GEMINI_HOOK_MODEL,
+  GEMINI_INSTRUCTION_MODEL,
+  requireGeminiApiKey,
+} from "@/lib/quiz/gemini";
 
 function extractTitle(metadata: Record<string, unknown> | null): string | null {
   if (!metadata || typeof metadata !== "object") {
@@ -13,32 +21,54 @@ function extractTitle(metadata: Record<string, unknown> | null): string | null {
   return typeof maybeTitle === "string" ? maybeTitle : null;
 }
 
-export async function generateQuizQuestions(
+function buildArticlePayload(article: ArticleRow, articleText: string) {
+  return {
+    normalizedUrl: article.normalized_url,
+    title: extractTitle(article.metadata),
+    text: articleText,
+    metadata: article.metadata,
+  };
+}
+
+export async function generateInstructionWorkflow(
   article: ArticleRow,
-  articleText: string
-): Promise<{ workflow: QuestionWorkflowResult; model: string }> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL ?? "gemini-1.5-flash";
-
-  if (!apiKey) {
-    throw new Error("Missing GEMINI_API_KEY for quiz generation.");
-  }
-
-  const workflow = await runQuestionEngine(
-    {
-      normalizedUrl: article.normalized_url,
-      title: extractTitle(article.metadata),
-      text: articleText,
-      metadata: article.metadata,
-    },
+  articleText: string,
+  metadata: ArticleMetadata
+): Promise<{ workflow: InstructionWorkflowResult; model: string }> {
+  const apiKey = requireGeminiApiKey();
+  const workflow = await runInstructionWorkflow(
+    buildArticlePayload(article, articleText),
+    metadata,
     {
       apiKey,
-      model,
+      model: GEMINI_INSTRUCTION_MODEL,
     }
   );
 
   return {
     workflow,
-    model,
+    model: GEMINI_INSTRUCTION_MODEL,
+  };
+}
+
+export async function generateHookWorkflow(
+  article: ArticleRow,
+  articleText: string,
+  metadata: ArticleMetadata
+): Promise<{ workflow: HookWorkflowResult; model: string }> {
+  const apiKey = requireGeminiApiKey();
+  const hookModel = GEMINI_HOOK_MODEL;
+  const workflow = await runHookWorkflow(
+    buildArticlePayload(article, articleText),
+    metadata,
+    {
+      apiKey,
+      model: hookModel,
+    }
+  );
+
+  return {
+    workflow,
+    model: hookModel,
   };
 }

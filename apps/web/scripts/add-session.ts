@@ -21,11 +21,14 @@ if (!email || !originalUrl) {
 }
 
 async function main() {
-  const { enqueueAndProcessSession } = await import(
-    "@/lib/workflows/session-flow"
-  );
+  const [{ enqueueAndProcessSession }, { processQuizById }] = await Promise.all([
+    import("@/lib/workflows/session-flow"),
+    import("@/lib/workflows/process-quiz"),
+  ]);
 
   const result = await enqueueAndProcessSession(email, originalUrl);
+
+  await processQuizById(result.quiz.id);
 
   logger.info(
     {

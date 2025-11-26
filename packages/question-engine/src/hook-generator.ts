@@ -16,7 +16,7 @@ const HookQuestionSchema = z.object({
       rationale: z.string().optional(),
     })
   ),
-  remediation_pointer: z.string(),
+  remediation: z.string(),
   answer_index: z.number().int(),
 });
 

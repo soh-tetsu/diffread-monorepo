@@ -1,25 +1,48 @@
 import { supabase } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
-import {
-  getArticleById,
-  isArticleFresh,
-  updateArticleContent,
-  updateArticleStatus,
-} from "@/lib/db/articles";
+import { getArticleById } from "@/lib/db/articles";
 import { setSessionStatusByQuiz } from "@/lib/db/sessions";
-import { scrapeArticle, ScrapeError } from "@/lib/quiz/scraper";
-import type { ScrapedArticle } from "@/lib/quiz/scraper";
-import { generateQuizQuestions } from "@/lib/quiz/question-engine";
-import type { QuestionWorkflowResult } from "@diffread/question-engine";
-import type { ArticleRow, QuizRow } from "@/types/db";
+import { getHookQuestionsByQuizId } from "@/lib/db/hooks";
 import {
-  downloadArticleContent,
-  uploadArticleBundle,
-  uploadArticlePdf,
-  hasStoredContent,
-} from "@/lib/storage";
+  ensureArticleAnalysis,
+  ensureArticleContent,
+} from "@/lib/workflows/article-content";
+import { buildHookQuestionsForQuiz } from "@/lib/workflows/hook-generation";
+import { generateInstructionWorkflow } from "@/lib/quiz/question-engine";
+import type { InstructionWorkflowResult } from "@diffread/question-engine";
+import type { ArticleRow, QuizRow } from "@/types/db";
 
-async function claimNextQuiz(): Promise<QuizRow | null> {
+async function loadQuizById(quizId: number): Promise<QuizRow | null> {
+  const { data, error } = await supabase
+    .from("quizzes")
+    .select("*")
+    .eq("id", quizId)
+    .maybeSingle();
+
+  if (error && error.code !== "PGRST116") {
+    throw new Error(`Failed to load quiz ${quizId}: ${error.message}`);
+  }
+
+  return (data as QuizRow) ?? null;
+}
+
+async function claimNextHookQuiz(): Promise<QuizRow | null> {
+  const { data, error } = await supabase
+    .from("hook_questions")
+    .select("quiz:quizzes(*)")
+    .eq("status", "pending")
+    .order("updated_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (error && error.code !== "PGRST116") {
+    throw new Error(`Failed to fetch pending hook job: ${error.message}`);
+  }
+
+  return (data?.quiz as QuizRow) ?? null;
+}
+
+async function claimNextInstructionQuiz(): Promise<QuizRow | null> {
   const { data: candidate, error: fetchError } = await supabase
     .from("quizzes")
     .select("*")
@@ -29,7 +52,7 @@ async function claimNextQuiz(): Promise<QuizRow | null> {
     .maybeSingle();
 
   if (fetchError && fetchError.code !== "PGRST116") {
-    throw new Error(`Failed to fetch pending quiz: ${fetchError.message}`);
+    throw new Error(`Failed to fetch pending instruction quiz: ${fetchError.message}`);
   }
 
   if (!candidate) {
@@ -48,16 +71,28 @@ async function claimNextQuiz(): Promise<QuizRow | null> {
     throw new Error(`Failed to claim quiz ${candidate.id}: ${claimError.message}`);
   }
 
-  if (!claimed) {
-    return null;
+  return (claimed as QuizRow) ?? null;
+}
+
+async function promoteQuizToProcessing(quizId: number): Promise<QuizRow | null> {
+  const { data, error } = await supabase
+    .from("quizzes")
+    .update({ status: "processing" })
+    .eq("id", quizId)
+    .eq("status", "pending")
+    .select("*")
+    .maybeSingle();
+
+  if (error && error.code !== "PGRST116") {
+    throw new Error(`Failed to promote quiz ${quizId}: ${error.message}`);
   }
 
-  return claimed as QuizRow;
+  return (data as QuizRow) ?? null;
 }
 
 async function persistQuestions(
   quiz: QuizRow,
-  workflow: QuestionWorkflowResult,
+  workflow: InstructionWorkflowResult,
   modelUsed: string
 ) {
   await supabase.from("questions").delete().eq("quiz_id", quiz.id);
@@ -96,30 +131,6 @@ async function markFailed(quizId: number, reason: string) {
   logger.error({ quizId, reason }, "Quiz failed");
 }
 
-function extractString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
-function extractNumber(value: unknown): number | null {
-  return typeof value === "number" ? value : null;
-}
-
-function mergeMetadata(
-  existing: Record<string, unknown> | null,
-  scraped: ScrapedArticle["metadata"]
-): Record<string, unknown> {
-  const base = existing ?? {};
-  return {
-    ...base,
-    title: scraped.title ?? extractString(base["title"]) ?? null,
-    byline: scraped.byline ?? extractString(base["byline"]) ?? null,
-    excerpt: scraped.excerpt ?? extractString(base["excerpt"]) ?? null,
-    length: scraped.length ?? extractNumber(base["length"]) ?? null,
-    siteName: scraped.siteName ?? extractString(base["siteName"]) ?? null,
-    lang: scraped.lang ?? extractString(base["lang"]) ?? null,
-  };
-}
-
 export type ProcessResult =
   | {
       quiz: QuizRow;
@@ -128,195 +139,129 @@ export type ProcessResult =
     }
   | null;
 
-async function processQuizRecord(quiz: QuizRow): Promise<ProcessResult> {
-  let article: ArticleRow | null = null;
-  let scrapingInProgress = false;
+async function handleInstructionJob(quiz: QuizRow): Promise<ProcessResult> {
+  if (quiz.status !== "processing") {
+    return null;
+  }
+
   try {
-    article = await getArticleById(quiz.article_id);
-    const fresh = isArticleFresh(article);
-    let content: string | null = null;
+    const articleRecord = await getArticleById(quiz.article_id);
+    const prepared = await ensureArticleContent(articleRecord);
+    const analysis = await ensureArticleAnalysis(
+      prepared.article,
+      prepared.content
+    );
 
-    if (fresh && hasStoredContent(article)) {
-      try {
-        content = await downloadArticleContent(
-          article.storage_path!,
-          article.storage_metadata
-        );
-      } catch (error) {
-        logger.warn(
-          { articleId: article.id, err: error },
-          "Failed to load stored article content; falling back to scraping"
-        );
-      }
-    }
+    const { workflow, model } = await generateInstructionWorkflow(
+      analysis.article,
+      prepared.content,
+      analysis.metadata
+    );
 
-    if (!content) {
-      scrapingInProgress = true;
-      await updateArticleStatus(article.id, "scraping");
-      const scraped = await scrapeArticle(article);
-
-      if (scraped.kind === "article") {
-        content = scraped.textContent;
-        const upload = await uploadArticleBundle(article.id, scraped.normalizedUrl, {
-          html: scraped.htmlContent,
-          text: scraped.textContent,
-        });
-        const mergedMetadata = mergeMetadata(
-          article.metadata as Record<string, unknown> | null,
-          scraped.metadata
-        );
-        await updateArticleContent(article.id, {
-          storage_path: upload.path,
-          storage_metadata: upload.metadata,
-          content_hash: upload.contentHash,
-          metadata: mergedMetadata,
-          content_medium: "html",
-        });
-        article = {
-          ...article,
-          storage_path: upload.path,
-          storage_metadata: upload.metadata,
-          content_hash: upload.contentHash,
-          metadata: mergedMetadata,
-          content_medium: "html",
-        };
-      } else {
-        const upload = await uploadArticlePdf(
-          scraped.pdfBuffer,
-          scraped.normalizedUrl
-        );
-        content = [
-          "PDF content stored for later processing.",
-          `Bucket: ${upload.metadata.bucket}`,
-          `Path: ${upload.path}`,
-          `Fingerprint: ${upload.metadata.url_fingerprint}`,
-        ].join("\n");
-        const mergedMetadata = mergeMetadata(
-          article.metadata as Record<string, unknown> | null,
-          scraped.metadata
-        );
-        await updateArticleContent(article.id, {
-          storage_path: upload.path,
-          storage_metadata: upload.metadata,
-          content_hash: upload.contentHash,
-          metadata: mergedMetadata,
-          content_medium: "pdf",
-        });
-        article = {
-          ...article,
-          storage_path: upload.path,
-          storage_metadata: upload.metadata,
-          content_hash: upload.contentHash,
-          metadata: mergedMetadata,
-          content_medium: "pdf",
-        };
-      }
-    } else {
-      logger.debug(
-        { articleId: article.id },
-        "Article content still fresh; reusing cached text"
-      );
-    }
-
-    await updateArticleStatus(article.id, "ready");
-    scrapingInProgress = false;
-
-    if (!content || !content.trim()) {
-      throw new Error("Article text is empty; cannot generate questions.");
-    }
-
-    if (article.content_medium === "pdf") {
-      throw new Error("PDF articles are not yet supported for question generation.");
-    }
-
-    const { workflow, model } = await generateQuizQuestions(article, content);
     await persistQuestions(quiz, workflow, model);
     await setSessionStatusByQuiz(quiz.id, "ready");
     logger.info(
-      { quizId: quiz.id, articleId: article.id, normalizedUrl: article.normalized_url },
-      "Quiz processed"
+      {
+        quizId: quiz.id,
+        articleId: analysis.article.id,
+        normalizedUrl: analysis.article.normalized_url,
+      },
+      "Instruction workflow completed"
     );
-    return { quiz, article, status: "ready" };
+    return {
+      quiz: { ...quiz, status: "ready" },
+      article: analysis.article,
+      status: "ready",
+    };
   } catch (error) {
-    if (article && scrapingInProgress) {
-      try {
-        await updateArticleStatus(article.id, "skip_by_failure");
-      } catch (statusError) {
-        logger.error(
-          { err: statusError, articleId: article?.id },
-          "Failed to update article status"
-        );
-      }
-    }
-    const reason =
-      error instanceof ScrapeError
-        ? `${error.code}:${error.message}`
-        : (error as Error).message;
+    const reason = error instanceof Error ? error.message : String(error);
     await markFailed(quiz.id, reason);
     throw error;
   }
 }
 
+async function handleHookJob(quiz: QuizRow): Promise<void> {
+  const hookRecord = await getHookQuestionsByQuizId(quiz.id);
+  if (hookRecord?.status === "ready") {
+    return;
+  }
+
+  try {
+    await buildHookQuestionsForQuiz(quiz);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    await markFailed(quiz.id, reason);
+    throw error;
+  }
+
+  const refreshedQuiz = await loadQuizById(quiz.id);
+  if (!refreshedQuiz) {
+    return;
+  }
+
+  if (refreshedQuiz.status === "pending") {
+    const promoted = await promoteQuizToProcessing(refreshedQuiz.id);
+    if (promoted) {
+      await handleInstructionJob(promoted);
+    }
+  } else if (
+    refreshedQuiz.status === "failed" ||
+    refreshedQuiz.status === "not_required"
+  ) {
+    await supabase
+      .from("quizzes")
+      .update({ status: "not_required" })
+      .eq("id", refreshedQuiz.id)
+      .in("status", ["failed", "not_required"]);
+  }
+}
+
 export async function processNextPendingQuiz(): Promise<ProcessResult> {
-  const quiz = await claimNextQuiz();
-  if (!quiz) {
-    logger.debug("No pending quizzes found");
+  const hookQuiz = await claimNextHookQuiz();
+  if (hookQuiz) {
+    logger.info({ quizId: hookQuiz.id }, "Processing pending hook workflow");
+    await handleHookJob(hookQuiz);
     return null;
   }
-  logger.info({ quizId: quiz.id }, "Processing next pending quiz");
-  return processQuizRecord(quiz);
+
+  const instructionQuiz = await claimNextInstructionQuiz();
+  if (!instructionQuiz) {
+    logger.debug("No pending hooks or instructions");
+    return null;
+  }
+
+  logger.info(
+    { quizId: instructionQuiz.id },
+    "Processing next instruction workflow"
+  );
+  return handleInstructionJob(instructionQuiz);
 }
 
 export async function processQuizById(
   quizId: number
 ): Promise<ProcessResult> {
-  const { data: quiz, error } = await supabase
-    .from("quizzes")
-    .select("*")
-    .eq("id", quizId)
-    .maybeSingle();
-
-  if (error && error.code !== "PGRST116") {
-    throw new Error(`Failed to load quiz ${quizId}: ${error.message}`);
-  }
-
+  let quiz = await loadQuizById(quizId);
   if (!quiz) {
     return null;
   }
 
-  if (quiz.status !== "pending") {
-    logger.info({ quizId }, "Resetting quiz before processing");
-    const { data: updated, error: resetError } = await supabase
-      .from("quizzes")
-      .update({ status: "pending" })
-      .eq("id", quizId)
-      .select("*")
-      .single();
+  await handleHookJob(quiz);
+  quiz = await loadQuizById(quizId);
+  if (!quiz) {
+    return null;
+  }
 
-    if (resetError || !updated) {
-      throw new Error(`Failed to reset quiz ${quizId}: ${resetError?.message}`);
+  if (quiz.status === "pending") {
+    const promoted = await promoteQuizToProcessing(quiz.id);
+    if (!promoted) {
+      return null;
     }
-
-    return processQuizRecord(updated as QuizRow);
+    return handleInstructionJob(promoted);
   }
 
-  const { data: claimed, error: claimError } = await supabase
-    .from("quizzes")
-    .update({ status: "processing" })
-    .eq("id", quizId)
-    .eq("status", "pending")
-    .select("*")
-    .single();
-
-  if (claimError && claimError.code !== "PGRST116") {
-    throw new Error(`Failed to claim quiz ${quizId}: ${claimError.message}`);
+  if (quiz.status === "processing") {
+    return handleInstructionJob(quiz);
   }
 
-  if (!claimed) {
-    throw new Error("Quiz was already processed.");
-  }
-
-  const claimedQuiz = claimed as QuizRow;
-  logger.info({ quizId }, "Processing quiz by id");
-  return processQuizRecord(claimedQuiz);
+  return null;
 }

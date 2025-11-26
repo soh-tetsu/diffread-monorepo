@@ -20,6 +20,8 @@ export function mapQuizStatusToSessionStatus(
       return "skip_by_failure";
     case "failed":
       return enqueued ? "pending" : "errored";
+    case "not_required":
+      return "pending";
     case "pending":
     case "processing":
     default:

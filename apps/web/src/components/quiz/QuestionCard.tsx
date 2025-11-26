@@ -1,5 +1,6 @@
 "use client";
 
+import "./QuestionCard.css";
 import { Float, Box, Text } from "@chakra-ui/react";
 import { Blockquote, BlockquoteIcon } from "@/components/ui/blockquote";
 import { QuizOption, QuizQuestion } from "@/lib/quiz/normalize-question";
@@ -118,16 +119,21 @@ export function QuestionCard({
                   textTransform="uppercase"
                   fontSize="xs"
                   letterSpacing="0.2em"
-                  color="teal.200"
+                  color="teal.600"
                   mb={2}
                 >
                   From the article
                 </Text>
-                <Text color="gray.100" fontStyle="italic">
+                <Text color="gray.700" fontStyle="italic">
                   {question.relevantContext}
                 </Text>
               </Blockquote>
             </Box>
+          )}
+          {question.remediationPointer && (
+            <p className="remediation-pointer">
+              {question.remediationPointer}
+            </p>
           )}
         </div>
       )}

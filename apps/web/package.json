@@ -8,8 +8,10 @@
     "start": "next start",
     "lint": "eslint --ext .ts,.tsx,.js app src scripts",
     "admin:add-session": "tsx scripts/add-session.ts",
+    "admin:hooks": "tsx scripts/add-session.ts",
     "admin:drain-session": "tsx scripts/drain-session.ts",
     "admin:drain-pending": "tsx scripts/drain-pending.ts",
+    "admin:instruction": "tsx scripts/instruction.ts",
     "task:analyze-metadata": "tsx scripts/analyze-metadata.ts"
   },
   "dependencies": {

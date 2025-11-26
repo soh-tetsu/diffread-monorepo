@@ -9,7 +9,9 @@ function sanitizeText(text: string): string {
 }
 
 function serializeMetadata(metadata: ArticleMetadata): string {
-  return JSON.stringify(metadata, null, 2);
+   return JSON.stringify({
+    language: metadata.language || "en", // Default to English if missing
+  }, null, 2); 
 }
 
 // GROUP 4: Impact (Factual, Narrative) - Default Fallback
@@ -65,374 +67,395 @@ ${sanitizeText(text)}
 // GROUP 4: Impact (Factual, Narrative) - Default Fallback
 // Includes 'Factual Report', 'Narrative / Chronology'
 const IMPACT_PROMPT = `You are an expert Historian and Strategic Analyst.
-  Your goal is to gamify the reading of a factual report or narrative by creating an "Impact Analysis Challenge."
+Your goal is to gamify the reading of a factual report, historical narrative, or market analysis by creating an "Impact Analysis Challenge" (3 Hook Questions).
 
-  **Task:**
-  Generate exactly **3 Hook Questions**.
-  **Constraint:** Question 1 MUST be a "True/False" question. Questions 2 and 3 must be Multiple Choice.
+CONTEXT:
+The user has NOT read the text yet. Do not test memory.
+Test their ability to **predict consequences**, **identify causal chains**, and **spot strategic nuances**.
 
-  **Input Context:**
-  The user has NOT read the text yet.
-  Test their ability to **predict consequences** and **identify turning points**.
+---
 
-  ---
+### CRITICAL: DYNAMIC LOCALIZATION
+**Step 1:** Inspect the \`language\` key inside the **[METADATA]** JSON object provided below.
+**Step 2:** All natural language fields ("question", every option's "option" and "remediation", and the "rationale") must be written in \`metadata.language\`. JSON keys stay in English.
 
-  ### QUESTION TYPE 1: The "Headline Check" (Binary)
-  *   **Goal:** Test understanding of the main outcome.
-  *   **Format:** "True or False: The report concludes that [Event] will lead to [Positive Outcome]."
-  *   **Drafting Rule:**
-      1.  Identify a nuance where the "Good News" actually has a "Bad Side" (or vice versa).
-      2.  **The Correct Answer:** "False" (usually).
-      3.  **Rationale:** "While X happened, the author warns that..."
+*Example:* If \`metadata.language\` is "ja" or "Japanese", output valid Japanese, even if the text is English.
 
-  ### QUESTION TYPE 2: The "Turning Point" (Causality)
-  *   **Goal:** Identify the specific decision or moment that changed the outcome.
-  *   **Extraction Logic:** Locate a moment where the narrative shifts direction (from success to failure, or vice versa).
-  *   **Drafting Rule:**
-      1.  Set the scene: "In [Year/Context], the situation looked bleak for [Subject]."
-      2.  The Pivot: "What specific decision or event turned the tide and led to [Outcome]?"
-      3.  **The Correct Answer:** The actual catalyst event.
-      4.  **The Distractors:** Other events that happened around the same time but were not the *cause*.
+---
 
-  ### QUESTION TYPE 3: The "Hidden Detail" (Context)
-  *   **Goal:** Highlight a nuance that changes the meaning of the story.
-  *   **Extraction Logic:** Find a detail that contradicts the "Big Picture" headline.
-  *   **Drafting Rule:**
-      1.  The Headline: "Everyone knows about [Major Fact/Headline]."
-      2.  The Twist: "But this report uncovers a specific detail about [Minor Aspect] that changes the context. What is it?"
-      3.  **The Correct Answer:** The specific nuance found in the text.
-      4.  **The Distractors:** Generalizations or standard details that are widely known but not the focus here.
+### GENERATION ALGORITHM
 
-  ---
+Generate exactly 3 questions following this strict logic:
 
-  ### Output Rules
+**Q1: The "Nuance/Headline Check" (True/False)**
+*   **Goal:** Challenge the "Surface Level" understanding of the event or report.
+*   **Drafting:** "True or False: While [Event] is often attributed to [Obvious Cause], this text argues that the primary driver was actually [Surprising Factor]."
+*   **Logic:**
+    *   **False:** If the text refutes the popular/obvious narrative in favor of a deeper cause.
+    *   **Rationale:** "False. The author reveals that while [Obvious Cause] played a role, the deciding factor was actually [Surprising Factor]."
 
-  1.  **Randomization:** Randomize the position of the Correct Answer within the options.
-  2.  **Indexing:** The \`answer_index\` must be an integer (0, 1, or 2).
-  3.  **Remediation:** Must include a specific pointer (e.g., "See the section 'Market Outlook'" or "See Paragraph 4").
-  4.  **Format:** Output a single JSON object exactly matching this schema:
+**Q2: The "Turning Point" (Multiple Choice)**
+*   **Goal:** Identify the precise moment, decision, or accident that changed the trajectory.
+*   **Logic:** Find a "Pivot Point" (from failure to success, or stability to crisis).
+*   **Drafting:** "The outcome for [Subject] seemed certain until a specific catalyst shifted the trajectory. What does the text identify as this critical turning point?"
+*   **Distractors:** Events that were merely *symptoms* of the change, or events that happened too late to be the cause (correlation vs causation traps).
+*   **Correct Answer:** The specific catalyst (decision/event) identified in the text.
 
-  \`\`\`json
-  {
-    "hooks": [
-      {
-        "id": 1,
-        "type": "headline_check",
-        "question": "True or False: ...",
-        "options": [{"text": "True", ...}, {"text": "False", ...}],
-        "remediation_pointer": "...",
-        "answer_index": 1
-      },
-      {
-        "id": 2,
-        "type": "turning_point",
-        "question": "...",
-        "options": [
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."}
-        ],
-        "remediation_pointer": "...",
-        "answer_index": 0
-      },
-      {
-        "id": 3,
-        "type": "hidden_detail",
-        "question": "...",
-        "options": [
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."}
-        ],
-        "remediation_pointer": "...",
-        "answer_index": 2
-      }
-    ]
-  }
-  \`\`\`
+**Q3: The "Hidden Variable/Detail" (Multiple Choice)**
+*   **Goal:** Highlight a specific detail that changes the "Big Picture" or adds a critical caveat.
+*   **Logic:** Find a statistic, quote, or minor event that contradicts or complicates the general headline.
+*   **Drafting:** "The general headline suggests [Major Outcome]. However, what specific 'Hidden Variable' does the report cite as a critical exception or warning?"
+*   **Distractors:** Broad generalizations or standard facts that everyone already knows.
+*   **Correct Answer:** The specific, often overlooked detail mentioned in the text.
 
-  ---
+---
+
+### OUTPUT RULES
+
+1.  **Format:** Output a single valid JSON object. No markdown fences.
+2.  **Randomization:** Randomize the \`answer_index\`.
+3.  **Remediation:** Pointers must be specific (e.g., "See the section 'Market Outlook'").
+4.  **Language:** Strictly follow \`metadata.language\`.
+
+### JSON SCHEMA
+
+{
+  "hooks": [
+    {
+      "id": 1,
+      "type": "headline_check",
+      "question": "String (In metadata.language)",
+      "options": [
+        { "text": "True (Translated)", "rationale": "String (In metadata.language)" },
+        { "text": "False (Translated)", "rationale": "String (In metadata.language)" }
+      ],
+      "remediation": "String (In metadata.language)",
+      "answer_index": Integer (0 or 1)
+    },
+    {
+      "id": 2,
+      "type": "turning_point",
+      "question": "String (In metadata.language)",
+      "options": [
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" }
+      ],
+      "remediation": "String",
+      "answer_index": Integer (0, 1, or 2)
+    },
+    {
+      "id": 3,
+      "type": "hidden_detail",
+      "question": "String (In metadata.language)",
+      "options": [
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" }
+      ],
+      "remediation": "String",
+      "answer_index": Integer (0, 1, or 2)
+    }
+  ]
+}
+
+---
+
+### INPUT DATA
+
 `;
 
 // GROUP 3: High-Stakes (Procedural, Prescriptive)
-const HIGH_STAKES_PROMPT = `You are an expert Technical Instructor and Mentor. 
-  Your goal is to gamify the reading of a procedural guide or rulebook by creating a "High-Stakes Challenge."
+const HIGH_STAKES_PROMPT = `You are an expert Technical Instructor and Mentor.
+Your goal is to gamify the reading of a procedural guide, manual, or "How-To" article by creating a "High-Stakes Challenge" (3 Hook Questions).
 
-  **Task:**
-  Generate exactly **3 Hook Questions**.
-  **Constraint:** Question 1 MUST be a "True/False" question. Questions 2 and 3 must be Multiple Choice.
+CONTEXT:
+The user has NOT read the guide yet. Do not test memory.
+Test their **practical judgment**, **safety awareness**, and **desire for efficiency**.
 
-  **Input Context:**
-  The user has NOT read the guide yet.
-  Test their **practical judgment** and **awareness of common pitfalls**.
+---
 
-  ---
+### CRITICAL: DYNAMIC LOCALIZATION
+**Step 1:** Inspect the \`language\` key inside the **[METADATA]** JSON object provided below.
+**Step 2:** All natural language fields ("question", every option's "option" and "remediation", and the "rationale") must be written in \`metadata.language\`. JSON keys stay in English.
 
-  ### QUESTION TYPE 1: The "Safety Check" (Binary)
-  *   **Goal:** Test awareness of critical rules.
-  *   **Format:** "True or False: When performing [Task], you should always [Common Practice]."
-  *   **Drafting Rule:**
-      1.  Identify a "Common Practice" that is actually wrong or dangerous in this specific context.
-      2.  **The Correct Answer:** "False".
-      3.  **Rationale:** "Doing this causes [Error]. The guide recommends..."
+*Example:* If \`metadata.language\` is "ja" or "Japanese", output valid Japanese, even if the text is English.
 
-  ### QUESTION TYPE 2: The "Efficiency Hack" (Desire for Speed)
-  *   **Goal:** Reveal a shortcut or a "better way" that contradicts standard practice.
-  *   **Extraction Logic:** Locate a section where the author suggests an optimization, a tool, or a method that saves time/resources.
-  *   **Drafting Rule:**
-      1.  Challenge the norm: "Standard advice says to manually [Action A]."
-      2.  Offer the upgrade: "Why does this guide argue that [Action A] is a waste of time, and what should you do instead?"
-      3.  **The Correct Answer:** The optimized method or tool recommended by the author.
-      4.  **The Distractors:** The standard, slow, or "official" way of doing things that the author is improving upon.
+---
 
-  ### QUESTION TYPE 3: The "Rule of Thumb" Test (Judgment)
-  *   **Goal:** Test the user's intuition about the rules or constraints.
-  *   **Extraction Logic:** Locate a specific constraint, limit, or condition (e.g., "Do not use X if Y is true").
-  *   **Drafting Rule:**
-      1.  Present a scenario: "You are about to [Action]. Under which specific condition does the author state you must STOP immediately?"
-      2.  **The Correct Answer:** The specific condition found in the text.
-      3.  **The Distractors:** Plausible but incorrect conditions (e.g., "If it's raining" vs "If the temperature is above 50 degrees").
+### GENERATION ALGORITHM
 
-  ---
+Generate exactly 3 questions following this strict logic:
 
-  ### Output Rules
+**Q1: The "Safety/Critical Check" (True/False)**
+*   **Goal:** Prevent a critical error or highlight a common misconception.
+*   **Drafting:** "True or False: When performing [Task], standard intuition suggests [Common Action], and this guide confirms that is the safest approach."
+*   **Logic:**
+    *   **False (Most Likely):** If the guide warns *against* a common habit (e.g., "Never turn off the power while...").
+    *   **Rationale:** "False. Doing this actually causes [Specific Consequence]. The guide strictly warns to..."
+    *   **True:** Only if the guide validates a surprising safety step.
 
-  1.  **Randomization:** Randomize the position of the Correct Answer within the options.
-  2.  **Indexing:** The \`answer_index\` must be an integer (0, 1, or 2).
-  3.  **Remediation:** Must include a specific pointer (e.g., "See Step 4" or "See the 'Warning' box").
-  4.  **Format:** Output a single JSON object exactly matching this schema:
+**Q2: The "Efficiency/Pro-Tip" Hook (Multiple Choice)**
+*   **Goal:** Appeal to the user's desire to save time or effort (Amateur vs. Pro).
+*   **Logic:** Locate a tool, shortcut, or method that is faster/better than the "Old Way."
+*   **Drafting:** "Most beginners handle [Task] by [Slow Method]. What does this guide recommend as the 'Pro' method to save time/resources?"
+*   **Distractors:** The "Slow Method" (Standard way) or dangerous shortcuts that compromise quality.
+*   **Correct Answer:** The specific "Hack" or optimization in the text.
 
-  \`\`\`json
-  {
-    "hooks": [
-      {
-        "id": 1,
-        "type": "safety_check",
-        "question": "True or False: ...",
-        "options": [{"text": "True", ...}, {"text": "False", ...}],
-        "remediation_pointer": "...",
-        "answer_index": 1
-      },
-      {
-        "id": 2,
-        "type": "efficiency_hack",
-        "question": "...",
-        "options": [
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."}
-        ],
-        "remediation_pointer": "...",
-        "answer_index": 0
-      },
-      {
-        "id": 3,
-        "type": "rule_of_thumb",
-        "question": "...",
-        "options": [
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."}
-        ],
-        "remediation_pointer": "...",
-        "answer_index": 2
-      }
-    ]
-  }
-  \`\`\`
+**Q3: The "Scenario Judgment" (Multiple Choice)**
+*   **Goal:** Test conditional logic (Rule of Thumb).
+*   **Logic:** Find a "If X, then Y" rule or a specific constraint.
+*   **Drafting:** "Scenario: You are observing [Condition X] while trying to [Goal]. According to the guide, what is the IMMEDIATE action you must take?"
+*   **Distractors:** Plausible actions that are incorrect for *this specific condition* (e.g., "Continue but slower," "Ignore it").
+*   **Correct Answer:** The specific action mandated by the condition (e.g., "Abort immediately," "Switch to Mode B").
 
-  ---
+---
+
+### OUTPUT RULES
+
+1.  **Format:** Output a single valid JSON object. No markdown fences.
+2.  **Randomization:** Randomize the \`answer_index\`.
+3.  **Remediation:** Pointers must be specific (e.g., "See Step 4", "See 'Warning' box").
+4.  **Language:** Strictly follow \`metadata.language\`.
+
+### JSON SCHEMA
+
+{
+  "hooks": [
+    {
+      "id": 1,
+      "type": "safety_check",
+      "question": "String (In metadata.language)",
+      "options": [
+        { "text": "True (Translated)", "rationale": "String (In metadata.language)" },
+        { "text": "False (Translated)", "rationale": "String (In metadata.language)" }
+      ],
+      "remediation": "String (In metadata.language)",
+      "answer_index": Integer (0 or 1)
+    },
+    {
+      "id": 2,
+      "type": "efficiency_hack",
+      "question": "String (In metadata.language)",
+      "options": [
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" }
+      ],
+      "remediation": "String",
+      "answer_index": Integer (0, 1, or 2)
+    },
+    {
+      "id": 3,
+      "type": "rule_of_thumb",
+      "question": "String (In metadata.language)",
+      "options": [
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" }
+      ],
+      "remediation": "String",
+      "answer_index": Integer (0, 1, or 2)
+    }
+  ]
+}
+
+---
+
+### INPUT DATA
+
 `;
 
 // GROUP 2: Scientific Method (Academic Research)
 const ACADEMIC_PROMPT = `You are an expert Research Scientist and Cognitive Science Educator.
-  Your goal is to gamify the reading of an academic paper by creating a "Scientific Method Simulation."
+Your goal is to gamify the reading of an academic paper by creating a "Scientific Method Simulation" (3 Hook Questions).
 
-  **Task:**
-  Generate exactly **3 Hook Questions**. 
-  **Constraint:** Question 1 MUST be a "True/False" question. Questions 2 and 3 must be Multiple Choice.
+CONTEXT:
+The user has NOT read the paper yet. Do not test memory.
+Test their **scientific intuition** and **ability to predict study outcomes** based on standard theories.
 
+---
 
-  **Input Context:**
-  The user has NOT read the paper yet. Do not test their memory.
-  Test their **scientific intuition** and **ability to predict outcomes**.
+### CRITICAL: DYNAMIC LOCALIZATION
+**Step 1:** Inspect the \`language\` key inside the **[METADATA]** JSON object provided below.
+**Step 2:** All natural language fields ("question", every option's "option" and "remediation", and the "rationale") must be written in \`metadata.language\`. JSON keys stay in English.
 
-  ---
+*Example:* If \`metadata.language\` is "ja" or "Japanese", output valid Japanese, even if the text is English.
 
-  ### QUESTION TYPE 1: The "Hypothesis Check" (Binary)
-  *   **Goal:** Low-friction entry. Test if the user can guess the study's main outcome.
-  *   **Format:** "True or False: This study supports the standard view that [Standard Assumption]."
-  *   **Drafting Rule:**
-      1.  Identify the "Standard Assumption" (the Null Hypothesis or common belief).
-      2.  **The Correct Answer:** Must be "False" (if the paper refutes it) or "True" (if it surprisingly confirms it).
-      3.  **Rationale:** Explain *why* based on the Abstract/Results.
+---
 
-  *   **Extraction Logic:** Locate the [Experimental Setup] and the [Result].
-  *   **Drafting Rule:**
-      1.  Describe the setup: "The authors tested [Intervention] under [Condition]..."
-      2.  Ask for the outcome: "...What was the surprising impact on [Metric]?"
-      3.  **The Correct Answer:** The actual counter-intuitive finding from the Results section.
-      4.  **The Distractors:**
-          *   The "Null Hypothesis" (No significant change).
-          *   The "Standard Expectation" (What previous literature would suggest).
+### GENERATION ALGORITHM
 
-  ### QUESTION TYPE 2: The "Methodology" Hook
-  *   **Goal:** Filter for users who care about rigor and validity.
-  *   **Extraction Logic:** Locate a specific [Design Choice] or [Constraint].
-  *   **Drafting Rule:**
-      1.  Identify a choice: "To measure [Phenomenon], the authors rejected the standard [Metric/Method]."
-      2.  Ask Why: "Why did they argue the standard approach is flawed for this specific dataset?"
-      3.  **The Correct Answer:** The specific bias, confound, or limitation the authors avoided.
-      4.  **The Distractors:** Superficial reasons (e.g., "It was too expensive," "It requires too much data") that sound plausible but are incorrect in this context.
+Generate exactly 3 questions following this strict logic:
 
-  ### QUESTION TYPE 3: The "Significance" Hook
-  *   **Goal:** Highlight the "So What?" or the trade-offs.
-  *   **Extraction Logic:** Locate the [Discussion/Conclusion] and any [Limitations/Trade-offs].
-  *   **Drafting Rule:**
-      1.  State the win: "The results show a significant improvement in [Metric A]."
-      2.  Introduce the catch: "However, the Discussion section reveals a critical cost regarding [Metric B]. What is it?"
-      3.  **The Correct Answer:** The specific trade-off or limitation mentioned.
-      4.  **The Distractors:** Generic limitations (e.g., "Sample size was too small") that are NOT the main point of the discussion.
+**Q1: The "Hypothesis Check" (True/False)**
+*   **Goal:** Test if the user can predict the main finding (Counter-intuitive vs. Intuitive).
+*   **Drafting:** "True or False: Based on standard theories in this field, this study confirms that [Standard Assumption]."
+*   **Logic:**
+    *   If the paper *refutes* the standard view, the answer is **False**.
+    *   If the paper *confirms* a controversial view, the answer is **True**.
+*   **Rationale:** "Actually, the results indicate [Actual Finding]..."
 
-  ---
+**Q2: The "Methodology" Hook (Multiple Choice)**
+*   **Goal:** Focus on experimental rigor and design choices.
+*   **Logic:** Identify a specific constraint, control variable, or novel method used by the authors.
+*   **Drafting:** "To accurately measure [Phenomenon], why did the authors reject the standard [Method A] in favor of [Method B]?"
+*   **Distractors:** Plausible but incorrect reasons (e.g., "It was cheaper," "It was faster") or the limitations of the standard method that *don't* apply here.
+*   **Correct Answer:** The specific validity/bias concern mentioned in the Methods section.
 
-  ### Output Rules
+**Q3: The "Significance & Trade-offs" Hook (Multiple Choice)**
+*   **Goal:** Highlight the "So What?" or the critical limitation.
+*   **Logic:** Look at the Discussion/Conclusion. Find a significant result OR a critical limitation/future direction.
+*   **Drafting:** "The study achieves [Result X]. However, the authors note this comes with a critical trade-off regarding..." OR "What implies the most significant shift from previous literature?"
+*   **Distractors:** Generic limitations (e.g., "Sample size too small") or over-generalized conclusions.
 
-  1.  **Tone:** Professional, rigorous, yet intriguing.
-  2.  **Remediation:** Must include a specific pointer (e.g., "See Figure 3" or "See Section 4.2").
-  3.  **Format:** Output a single JSON object.
+---
 
-  \`\`\`json
-  {
+### OUTPUT RULES
+
+1.  **Tone:** Professional, rigorous, yet intriguing.
+2.  **Randomization:** Randomize the \`answer_index\`.
+3.  **Remediation:** Pointers must be specific (e.g., "See Figure 2", "See Section 4.1").
+4.  **Schema:** Follow the JSON structure strictly.
+
+### JSON SCHEMA
+
+{
   "hooks": [
-      {
-        "id": 1,
-        "type": "hypothesis_check",
-        "question": "True or False: ...",
-        "options": [
-          {"text": "True", "rationale": "..."},
-          {"text": "False", "rationale": "..."}
-        ],
-        "remediation_pointer": "See Abstract.",
-        "answer_index": 1
-      },
-      {
-        "id": 2,
-        "type": "methodology",
-        "question": "...",
-        "options": [
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."}
-        ],
-        "remediation_pointer": "...",
-        "answer_index": 0
-      },
-      {
-        "id": 3,
-        "type": "significance",
-        "question": "...",
-        "options": [
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."}
-        ],
-        "remediation_pointer": "...",
-        "answer_index": 2
-      }
-    ]
-  }
-  \`\`\`
+    {
+      "id": 1,
+      "type": "hypothesis_check",
+      "question": "String (In metadata.language)",
+      "options": [
+        { "text": "True (Translated)", "rationale": "String (In metadata.language)" },
+        { "text": "False (Translated)", "rationale": "String (In metadata.language)" }
+      ],
+      "remediation": "String (In metadata.language)",
+      "answer_index": Integer (0 or 1)
+    },
+    {
+      "id": 2,
+      "type": "methodology",
+      "question": "String (In metadata.language)",
+      "options": [
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" }
+      ],
+      "remediation": "String",
+      "answer_index": Integer (0, 1, or 2)
+    },
+    {
+      "id": 3,
+      "type": "significance",
+      "question": "String (In metadata.language)",
+      "options": [
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" }
+      ],
+      "remediation": "String",
+      "answer_index": Integer (0, 1, or 2)
+    }
+  ]
+}
 
-  ---
+---
+
+### INPUT DATA
+
 `;
 
 // GROUP 1: Myth-Buster (Argumentative, Conceptual, Case Study)
 const MYTH_BUSTER_PROMPT = `You are an expert Debater and Cognitive Scientist.
-  Your goal is to gamify the reading of an opinionated or analytical article by creating a "Myth-Busting Challenge."
+Your goal is to gamify the reading experience by creating a "Myth-Busting Challenge" (3 Hook Questions) that tests a user's intuition against the text's unique perspective.
 
-  **Task:**
-  Generate exactly **3 Hook Questions**.
-  **Constraint:** Question 1 MUST be a "True/False" question. Questions 2 and 3 must be Multiple Choice.
+CONTEXT:
+The user has NOT read the text yet. Do not ask memory/recall questions (e.g., "What did the text say?").
+Instead, ask **Prediction Questions** (e.g., "Most people think X, but what does this author argue?").
 
-  **Input Context:**
-  The user has NOT read the article yet. Do not test their memory.
-  Test their **intuition** and **worldview** against the author's unique perspective.
+---
 
-  ---
+### CRITICAL: DYNAMIC LOCALIZATION
+**Step 1:** Inspect the \`language\` key inside the **[METADATA]** JSON object provided below.
+**Step 2:** All natural language fields ("question", every option's "option" and "remediation", and the "rationale") must be written in \`metadata.language\`. JSON keys stay in English.
 
-  ### QUESTION TYPE 1: The "Common Sense Test" (Binary)
-  *   **Goal:** Challenge the user's worldview immediately.
-  *   **Format:** "True or False: The author argues that [Common Belief] is the best way to achieve [Goal]."
-  *   **Drafting Rule:**
-      1.  Identify a "Common Belief" the author attacks.
-      2.  **The Correct Answer:** Usually "False" (The author argues the opposite).
-      3.  **Rationale:** "Actually, the author argues that [Common Belief] leads to [Negative Outcome]."
+*Example:* If \`metadata.language\` is "ja" or "Japanese", output valid Japanese, even if the text is English.
 
-  ### QUESTION TYPE 2: The "Root Cause" Flip
-  *   **Goal:** Shift the user's understanding of Causality.
-  *   **Extraction Logic:** Locate a problem where the author identifies a *hidden* or *systemic* cause that is different from the *obvious* symptom.
-  *   **Drafting Rule:**
-      1.  Present the problem: "We often blame [Standard Culprit] for [Problem]..."
-      2.  Ask for the real cause: "...What does this case study identify as the actual, silent killer?"
-      3.  **The Correct Answer:** The deep/hidden cause identified by the author.
-      4.  **The Distractors:** The superficial symptoms or standard scapegoats.
+---
 
-  ### QUESTION TYPE 3: The "Conceptual Flip" (Definition Shift)
-  *   **Goal:** Redefine a core concept.
-  *   **Extraction Logic:** Locate a term (e.g., "Productivity," "Happiness," "Innovation") that the author redefines in a novel way.
-  *   **Drafting Rule:**
-      1.  Ask about the definition: "How does the author's definition of [Concept] differ from the standard dictionary definition?"
-      2.  **The Correct Answer:** The author's nuanced or philosophical definition.
-      3.  **The Distractors:** The standard, literal, or popular definitions of the term.
+### GENERATION ALGORITHM
 
-  ---
+Generate exactly 3 questions following this strict logic:
 
-  ### Output Rules
+**Q1: The "Doxa" Test (True/False)**
+*   **Logic:** Identify a "Common Belief" (Doxa) that the author refutes.
+*   **Drafting:** Create a statement that *sounds* obviously true to a layperson but is **False** according to the specific logic of this text.
+*   **Rationale:** Explain *why* the author disagrees with common sense.
 
-  1.  **Randomization:** Randomize the position of the Correct Answer within the options.
-  2.  **Indexing:** The \`answer_index\` must be an integer (0, 1, or 2).
-  3.  **Remediation:** Must include a specific pointer (e.g., "See the section on 'The Efficiency Trap'").
-  4.  **Format:** Output a single JSON object exactly matching this schema:
+**Q2: The "Root Cause" Flip (Multiple Choice)**
+*   **Logic:** Find a problem where the author identifies a surprising *hidden cause* vs. a *visible symptom*.
+*   **Drafting:** "When looking at [Problem], we usually blame [Symptom]. What does this author identify as the actual silent driver?"
+*   **Distractors:** Use the "Visible Symptoms" (plausible but wrong according to the text).
 
-  \`\`\`json
-  {
-    "hooks": [
-      {
-        "id": 1,
-        "type": "common_sense_test",
-        "question": "True or False: ...",
-        "options": [{"text": "True", ...}, {"text": "False", ...}],
-        "remediation_pointer": "...",
-        "answer_index": 1
-      },
-      {
-        "id": 2,
-        "type": "root_cause",
-        "question": "...",
-        "options": [
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."}
-        ],
-        "remediation_pointer": "...",
-        "answer_index": 0
-      },
-      {
-        "id": 3,
-        "type": "conceptual_flip",
-        "question": "...",
-        "options": [
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."},
-          {"text": "...", "rationale": "..."}
-        ],
-        "remediation_pointer": "...",
-        "answer_index": 2
-      }
-    ]
-  }
-  \`\`\`
+**Q3: The "Conceptual Shift" (Multiple Choice)**
+*   **Logic:** Find a term/concept the author redefines or uses metaphorically.
+*   **Drafting:** "How does the author redefine the concept of [Term] in a way that differs from the dictionary?"
+*   **Distractors:** Use the standard/dictionary definitions.
 
-  ---
+---
+
+### OUTPUT RULES
+
+1.  **JSON Only:** Output a single valid JSON object. No markdown fences.
+2.  **Randomization:** The \`answer_index\` must be random (do not always make 'A' the answer).
+3.  **Remediation:** The \`remediation\` should be a short quote or section title from the text.
+4.  **Rationales:** EVERY option (correct and incorrect) must have a \`rationale\` string explaining why it is right or wrong based on the text.
+
+### JSON SCHEMA
+
+{
+  "hooks": [
+    {
+      "id": 1,
+      "type": "common_sense_test",
+      "question": "String (True/False statement)",
+      "options": [
+        { "text": "True", "rationale": "String (Why this is wrong/right per text)" },
+        { "text": "False", "rationale": "String (Why this is wrong/right per text)" }
+      ],
+      "remediation": "String (Quote/Location)",
+      "answer_index": Integer (0 or 1)
+    },
+    {
+      "id": 2, // Repeat structure for Root Cause
+      "type": "root_cause",
+      "question": "String",
+      "options": [
+        { "text": "String (Option A)", "rationale": "String" },
+        { "text": "String (Option B)", "rationale": "String" },
+        { "text": "String (Option C)", "rationale": "String" }
+      ],
+      "remediation": "String",
+      "answer_index": Integer (0, 1, or 2)
+    },
+    {
+      "id": 3, // Repeat structure for Conceptual Flip
+      "type": "conceptual_flip",
+      "question": "String",
+      "options": [
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" },
+        { "text": "String", "rationale": "String" }
+      ],
+      "remediation": "String",
+      "answer_index": Integer (0, 1, or 2)
+    }
+  ]
+}
+
+---
+
+### INPUT DATA
+
 `;

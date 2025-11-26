@@ -16,6 +16,7 @@ export type QuizQuestion = {
     estimatedParagraph?: number;
   };
   relevantContext?: string;
+  remediationPointer?: string;
 };
 
 function isStructuredContent(

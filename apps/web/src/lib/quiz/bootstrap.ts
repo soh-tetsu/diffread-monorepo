@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { supabase } from "@/lib/supabase";
+import { upsertHookQuestions } from "@/lib/db/hooks";
 import { ArticleRow, QuizRow } from "@/types/db";
 import { normalizeUrl } from "@/lib/utils/normalize-url";
 
@@ -9,7 +10,7 @@ async function createPendingQuiz(articleId: number): Promise<QuizRow> {
     .insert({
       article_id: articleId,
       quiz_id: randomUUID(),
-      status: "pending",
+      status: "not_required",
     })
     .select("*")
     .single();
@@ -18,7 +19,14 @@ async function createPendingQuiz(articleId: number): Promise<QuizRow> {
     throw new Error(`Failed to enqueue quiz: ${error?.message}`);
   }
 
-  return data as QuizRow;
+  const quiz = data as QuizRow;
+
+  await upsertHookQuestions({
+    quizId: quiz.id,
+    status: "pending",
+  });
+
+  return quiz;
 }
 
 async function resetFailedQuiz(quiz: QuizRow): Promise<QuizRow> {

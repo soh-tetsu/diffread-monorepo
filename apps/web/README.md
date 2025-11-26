@@ -43,15 +43,25 @@ Feel free to update the content or styling as you unlock more of the prototype. 
 
 ## Admin helper
 
-To create or look up a `sessions` row from the CLI and enqueue a quiz job for the same URL, use the helper script (loads `.env.local`, targets the hardened `api` schema by default, and requires `SUPABASE_SERVICE_ROLE_KEY` plus either `SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_URL`):
+To register a session and run the hook workflow (mirrors the `/api/hooks` behavior), run:
 
 ```bash
 SUPABASE_URL=https://xxx.supabase.co \
 SUPABASE_SERVICE_ROLE_KEY=your-secret \
-bun run admin:add-session user@example.com https://example.com/article
+bun run admin:hooks user@example.com https://example.com/article
 ```
 
-Set `SUPABASE_DB_SCHEMA` if you expose a different schema via the Data API. The script calls `enqueueAndProcessSession`, so it mirrors the POST API behavior: enqueue (or reuse) the quiz job and immediately trigger a processing pass.
+Set `SUPABASE_DB_SCHEMA` if you expose a different schema via the Data API. The script calls `enqueueAndProcessSession` and `processQuizById`, so hooks are generated immediately.
+
+To register a session and generate both hooks and instruction questions (mirrors `/api/instructions`), run:
+
+```bash
+SUPABASE_URL=https://xxx.supabase.co \
+SUPABASE_SERVICE_ROLE_KEY=your-secret \
+bun run admin:instruction user@example.com https://example.com/article
+```
+
+This ensures the session/quiz exist, forces the hook workflow to finish, flips the quiz status to `pending`, and then runs the instruction workflow synchronously.
 
 ## Quiz bootstrap flow
 
@@ -84,10 +94,27 @@ Set `SUPABASE_DB_SCHEMA` if you expose a different schema via the Data API. The 
   Hook this up to cron/serverless schedulers. Each invocation drains a single pending quiz; repeated runs keep the queue healthy.
 
 - Design recap:
-  - **Quizzes** are the immutable job queue (`status = pending|processing|ready|failed|skip_*`).
+  - **Quizzes** are the immutable job queue (`status = not_required|pending|processing|ready|failed|skip_*`).
   - **Sessions** are mutable, user-facing records pointing at quizzes.
   - **Two worker entry points:** `processQuizById` handles session-triggered jobs (rate-limited to ≤5 concurrent scrapes), while `processNextPendingQuiz` handles backlog sweeps (mutexed to one run at a time).
   - **Safety net:** API/CLI invocations wake the backlog worker after each job, and the scheduled `admin:drain-pending` script can run periodically to catch anything left behind.
+
+## Hook vs. instruction status matrix
+
+Hooks (stored in `hook_questions.status`) and instructions (`quizzes.status`) move independently so retriable failures do not block each other. The worker decides what to run by checking both columns:
+
+| `hook_questions.status` | `quizzes.status`     | Worker action |
+| ----------------------- | -------------------- | ------------- |
+| `pending`               | `not_required`       | Run the hook workflow. On success mark hooks `ready`; on failure mark hooks `failed` and leave the quiz in `not_required` (or `failed` if the run should surface to the user). |
+| `pending`               | `pending`            | Still run the hook workflow first. If it succeeds, immediately transition the quiz to `processing` and run the instruction workflow. |
+| `ready`                 | `not_required`       | Nothing to do—hooks exist and instructions have not been requested. |
+| `ready`                 | `pending`            | Promote the quiz to `processing` and run the instruction workflow. |
+| `ready`                 | `processing`         | Another worker is already generating instructions; skip. |
+| `ready`                 | `ready`              | Both question sets exist; worker skips. |
+| `ready`                 | `failed`             | Instructions failed earlier. The worker waits until an admin/API flips the quiz back to `pending` before retrying. |
+| `failed` / `skip_*`     | any                  | Hooks failed or were skipped. The worker does nothing until someone resets the hooks row to `pending`. |
+
+`quizzes.status = not_required` is the default for new jobs so hooks can run immediately while instructions remain opt-in. Calling `/api/instructions` (or the admin scripts) flips the quiz to `pending`, which allows the worker to run the instruction workflow once hooks are `ready`.
 
 ## Client quiz viewer
 

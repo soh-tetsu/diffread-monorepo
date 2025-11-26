@@ -128,3 +128,17 @@ export async function updateArticleContent(
     throw new Error(`Failed to update article content: ${error.message}`);
   }
 }
+
+export async function saveArticleMetadata(
+  articleId: number,
+  metadata: Record<string, unknown>
+) {
+  const { error } = await supabase
+    .from("articles")
+    .update({ metadata })
+    .eq("id", articleId);
+
+  if (error) {
+    throw new Error(`Failed to update article metadata: ${error.message}`);
+  }
+}

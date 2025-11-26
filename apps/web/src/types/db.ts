@@ -4,7 +4,8 @@ export type QuizStatus =
   | "ready"
   | "failed"
   | "skip_by_admin"
-  | "skip_by_failure";
+  | "skip_by_failure"
+  | "not_required";
 export type SessionStatus =
   | "pending"
   | "ready"
@@ -15,6 +16,13 @@ export type SessionStatus =
 export type ArticleStatus =
   | "pending"
   | "scraping"
+  | "ready"
+  | "failed"
+  | "skip_by_admin"
+  | "skip_by_failure";
+export type HookStatus =
+  | "pending"
+  | "processing"
   | "ready"
   | "failed"
   | "skip_by_admin"
@@ -47,7 +55,7 @@ type StructuredContent = {
   type: "common_sense_test" | "root_cause" | "conceptual_flip";
   question: string;
   options: Array<{ text?: string; label?: string; rationale?: string }>;
-  remediation_pointer?: string;
+  remediation?: string;
   source_location?: {
     anchor_text: string;
     estimated_paragraph?: number;
@@ -114,4 +122,16 @@ export interface SessionRow {
   quiz_id: number | null;
   status: SessionStatus;
   metadata: Record<string, unknown> | null;
+}
+
+export interface HookQuestionRow {
+  id: number;
+  quiz_id: number;
+  status: HookStatus;
+  hooks: unknown | null;
+  strategy_prompt: string | null;
+  model_version: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
 }

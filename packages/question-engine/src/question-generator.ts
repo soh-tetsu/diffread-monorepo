@@ -9,6 +9,10 @@ import type {
   QuizArticleInput,
   QuestionEngineOptions,
   QuestionWorkflowResult,
+  HookWorkflowResult,
+  InstructionWorkflowResult,
+  ArticleMetadata,
+  TaskTemplate,
 } from "./types";
 
 function ensureArticleText(article: QuizArticleInput): string {
@@ -19,27 +23,40 @@ function ensureArticleText(article: QuizArticleInput): string {
   return text;
 }
 
-function ensureTaskPool(archetype: string, taskPool: ReturnType<typeof getTaskPoolData>) {
-  if (!taskPool || taskPool.length === 0) {
+function resolveTaskPool(
+  archetype: string,
+  provided?: TaskTemplate[] | null
+): TaskTemplate[] {
+  const pool = provided ?? getTaskPoolData(archetype);
+  if (!pool || pool.length === 0) {
     throw new Error(`No task template pool registered for archetype "${archetype}".`);
   }
-  return taskPool;
+  return pool;
 }
 
-export async function runQuestionWorkflow(
+export async function runHookWorkflow(
   article: QuizArticleInput,
-  options?: QuestionEngineOptions
-): Promise<QuestionWorkflowResult> {
+  metadata: ArticleMetadata,
+  options?: QuestionEngineOptions,
+): Promise<HookWorkflowResult> {
   const articleText = ensureArticleText(article);
-
-  const metadata = await analyzeArticleMetadata(articleText, options);
-
-  const taskPool = ensureTaskPool(metadata.archetype, getTaskPoolData(metadata.archetype));
 
   const hookQuestions = await generateHookQuestions(
     { metadata, articleText },
     options
   );
+
+  return { metadata,hookQuestions };
+}
+
+export async function runInstructionWorkflow(
+  article: QuizArticleInput,
+  metadata: ArticleMetadata,
+  options?: QuestionEngineOptions,
+  taskPoolOverride?: TaskTemplate[]
+): Promise<InstructionWorkflowResult> {
+  const articleText = ensureArticleText(article);
+  const taskPool = resolveTaskPool(metadata.archetype, taskPoolOverride);
 
   const readingPlan = await generateReadingPlan(
     { metadata, taskPool },
@@ -62,13 +79,29 @@ export async function runQuestionWorkflow(
     options
   );
 
+  return { metadata, taskPool, readingPlan, planExpansion, instructionQuestions };
+}
+
+export async function runQuestionWorkflow(
+  article: QuizArticleInput,
+  options?: QuestionEngineOptions
+): Promise<QuestionWorkflowResult> {
+  const articleText = ensureArticleText(article);
+  const metadata = await analyzeArticleMetadata(articleText, options);
+  const taskPool = resolveTaskPool(metadata.archetype);
+
+  const [hookResult, instructionResult] = await Promise.all([
+    runHookWorkflow(article, metadata, options),
+    runInstructionWorkflow(article, metadata, options, taskPool),
+  ]);
+
   return {
     metadata,
     taskPool,
-    hookQuestions,
-    readingPlan,
-    planExpansion,
-    instructionQuestions,
+    hookQuestions: hookResult.hookQuestions,
+    readingPlan: instructionResult.readingPlan,
+    planExpansion: instructionResult.planExpansion,
+    instructionQuestions: instructionResult.instructionQuestions,
   };
 }
 

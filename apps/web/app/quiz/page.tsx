@@ -5,10 +5,16 @@ import { QuizView } from "@/components/quiz/QuizView";
 import "./quiz.css";
 
 type Props = {
-  searchParams: { q?: string };
+  searchParams: { q?: string; show?: string };
 };
 
-async function QuizContent({ token }: { token: string }) {
+async function QuizContent({
+  token,
+  showInstructions,
+}: {
+  token: string;
+  showInstructions: boolean;
+}) {
   noStore();
   try {
     const data = await getSessionQuizPayload(token);
@@ -17,6 +23,9 @@ async function QuizContent({ token }: { token: string }) {
         sessionToken={token}
         articleUrl={data.article?.original_url ?? data.session.article_url}
         articleTitle={data.article?.title ?? null}
+        initialInstructionsVisible={showInstructions}
+        hookQuestions={data.hookQuestions}
+        hookStatus={data.hookStatus}
         questions={data.questions}
       />
     );
@@ -44,10 +53,12 @@ export default async function QuizPage({ searchParams }: Props) {
     );
   }
 
+  const showInstructions = searchParams.show === "instructions";
+
   return (
     <main className="quiz-container" id="quiz-top">
       <Suspense fallback={<div className="quiz-loading">Loading quiz…</div>}>
-        <QuizContent token={token} />
+        <QuizContent token={token} showInstructions={showInstructions} />
       </Suspense>
     </main>
   );

@@ -74,7 +74,7 @@ export async function generateReadingPlan(
       temperature: 0.1,
       topP: 1,
       topK: 1,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 4096,
       responseMimeType: "application/json",
       safetySettings: [
         {

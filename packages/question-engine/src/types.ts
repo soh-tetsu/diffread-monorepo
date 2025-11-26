@@ -22,7 +22,7 @@ export type GeneratedQuestion = {
   type: "common_sense_test" | "root_cause" | "conceptual_flip";
   question: string;
   options: GeneratedOption[];
-  remediation_pointer: string;
+  remediation: string;
   source_location: {
     anchor_text: string;
     estimated_paragraph: number;
@@ -40,7 +40,7 @@ export type HookQuestion = {
   type: string;
   question: string;
   options: HookQuestionOption[];
-  remediation_pointer: string;
+  remediation: string;
   answer_index: number;
 };
 
@@ -133,11 +133,17 @@ export type QuestionEngineOptions = {
   model?: string;
 };
 
-export type QuestionWorkflowResult = {
+export type HookWorkflowResult = {
+  metadata: ArticleMetadata;
+  hookQuestions: HookQuestion[];
+};
+
+export type InstructionWorkflowResult = {
   metadata: ArticleMetadata;
   taskPool: TaskTemplate[];
-  hookQuestions: HookQuestion[];
   readingPlan: ReadingPlanResponse;
   planExpansion: PlanExpansionResult;
   instructionQuestions: InstructionQuestion[];
 };
+
+export type QuestionWorkflowResult = HookWorkflowResult & InstructionWorkflowResult;
