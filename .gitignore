@@ -38,3 +38,6 @@ Thumbs.db
 
 diffread-landing/
 PRD.md
+
+# supabase temporary files
+apps/web/supabase/.temp/
