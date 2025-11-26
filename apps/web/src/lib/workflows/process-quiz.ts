@@ -47,10 +47,11 @@ async function claimNextHookQuiz(): Promise<QuizRow | null> {
   }
 
   // Map the RPC result to QuizRow format
+  const result = data as ClaimHookJobResult;
   return {
-    id: data.quiz_id,
-    article_id: data.article_id,
-    status: data.quiz_status,
+    id: result.quiz_id,
+    article_id: result.article_id,
+    status: result.quiz_status,
   } as QuizRow;
 }
 
@@ -125,10 +126,10 @@ async function markFailed(quizId: number, reason: string) {
 
 export type ProcessResult =
   | {
-      quiz: QuizRow;
-      article: ArticleRow;
-      status: "ready";
-    }
+    quiz: QuizRow;
+    article: ArticleRow;
+    status: "ready";
+  }
   | null;
 
 async function handleInstructionJob(quiz: QuizRow): Promise<ProcessResult> {
