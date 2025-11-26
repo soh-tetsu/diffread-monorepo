@@ -10,7 +10,14 @@ import {
 import { buildHookQuestionsForQuiz } from "@/lib/workflows/hook-generation";
 import { generateInstructionWorkflow } from "@/lib/quiz/question-engine";
 import type { InstructionWorkflowResult } from "@diffread/question-engine";
-import type { ArticleRow, QuizRow } from "@/types/db";
+import type { ArticleRow, QuizRow, QuizStatus } from "@/types/db";
+
+type ClaimHookJobResult = {
+  quiz_id: number;
+  article_id: number;
+  quiz_status: QuizStatus;
+  hook_id: number;
+};
 
 async function loadQuizById(quizId: number): Promise<QuizRow | null> {
   const { data, error } = await supabase
