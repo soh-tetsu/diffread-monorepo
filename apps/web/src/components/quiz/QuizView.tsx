@@ -6,6 +6,7 @@ import { QuestionCard } from "@/components/quiz/QuestionCard";
 import { QuizQuestion } from "@/lib/quiz/normalize-question";
 import { trackQuizSelection } from "@/lib/analytics/client";
 import { toaster } from "@/components/ui/toaster";
+import { Button } from "@chakra-ui/react";
 
 import type { HookStatus } from "@/types/db";
 
@@ -148,34 +149,102 @@ export function QuizView({
       }).then(async (response) => {
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.message || "Failed to register article.");
+          let errorMessage = payload.message || "Failed to register article.";
+
+          // Try to parse nested error object if message contains JSON
+          try {
+            const parsed = JSON.parse(errorMessage);
+            if (parsed.error && parsed.error.message) {
+              errorMessage = parsed.error.message;
+            }
+          } catch {
+            // Not JSON, use original message
+          }
+
+          throw new Error(errorMessage);
         }
         return response.json();
       });
 
-      toaster.promise(submissionPromise, {
-        loading: {
-          title: "Analyzing hooks…",
-          description: "This usually takes a few seconds.",
-        },
-        success: {
-          title: "Hook quiz ready!",
-          description: "Opening the quiz now.",
-        },
-        error: {
-          title: "Hook generation failed",
-          description: "Please try again later.",
-        },
-      });
+      try {
+        let toastId: string | undefined;
 
-      const payload = await submissionPromise;
+        toaster.promise(submissionPromise, {
+          loading: {
+            title: "Analyzing quizzes…",
+            description: "This usually takes a few seconds.",
+          },
+          success: (data) => {
+            const quizUrl = `/quiz?q=${data.sessionToken}`;
 
-      setShowForm(false);
-      setFormUrl("");
-      setFormError(null);
-      router.push(`/quiz?q=${payload.sessionToken}`);
+            // Create a toast with custom behavior
+            setTimeout(() => {
+              toastId = toaster.create({
+                title: "Quiz ready!",
+                description: "Click anywhere to open in new tab",
+                type: "success",
+                duration: Infinity,
+                closable: true,
+                onStatusChange: (details) => {
+                  if (details.status === 'visible') {
+                    setTimeout(() => {
+                      // Find the toast element
+                      const toastElements = document.querySelectorAll('[role="status"]');
+                      const toastEl = Array.from(toastElements).find(el =>
+                        el.textContent?.includes("Quiz ready!")
+                      );
+
+                      if (toastEl) {
+                        // Style the toast to look clickable
+                        (toastEl as HTMLElement).style.cursor = 'pointer';
+
+                        // Add click handler
+                        const clickHandler = (e: Event) => {
+                          const target = e.target as HTMLElement;
+                          // Don't trigger if clicking close button
+                          if (!target.closest('[data-part="close-trigger"]')) {
+                            window.open(quizUrl, '_blank');
+                            if (toastId) toaster.dismiss(toastId);
+                          }
+                        };
+
+                        toastEl.addEventListener('click', clickHandler, { once: true });
+                      }
+                    }, 50);
+                  }
+                },
+              });
+            }, 0);
+
+            // Return null to prevent default success toast
+            return null as any;
+          },
+          error: (error) => ({
+            title: "Quiz generation failed",
+            description: error instanceof Error ? error.message : "Please try again later.",
+            closable: true,
+          }),
+        });
+
+        const payload = await submissionPromise;
+
+        setShowForm(false);
+        setFormUrl("");
+        setFormError(null);
+        // Don't auto-navigate, let user click the toast
+      } catch (error) {
+        // Promise errors are already shown in toast by toaster.promise()
+        // This catch is just to prevent unhandled promise rejection
+      }
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Unexpected error");
+      // Catch any unexpected errors outside the promise flow
+      toaster.create({
+        title: "Unexpected error",
+        description: error instanceof Error ? error.message : "Something went wrong.",
+        type: "error",
+        duration: Infinity,
+        closable: true,
+      });
     } finally {
       setFormLoading(false);
     }
@@ -217,7 +286,19 @@ export function QuizView({
         });
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}));
-          throw new Error(payload.message || "Failed to generate instructions.");
+          let errorMessage = payload.message || "Failed to generate instructions.";
+
+          // Try to parse nested error object if message contains JSON
+          try {
+            const parsed = JSON.parse(errorMessage);
+            if (parsed.error && parsed.error.message) {
+              errorMessage = parsed.error.message;
+            }
+          } catch {
+            // Not JSON, use original message
+          }
+
+          throw new Error(errorMessage);
         }
 
         // Poll session status until instructions are ready (or errored).
@@ -244,25 +325,42 @@ export function QuizView({
         );
       })();
 
-      await toaster.promise(instructionPromise, {
-        loading: {
-          title: "Generating deeper quiz…",
-          description: "Sit tight while we prepare more questions.",
-        },
-        success: {
-          title: "Instruction quiz ready!",
-          description: "Refreshing with new questions.",
-        },
-        error: {
-          title: "Instruction generation failed",
-          description: "Please try again later.",
-        },
-      });
+      try {
+        toaster.promise(instructionPromise, {
+          loading: {
+            title: "Generating more quizzes…",
+            description: "Sit tight while we prepare more questions.",
+          },
+          success: {
+            title: "More quizzes ready!",
+            description: "Refreshing with new questions.",
+            duration: Infinity,
+            closable: true,
+          },
+          error: (error) => ({
+            title: "More quiz generation failed",
+            description: error instanceof Error ? error.message : "Please try again later.",
+            closable: true,
+          }),
+        });
 
-      enableInstructionView();
-      router.refresh();
+        await instructionPromise;
+
+        enableInstructionView();
+        router.refresh();
+      } catch (error) {
+        // Promise errors are already shown in toast by toaster.promise()
+        // This catch is just to prevent unhandled promise rejection
+      }
     } catch (error) {
-      setInstructionsError(error instanceof Error ? error.message : "Unexpected error.");
+      // Catch any unexpected errors outside the promise flow
+      toaster.create({
+        title: "Unexpected error",
+        description: error instanceof Error ? error.message : "Something went wrong.",
+        type: "error",
+        duration: Infinity,
+        closable: true,
+      });
     } finally {
       setRequestingInstructions(false);
     }
@@ -273,8 +371,7 @@ export function QuizView({
       <header className="quiz-header">
         <div>
           <p className="eyebrow">Quiz guided reading</p>
-          <h1>Verify your intuition</h1>
-          {articleTitle && <p className="article-title">{articleTitle}</p>}
+          <h1>{articleTitle || "Verify your intuition"}</h1>
           {articleUrl && (
             <a
               href={articleUrl}
@@ -289,62 +386,33 @@ export function QuizView({
         <div className="progress-chip">{progress}</div>
       </header>
 
-      <section className="hook-section">
-        <h2>Hook Questions</h2>
-      {hookQuestions.length === 0 ? (
-        <div className="empty-state">
-          <p>
-            {hookStatus === "pending"
-              ? "Hooks are still generating. Refresh in a few seconds."
-              : "No hook questions available for this quiz."}
-          </p>
-        </div>
-      ) : (
-        <div className="questions-grid">
-          {hookQuestions.slice(0, visibleHookCount).map((question) => (
-            <div
-              key={`hook-${question.id}`}
-              ref={(el) => {
-                questionRefs.current[question.id] = el;
-              }}
-            >
-              <QuestionCard
-                question={question}
-                articleUrl={articleUrl}
-                selectedIndex={hookAnswers[question.id] ?? null}
-                onSelect={(index) => handleHookSelect(question.id, index)}
-              />
-            </div>
-          ))}
-          {visibleHookCount < hookQuestions.length && (
-            <button
-              type="button"
-              className="load-more subtle"
-              onClick={() =>
-                setVisibleHookCount((prev) =>
-                  Math.min(prev + CHUNK_SIZE, hookQuestions.length)
-                )
-              }
-            >
-              More hook quizzes
-            </button>
-          )}
-        </div>
-      )}
-      </section>
-
-      <section className="instruction-section">
-        <div className="instruction-header">
-          <h2>Instruction Questions</h2>
-          {instructionsVisible && questions.length > 0 && (
-            <span className="chip">
-              {instructionAnswered}/{questions.length} answered
-            </span>
-          )}
-        </div>
-        {instructionsVisible && questions.length > 0 ? (
+      <section className="questions-section">
+        {hookQuestions.length === 0 && questions.length === 0 ? (
+          <div className="empty-state">
+            <p>
+              {hookStatus === "pending"
+                ? "Questions are still generating. Refresh in a few seconds."
+                : "No questions available for this quiz."}
+            </p>
+          </div>
+        ) : (
           <div className="questions-grid">
-            {questions.slice(0, visibleInstructionCount).map((question) => (
+            {hookQuestions.slice(0, visibleHookCount).map((question) => (
+              <div
+                key={`hook-${question.id}`}
+                ref={(el) => {
+                  questionRefs.current[question.id] = el;
+                }}
+              >
+                <QuestionCard
+                  question={question}
+                  articleUrl={articleUrl}
+                  selectedIndex={hookAnswers[question.id] ?? null}
+                  onSelect={(index) => handleHookSelect(question.id, index)}
+                />
+              </div>
+            ))}
+            {instructionsVisible && questions.length > 0 && questions.slice(0, visibleInstructionCount).map((question) => (
               <div
                 key={`instruction-${question.id}`}
                 ref={(el) => {
@@ -361,41 +429,51 @@ export function QuizView({
                 />
               </div>
             ))}
-            {visibleInstructionCount < questions.length && (
-              <button
-                type="button"
-                className="load-more subtle"
-                onClick={() =>
-                  setVisibleInstructionCount((prev) =>
-                    Math.min(prev + CHUNK_SIZE, questions.length)
-                  )
-                }
-              >
-                More instruction quizzes
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <p>
-              {questions.length > 0
-                ? "Instruction questions are hidden until you opt in."
-                : "Ready for a deeper quiz? Generate instruction questions."}
-            </p>
-            <button
-              type="button"
-              className="load-more"
-              disabled={requestingInstructions || !articleUrl}
-              onClick={handleRequestInstructions}
-            >
-              {requestingInstructions ? "Generating…" : "More Quizzes"}
-            </button>
-            {instructionsError && <p className="form-error">{instructionsError}</p>}
+            {(() => {
+              // Determine if we can load more hook questions
+              const canLoadMoreHooks = visibleHookCount < hookQuestions.length;
+              // Determine if we can load more instruction questions
+              const canLoadMoreInstructions = instructionsVisible && visibleInstructionCount < questions.length;
+              // Check if instructions need to be generated or shown
+              const needMoreQuestions = !instructionsVisible;
+
+              let buttonLabel = "That's all";
+              let buttonDisabled = true;
+              let buttonOnClick = () => { };
+
+              if (requestingInstructions) {
+                buttonLabel = "Generating…";
+                buttonDisabled = true;
+              } else if (canLoadMoreHooks) {
+                buttonLabel = "Load more";
+                buttonDisabled = false;
+                buttonOnClick = () => setVisibleHookCount((prev) => Math.min(prev + CHUNK_SIZE, hookQuestions.length));
+              } else if (canLoadMoreInstructions) {
+                buttonLabel = "Load more";
+                buttonDisabled = false;
+                buttonOnClick = () => setVisibleInstructionCount((prev) => Math.min(prev + CHUNK_SIZE, questions.length));
+              } else if (needMoreQuestions) {
+                buttonLabel = "More Quizzes";
+                buttonDisabled = !articleUrl;
+                buttonOnClick = handleRequestInstructions;
+              }
+
+              return (
+                <button
+                  type="button"
+                  className="load-more subtle"
+                  disabled={buttonDisabled}
+                  onClick={buttonOnClick}
+                >
+                  {buttonLabel}
+                </button>
+              );
+            })()}
           </div>
         )}
       </section>
 
-      <div className="actions-row">
+      <div className="actions-row" style={{ marginTop: '2rem' }}>
         <button
           type="button"
           className="secondary-btn"
@@ -404,6 +482,7 @@ export function QuizView({
               setShowForm(true);
             }
           }}
+          style={{ backgroundColor: 'teal', color: 'white' }}
         >
           Try another article
         </button>
@@ -425,12 +504,13 @@ export function QuizView({
             onChange={(event) => setFormUrl(event.target.value)}
           />
           <div className="inline-form-actions">
-            <button type="submit" disabled={formLoading}>
+            <Button type="submit" disabled={formLoading} colorPalette="teal">
               {formLoading ? "Queuing…" : "Start quiz"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="ghost-btn"
+              colorPalette="teal"
+              variant="outline"
               onClick={() => {
                 setShowForm(false);
                 setFormUrl("");
@@ -438,7 +518,7 @@ export function QuizView({
               }}
             >
               Cancel
-            </button>
+            </Button>
           </div>
           {formError && <p className="form-error">{formError}</p>}
         </form>
