@@ -124,34 +124,6 @@ export async function getSessionQuizPayload(
       ?.map((row) => normalizeQuestion(row))
       .filter((q): q is QuizQuestion => q !== null) ?? [];
 
-  console.log(
-    JSON.stringify(
-      {
-        sessionToken,
-        quizId: quiz.id,
-        fetchedQuestions: questionRows?.map((row) => ({
-          id: row.id,
-          sortOrder: row.sort_order,
-          contentType:
-            typeof row.content === "object" && row.content !== null
-              ? (row.content as { type?: string }).type ?? null
-              : null,
-          prompt:
-            typeof row.content === "object" && row.content !== null
-              ? (row.content as { question?: string }).question ?? null
-              : null,
-        })),
-        normalizedQuestions: questions.map((q) => ({
-          id: q.id,
-          prompt: q.prompt,
-          category: q.category,
-        })),
-      },
-      null,
-      2
-    )
-  );
-
   const hookQuestions =
     hookRow && hookRow.hooks ? normalizeHookQuestions(hookRow.hooks) : [];
 

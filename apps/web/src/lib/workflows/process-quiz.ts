@@ -28,50 +28,35 @@ async function loadQuizById(quizId: number): Promise<QuizRow | null> {
 
 async function claimNextHookQuiz(): Promise<QuizRow | null> {
   const { data, error } = await supabase
-    .from("hook_questions")
-    .select("quiz:quizzes(*)")
-    .eq("status", "pending")
-    .order("updated_at", { ascending: true })
-    .limit(1)
+    .rpc("claim_next_hook_job")
     .maybeSingle();
 
   if (error && error.code !== "PGRST116") {
-    throw new Error(`Failed to fetch pending hook job: ${error.message}`);
+    throw new Error(`Failed to claim hook job: ${error.message}`);
   }
 
-  return (data?.quiz as QuizRow) ?? null;
-}
-
-async function claimNextInstructionQuiz(): Promise<QuizRow | null> {
-  const { data: candidate, error: fetchError } = await supabase
-    .from("quizzes")
-    .select("*")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (fetchError && fetchError.code !== "PGRST116") {
-    throw new Error(`Failed to fetch pending instruction quiz: ${fetchError.message}`);
-  }
-
-  if (!candidate) {
+  if (!data) {
     return null;
   }
 
-  const { data: claimed, error: claimError } = await supabase
-    .from("quizzes")
-    .update({ status: "processing" })
-    .eq("id", candidate.id)
-    .eq("status", "pending")
-    .select("*")
+  // Map the RPC result to QuizRow format
+  return {
+    id: data.quiz_id,
+    article_id: data.article_id,
+    status: data.quiz_status,
+  } as QuizRow;
+}
+
+async function claimNextInstructionQuiz(): Promise<QuizRow | null> {
+  const { data, error } = await supabase
+    .rpc("claim_next_instruction_job")
     .maybeSingle();
 
-  if (claimError && claimError.code !== "PGRST116") {
-    throw new Error(`Failed to claim quiz ${candidate.id}: ${claimError.message}`);
+  if (error && error.code !== "PGRST116") {
+    throw new Error(`Failed to claim instruction job: ${error.message}`);
   }
 
-  return (claimed as QuizRow) ?? null;
+  return (data as QuizRow) ?? null;
 }
 
 async function promoteQuizToProcessing(quizId: number): Promise<QuizRow | null> {

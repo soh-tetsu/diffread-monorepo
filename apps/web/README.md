@@ -48,10 +48,10 @@ To register a session and run the hook workflow (mirrors the `/api/hooks` behavi
 ```bash
 SUPABASE_URL=https://xxx.supabase.co \
 SUPABASE_SERVICE_ROLE_KEY=your-secret \
-bun run admin:hooks user@example.com https://example.com/article
+bun run admin:hook user@example.com https://example.com/article
 ```
 
-Set `SUPABASE_DB_SCHEMA` if you expose a different schema via the Data API. The script calls `enqueueAndProcessSession` and `processQuizById`, so hooks are generated immediately.
+Set `SUPABASE_DB_SCHEMA` if you expose a different schema via the Data API. The script calls `enqueueAndProcessSession`, so hooks are generated immediately.
 
 To register a session and generate both hooks and instruction questions (mirrors `/api/instructions`), run:
 

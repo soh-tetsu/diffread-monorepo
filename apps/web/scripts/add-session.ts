@@ -16,19 +16,14 @@ if (existsSync(envPath)) {
 const [, , email, originalUrl] = process.argv;
 
 if (!email || !originalUrl) {
-  logger.error("Usage: npm run admin:add-session <user_email> <article_url>");
+  logger.error("Usage: bun run admin:hook <user_email> <article_url>");
   process.exit(1);
 }
 
 async function main() {
-  const [{ enqueueAndProcessSession }, { processQuizById }] = await Promise.all([
-    import("@/lib/workflows/session-flow"),
-    import("@/lib/workflows/process-quiz"),
-  ]);
+  const { enqueueAndProcessSession } = await import("@/lib/workflows/session-flow");
 
   const result = await enqueueAndProcessSession(email, originalUrl);
-
-  await processQuizById(result.quiz.id);
 
   logger.info(
     {
@@ -44,6 +39,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  logger.error({ err }, "admin:add-session failed");
+  logger.error({ err }, "admin:hook failed");
   process.exit(1);
 });
