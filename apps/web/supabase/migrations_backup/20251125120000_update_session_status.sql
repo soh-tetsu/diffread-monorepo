@@ -11,11 +11,37 @@ begin
 end
 $$;
 
-alter table public.sessions
-  alter column session_token type text using session_token::text;
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'sessions'
+      and column_name = 'session_token'
+      and data_type != 'text'
+  ) then
+    alter table public.sessions
+      alter column session_token type text using session_token::text;
+  end if;
+end
+$$;
 
-alter table public.sessions
-  alter column session_token drop default;
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'sessions'
+      and column_name = 'session_token'
+      and column_default is not null
+  ) then
+    alter table public.sessions
+      alter column session_token drop default;
+  end if;
+end
+$$;
 
 do $$
 begin
