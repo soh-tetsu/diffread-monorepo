@@ -8,7 +8,6 @@ import { QuizView } from "@/components/quiz/QuizView";
 import { normalizeHookQuestions } from "@/lib/quiz/normalize-hook-questions";
 import type { HookStatus, QuizStatus } from "@/types/db";
 import type { QuizQuestion } from "@/lib/quiz/normalize-question";
-import "./quiz.css";
 
 type QuizMetaResponse = {
   session: {
@@ -212,7 +211,17 @@ function QuizPageContent() {
   const questions = instructionsData?.questions || [];
 
   return (
-    <main className="quiz-container" id="quiz-top">
+    <Box
+      as="main"
+      id="quiz-top"
+      minH="100vh"
+      bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)"
+      py={8}
+      px={4}
+      display="flex"
+      justifyContent="center"
+      color="gray.900"
+    >
       <QuizView
         sessionToken={token}
         articleUrl={quizMeta.session.article_url}
@@ -222,7 +231,7 @@ function QuizPageContent() {
         hookStatus={hooksData.status}
         questions={questions}
       />
-    </main>
+    </Box>
   );
 }
 

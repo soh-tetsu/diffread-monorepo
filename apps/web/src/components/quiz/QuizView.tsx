@@ -6,7 +6,8 @@ import { QuestionCard } from "@/components/quiz/QuestionCard";
 import { QuizQuestion } from "@/lib/quiz/normalize-question";
 import { trackQuizSelection } from "@/lib/analytics/client";
 import { toaster } from "@/components/ui/toaster";
-import { Button, Box, Flex, Heading, Text, Link, Badge } from "@chakra-ui/react";
+import { Button, Box, Flex, Heading, Text, Link, Badge, VStack, Input, Stack } from "@chakra-ui/react";
+import { Field } from "@/components/ui/field";
 
 import type { HookStatus } from "@/types/db";
 
@@ -370,14 +371,21 @@ export function QuizView({
   };
 
   return (
-    <section className="quiz-shell">
+    <Box
+      as="section"
+      w="100%"
+      maxW="960px"
+      display="flex"
+      flexDirection="column"
+      gap={{ base: 6, md: 8 }}
+    >
       <Flex
         as="header"
         direction={{ base: "column", md: "row" }}
         justify="space-between"
         align="flex-start"
         gap={4}
-        p={6}
+        p={{ base: 4, md: 6 }}
         borderRadius="2xl"
         bg="white"
         borderWidth="1px"
@@ -427,19 +435,28 @@ export function QuizView({
         </Badge>
       </Flex>
 
-      <section className="questions-section">
+      <Box as="section">
         {hookQuestions.length === 0 && questions.length === 0 ? (
-          <div className="empty-state">
-            <p>
+          <Box
+            maxW="720px"
+            mx="auto"
+            p={{ base: 6, md: 8 }}
+            bg="white"
+            borderWidth="1px"
+            borderColor="gray.200"
+            borderRadius="2xl"
+            textAlign="center"
+          >
+            <Text color="gray.700">
               {hookStatus === "pending"
                 ? "Questions are still generating. Refresh in a few seconds."
                 : "No questions available for this quiz."}
-            </p>
-          </div>
+            </Text>
+          </Box>
         ) : (
-          <div className="questions-grid">
+          <VStack gap={{ base: 4, md: 6 }} align="stretch">
             {hookQuestions.slice(0, visibleHookCount).map((question) => (
-              <div
+              <Box
                 key={`hook-${question.id}`}
                 ref={(el) => {
                   questionRefs.current[question.id] = el;
@@ -451,10 +468,10 @@ export function QuizView({
                   selectedIndex={hookAnswers[question.id] ?? null}
                   onSelect={(index) => handleHookSelect(question.id, index)}
                 />
-              </div>
+              </Box>
             ))}
             {instructionsVisible && questions.length > 0 && questions.slice(0, visibleInstructionCount).map((question) => (
-              <div
+              <Box
                 key={`instruction-${question.id}`}
                 ref={(el) => {
                   questionRefs.current[question.id] = el;
@@ -468,7 +485,7 @@ export function QuizView({
                     handleInstructionSelect(question.id, index)
                   }
                 />
-              </div>
+              </Box>
             ))}
             {(() => {
               // Determine if we can load more hook questions
@@ -512,11 +529,11 @@ export function QuizView({
                 </Button>
               );
             })()}
-          </div>
+          </VStack>
         )}
-      </section>
+      </Box>
 
-      <div className="actions-row" style={{ marginTop: '2rem' }}>
+      <Flex mt={{ base: 6, md: 8 }}>
         <Button
           type="button"
           colorPalette="teal"
@@ -528,43 +545,50 @@ export function QuizView({
         >
           Try another article
         </Button>
-      </div>
+      </Flex>
 
       {showForm && (
-        <form
-          className="inline-form"
+        <Box
+          as="form"
           onSubmit={handleSubmitNewArticle}
           ref={formRef}
         >
-          <label htmlFor="new-article-url">URL</label>
-          <input
-            id="new-article-url"
-            type="url"
-            required
-            placeholder="https://example.com/article"
-            value={formUrl}
-            onChange={(event) => setFormUrl(event.target.value)}
-          />
-          <div className="inline-form-actions">
-            <Button type="submit" disabled={formLoading} colorPalette="teal">
-              {formLoading ? "Queuing…" : "Start quiz"}
-            </Button>
-            <Button
-              type="button"
-              colorPalette="teal"
-              variant="outline"
-              onClick={() => {
-                setShowForm(false);
-                setFormUrl("");
-                setFormError(null);
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-          {formError && <p className="form-error">{formError}</p>}
-        </form>
+          <VStack gap={3} align="stretch">
+            <Field label="URL">
+              <Input
+                id="new-article-url"
+                type="url"
+                required
+                placeholder="https://example.com/article"
+                value={formUrl}
+                onChange={(event) => setFormUrl(event.target.value)}
+                borderRadius="xl"
+                borderColor="gray.200"
+                bg="white"
+              />
+            </Field>
+            <Stack direction={{ base: "column", sm: "row" }} gap={3}>
+              <Button type="submit" disabled={formLoading} colorPalette="teal" w={{ base: "100%", sm: "auto" }}>
+                {formLoading ? "Queuing…" : "Start quiz"}
+              </Button>
+              <Button
+                type="button"
+                colorPalette="teal"
+                variant="outline"
+                w={{ base: "100%", sm: "auto" }}
+                onClick={() => {
+                  setShowForm(false);
+                  setFormUrl("");
+                  setFormError(null);
+                }}
+              >
+                Cancel
+              </Button>
+            </Stack>
+            {formError && <Text color="red.600">{formError}</Text>}
+          </VStack>
+        </Box>
       )}
-    </section>
+    </Box>
   );
 }

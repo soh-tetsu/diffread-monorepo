@@ -1,6 +1,6 @@
 "use client";
 
-import { Float, Box, Text, Button, Stack, VStack, HStack, Flex, Link } from "@chakra-ui/react";
+import { Float, Box, Text, Button, Stack, VStack, Flex, Link } from "@chakra-ui/react";
 import { Blockquote, BlockquoteIcon } from "@/components/ui/blockquote";
 import { QuizOption, QuizQuestion } from "@/lib/quiz/normalize-question";
 
@@ -24,7 +24,6 @@ function OptionButton({
   isCorrect: boolean;
   onClick: () => void;
 }) {
-  // Determine styling based on state
   const getBorderColor = () => {
     if (isSelected && isCorrect) return "blue.500";
     if (isSelected && !isCorrect) return "red.500";
@@ -99,21 +98,17 @@ export function QuestionCard({
       borderColor="gray.200"
       shadow="0 15px 35px rgba(15, 23, 42, 0.08)"
       borderRadius="2xl"
-      p={6}
+      p={{ base: 4, md: 6 }}
     >
-      <VStack align="stretch" gap={4}>
+      <VStack align="stretch" gap={{ base: 3, md: 4 }}>
         {/* Header */}
         <Box as="header">
-          <Text
-            fontSize="sm"
-            color="gray.500"
-            mb={1}
-          >
+          <Text fontSize="sm" color="gray.500" mb={1}>
             {question.category}
           </Text>
           <Text
             as="h2"
-            fontSize="xl"
+            fontSize={{ base: "lg", md: "xl" }}
             fontWeight="semibold"
             mt={2}
           >
@@ -122,7 +117,7 @@ export function QuestionCard({
         </Box>
 
         {/* Options */}
-        <Stack gap={3}>
+        <Stack gap={{ base: 2, md: 3 }}>
           {question.options.map((option, idx) => (
             <OptionButton
               key={idx}
@@ -139,25 +134,17 @@ export function QuestionCard({
         {showFeedback && (
           <Box
             borderRadius="2xl"
-            p={4}
+            p={{ base: 3, md: 4 }}
             borderWidth="1px"
             borderColor={isCorrect ? "blue.200" : "red.300"}
             bg={isCorrect ? "blue.50" : "red.50"}
           >
-            <Text
-              fontWeight="semibold"
-              color="gray.900"
-              mb={2}
-            >
+            <Text fontWeight="semibold" color="gray.900" mb={2}>
               {isCorrect ? "Nice! Your intuition matches the source." : "Not quite right."}
             </Text>
 
             {selectedIndex !== null && question.options[selectedIndex]?.rationale && (
-              <Text
-                color="gray.900"
-                lineHeight="1.5"
-                mt={2}
-              >
+              <Text color="gray.900" lineHeight="1.5" mt={2}>
                 {question.options[selectedIndex]?.rationale}
               </Text>
             )}
