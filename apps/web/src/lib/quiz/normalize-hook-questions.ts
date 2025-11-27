@@ -22,22 +22,25 @@ export function normalizeHookQuestions(
     return [];
   }
 
-  return hooks
-    .map((hook, index) => {
-      if (!isHookQuestion(hook)) {
-        return null;
-      }
-      return {
-        id: typeof hook.id === "number" ? -Math.abs(hook.id) : -(index + 1),
-        category: hook.type ?? "hook",
-        prompt: hook.question ?? "",
-        options: hook.options.map((option) => ({
-          text: option?.text ?? "",
-          rationale: option?.rationale,
-        })),
-        answerIndex: hook.answer_index ?? 0,
-        remediationPointer: hook.remediation,
-      } satisfies QuizQuestion;
-    })
-    .filter((question): question is QuizQuestion => question !== null);
+  const result: QuizQuestion[] = [];
+
+  for (let index = 0; index < hooks.length; index++) {
+    const hook = hooks[index];
+    if (!isHookQuestion(hook)) {
+      continue;
+    }
+    result.push({
+      id: typeof hook.id === "number" ? -Math.abs(hook.id) : -(index + 1),
+      category: hook.type ?? "hook",
+      prompt: hook.question ?? "",
+      options: (hook.options ?? []).map((option) => ({
+        text: option?.text ?? "",
+        rationale: option?.rationale,
+      })),
+      answerIndex: hook.answer_index ?? 0,
+      remediationPointer: hook.remediation,
+    });
+  }
+
+  return result;
 }

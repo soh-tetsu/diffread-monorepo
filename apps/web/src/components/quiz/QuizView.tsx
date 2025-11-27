@@ -17,6 +17,7 @@ type Props = {
   hookQuestions: QuizQuestion[];
   hookStatus: HookStatus | null;
   questions: QuizQuestion[];
+  initialInstructionsVisible?: boolean;
 };
 
 export function QuizView({
@@ -36,7 +37,6 @@ export function QuizView({
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [requestingInstructions, setRequestingInstructions] = useState(false);
-  const [instructionsError, setInstructionsError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
   const questionRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const CHUNK_SIZE = 3;
@@ -174,7 +174,7 @@ export function QuizView({
             title: "Analyzing quizzes…",
             description: "This usually takes a few seconds.",
           },
-          success: (data) => {
+          success: (data: { sessionToken: string }) => {
             const quizUrl = `/quiz?q=${data.sessionToken}`;
 
             // Create a toast with custom behavior
@@ -216,8 +216,8 @@ export function QuizView({
               });
             }, 0);
 
-            // Return null to prevent default success toast
-            return null as any;
+            // Return object with title to satisfy toaster.promise type
+            return { title: "Quiz ready!" };
           },
           error: (error) => ({
             title: "Quiz generation failed",
@@ -226,13 +226,13 @@ export function QuizView({
           }),
         });
 
-        const payload = await submissionPromise;
+        await submissionPromise;
 
         setShowForm(false);
         setFormUrl("");
         setFormError(null);
         // Don't auto-navigate, let user click the toast
-      } catch (error) {
+      } catch {
         // Promise errors are already shown in toast by toaster.promise()
         // This catch is just to prevent unhandled promise rejection
       }
@@ -252,10 +252,13 @@ export function QuizView({
 
   const handleRequestInstructions = async () => {
     if (!articleUrl) {
-      setInstructionsError("Missing article URL for this quiz.");
+      toaster.create({
+        title: "Missing article URL",
+        description: "Missing article URL for this quiz.",
+        type: "error",
+      });
       return;
     }
-    setInstructionsError(null);
 
     const enableInstructionView = () => {
       setInstructionsVisible(true);
@@ -348,7 +351,7 @@ export function QuizView({
 
         enableInstructionView();
         router.refresh();
-      } catch (error) {
+      } catch {
         // Promise errors are already shown in toast by toaster.promise()
         // This catch is just to prevent unhandled promise rejection
       }

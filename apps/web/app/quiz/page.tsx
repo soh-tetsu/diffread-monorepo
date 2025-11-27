@@ -1,8 +1,9 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Box, Heading, Text, Highlight, Stack } from "@chakra-ui/react";
+import { Box, Heading, Text } from "@chakra-ui/react";
 import { QuizView } from "@/components/quiz/QuizView";
 import { normalizeHookQuestions } from "@/lib/quiz/normalize-hook-questions";
 import type { HookStatus, QuizStatus } from "@/types/db";
@@ -41,10 +42,30 @@ const fetcher = (url: string) => fetch(url).then((res) => {
   return res.json();
 });
 
-export default function QuizPage() {
+function QuizPageContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("q");
   const showInstructions = searchParams.get("show") === "instructions";
+
+  // Fetch quiz metadata (session + article info)
+  const { data: quizMeta, error: metaError } = useSWR<QuizMetaResponse>(
+    token ? `/api/quiz?q=${token}` : null,
+    fetcher
+  );
+
+  // Fetch hook questions
+  const { data: hooksData, error: hooksError } = useSWR<HooksResponse>(
+    token ? `/api/hooks?q=${token}` : null,
+    fetcher
+  );
+
+  // Fetch instruction questions (only if session is ready or if user explicitly wants to see them)
+  const { data: instructionsData } = useSWR<InstructionsResponse>(
+    token && (quizMeta?.session.status === "ready" || showInstructions)
+      ? `/api/instructions?q=${token}`
+      : null,
+    fetcher
+  );
 
   if (!token) {
     return (
@@ -80,26 +101,6 @@ export default function QuizPage() {
       </Box>
     );
   }
-
-  // Fetch quiz metadata (session + article info)
-  const { data: quizMeta, error: metaError } = useSWR<QuizMetaResponse>(
-    `/api/quiz?q=${token}`,
-    fetcher
-  );
-
-  // Fetch hook questions
-  const { data: hooksData, error: hooksError } = useSWR<HooksResponse>(
-    `/api/hooks?q=${token}`,
-    fetcher
-  );
-
-  // Fetch instruction questions (only if session is ready or if user explicitly wants to see them)
-  const { data: instructionsData, error: instructionsError } = useSWR<InstructionsResponse>(
-    quizMeta?.session.status === "ready" || showInstructions
-      ? `/api/instructions?q=${token}`
-      : null,
-    fetcher
-  );
 
   // Handle loading state
   if (!quizMeta || !hooksData) {
@@ -222,5 +223,43 @@ export default function QuizPage() {
         questions={questions}
       />
     </main>
+  );
+}
+
+export default function QuizPage() {
+  return (
+    <Suspense
+      fallback={
+        <Box
+          minH="100vh"
+          bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)"
+          py={8}
+          px={4}
+          display="flex"
+          justifyContent="center"
+          color="gray.900"
+        >
+          <Box
+            maxW="720px"
+            w="full"
+            p={8}
+            bg="white"
+            borderWidth="1px"
+            borderColor="gray.200"
+            borderRadius="2xl"
+            textAlign="center"
+            shadow="lg"
+            alignSelf="flex-start"
+            mt={8}
+          >
+            <Text color="gray.700" fontSize="lg">
+              Loading quiz…
+            </Text>
+          </Box>
+        </Box>
+      }
+    >
+      <QuizPageContent />
+    </Suspense>
   );
 }

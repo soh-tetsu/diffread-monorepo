@@ -173,7 +173,7 @@ export async function GET(request: Request) {
           } else if (questionRows) {
             questions = questionRows
               .map((row) => normalizeQuestion(row))
-              .filter((q) => q !== null);
+              .filter((q): q is QuizQuestion => q !== null);
           }
         }
       }
