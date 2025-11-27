@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
+import { Box, Heading, Text, Highlight, Stack } from "@chakra-ui/react";
 import { QuizView } from "@/components/quiz/QuizView";
 import { normalizeHookQuestions } from "@/lib/quiz/normalize-hook-questions";
 import type { HookStatus, QuizStatus } from "@/types/db";
@@ -47,14 +48,36 @@ export default function QuizPage() {
 
   if (!token) {
     return (
-      <main className="quiz-container">
-        <div className="quiz-error">
-          <h1>Missing session token</h1>
-          <p>
+      <Box
+        minH="100vh"
+        bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)"
+        py={8}
+        px={4}
+        display="flex"
+        justifyContent="center"
+        color="gray.900"
+      >
+        <Box
+          maxW="720px"
+          w="full"
+          p={8}
+          bg="white"
+          borderWidth="1px"
+          borderColor="gray.200"
+          borderRadius="2xl"
+          textAlign="center"
+          shadow="lg"
+          alignSelf="flex-start"
+          mt={8}
+        >
+          <Heading as="h1" size="xl" mb={3} color="gray.900">
+            Missing session token
+          </Heading>
+          <Text color="gray.700">
             Use a link shared from Diffread that includes the <code>?q=token</code> parameter.
-          </p>
-        </div>
-      </main>
+          </Text>
+        </Box>
+      </Box>
     );
   }
 
@@ -81,21 +104,105 @@ export default function QuizPage() {
   // Handle loading state
   if (!quizMeta || !hooksData) {
     return (
-      <main className="quiz-container">
-        <div className="quiz-loading">Loading quiz…</div>
-      </main>
+      <Box
+        minH="100vh"
+        bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)"
+        py={8}
+        px={4}
+        display="flex"
+        justifyContent="center"
+        color="gray.900"
+      >
+        <Box
+          maxW="720px"
+          w="full"
+          p={8}
+          bg="white"
+          borderWidth="1px"
+          borderColor="gray.200"
+          borderRadius="2xl"
+          textAlign="center"
+          shadow="lg"
+          alignSelf="flex-start"
+          mt={8}
+        >
+          <Text color="gray.700" fontSize="lg">
+            Loading quiz…
+          </Text>
+        </Box>
+      </Box>
     );
   }
 
   // Handle errors
   if (metaError || hooksError) {
     return (
-      <main className="quiz-container">
-        <div className="quiz-error">
-          <h1>Something went wrong.</h1>
-          <p>{metaError?.message || hooksError?.message || "Unknown error."}</p>
-        </div>
-      </main>
+      <Box
+        minH="100vh"
+        bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)"
+        py={8}
+        px={4}
+        display="flex"
+        justifyContent="center"
+        color="gray.900"
+      >
+        <Box
+          maxW="720px"
+          w="full"
+          p={8}
+          bg="white"
+          borderWidth="1px"
+          borderColor="gray.200"
+          borderRadius="2xl"
+          textAlign="center"
+          shadow="lg"
+          alignSelf="flex-start"
+          mt={8}
+        >
+          <Heading as="h1" size="xl" mb={3} color="gray.900">
+            Something went wrong.
+          </Heading>
+          <Text fontSize="md" color="fg.muted">
+            {metaError?.message || hooksError?.message || "Unknown error."}
+          </Text>
+        </Box>
+      </Box>
+    );
+  }
+
+  // Handle failed hook generation
+  if (hooksData.status === "failed" && hooksData.errorMessage) {
+    return (
+      <Box
+        minH="100vh"
+        bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)"
+        py={8}
+        px={4}
+        display="flex"
+        justifyContent="center"
+        color="gray.900"
+      >
+        <Box
+          maxW="450px"
+          w="full"
+          p={10}
+          bg="white"
+          borderWidth="1px"
+          borderColor="red.200"
+          borderRadius="2xl"
+          textAlign="center"
+          shadow="lg"
+          alignSelf="flex-start"
+          mt={8}
+        >
+          <Heading size="4xl">
+            Quiz generation failed
+          </Heading>
+          <Text fontSize="md" color="fg.muted">
+            {hooksData.errorMessage}
+          </Text>
+        </Box>
+      </Box>
     );
   }
 

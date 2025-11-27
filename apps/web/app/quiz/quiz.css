@@ -266,16 +266,7 @@
     color: var(--quiz-text);
 }
 
-.inline-form button {
-    align-self: flex-start;
-    padding: 0.7rem 1.5rem;
-    border-radius: 999px;
-    border: none;
-    background: var(--quiz-accent);
-    color: #fff;
-    font-weight: 600;
-    cursor: pointer;
-}
+/* Removed: Now using Chakra UI Button components */
 
 .inline-form-actions {
     display: flex;

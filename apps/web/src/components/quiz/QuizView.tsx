@@ -6,7 +6,7 @@ import { QuestionCard } from "@/components/quiz/QuestionCard";
 import { QuizQuestion } from "@/lib/quiz/normalize-question";
 import { trackQuizSelection } from "@/lib/analytics/client";
 import { toaster } from "@/components/ui/toaster";
-import { Button } from "@chakra-ui/react";
+import { Button, Box, Flex, Heading, Text, Link, Badge } from "@chakra-ui/react";
 
 import type { HookStatus } from "@/types/db";
 
@@ -368,23 +368,61 @@ export function QuizView({
 
   return (
     <section className="quiz-shell">
-      <header className="quiz-header">
-        <div>
-          <p className="eyebrow">Quiz guided reading</p>
-          <h1>{articleTitle || "Verify your intuition"}</h1>
+      <Flex
+        as="header"
+        direction={{ base: "column", md: "row" }}
+        justify="space-between"
+        align="flex-start"
+        gap={4}
+        p={6}
+        borderRadius="2xl"
+        bg="white"
+        borderWidth="1px"
+        borderColor="gray.200"
+      >
+        <Box flex="1">
+          <Text
+            textTransform="uppercase"
+            letterSpacing="wider"
+            fontSize="xs"
+            color="gray.500"
+            mb={2}
+          >
+            Quiz guided reading
+          </Text>
+          <Heading
+            size="6xl"
+          >
+            {articleTitle || "Verify your intuition"}
+          </Heading>
           {articleUrl && (
-            <a
+            <Link
               href={articleUrl}
-              className="article-link"
+              color="blue.600"
+              fontSize="sm"
+              wordBreak="break-all"
               target="_blank"
               rel="noreferrer"
             >
-              {articleUrl}
-            </a>
+              Oringial Article
+            </Link>
           )}
-        </div>
-        <div className="progress-chip">{progress}</div>
-      </header>
+        </Box>
+        <Badge
+          px={4}
+          py={2.5}
+          borderRadius="full"
+          borderWidth="1px"
+          borderColor="gray.200"
+          fontSize="sm"
+          colorPalette="gray"
+          variant="outline"
+          alignSelf={{ base: "stretch", md: "flex-start" }}
+          textAlign={{ base: "center", md: "left" }}
+        >
+          {progress}
+        </Badge>
+      </Flex>
 
       <section className="questions-section">
         {hookQuestions.length === 0 && questions.length === 0 ? (
