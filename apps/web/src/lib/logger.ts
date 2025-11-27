@@ -1,26 +1,18 @@
-import pino from "pino";
+import { Logger } from "tslog";
 
-const level =
-  process.env.LOG_LEVEL ??
-  (process.env.NODE_ENV === "production" ? "info" : "debug");
-const isProd = process.env.NODE_ENV === "production";
-// Check if running under Bun (check for Bun-specific global)
-const isBun = "Bun" in globalThis;
+const minLevel = (() => {
+  const envLevel = process.env.LOG_LEVEL;
+  if (envLevel === "debug") return 0;
+  if (envLevel === "info") return 3;
+  if (envLevel === "warn") return 4;
+  if (envLevel === "error") return 5;
 
-export const logger = pino({
-  level,
-  base: undefined,
-  // Disable pino-pretty transport in Bun due to worker thread compatibility issues
-  // See: https://github.com/pinojs/thread-stream/issues/140
-  transport: isProd || isBun
-    ? undefined
-    : {
-      target: "pino-pretty",
-      options: {
-        colorize: true,
-        translateTime: "SYS:standard",
-        ignore: "pid,hostname",
-        singleLine: false,
-      },
-    },
+  // Default based on environment
+  return process.env.NODE_ENV === "production" ? 3 : 0;
+})();
+
+export const logger = new Logger({
+  minLevel,
+  type: process.env.NODE_ENV === "production" ? "json" : "pretty",
+  name: "diffread",
 });
