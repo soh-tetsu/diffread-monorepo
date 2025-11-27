@@ -109,41 +109,48 @@ export async function POST(request: Request) {
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const quizIdParam = searchParams.get("quizId");
-    const sessionToken = searchParams.get("sessionToken");
+    const sessionToken = searchParams.get("q");
 
-    let quizId: number | null =
-      quizIdParam !== null ? Number(quizIdParam) : null;
-
-    if ((!quizId || Number.isNaN(quizId)) && sessionToken) {
-      const session = await getSessionByToken(sessionToken);
-      quizId = session?.quiz_id ?? null;
-    }
-
-    if (!quizId || Number.isNaN(quizId)) {
+    if (!sessionToken) {
       return NextResponse.json(
-        { message: "Provide quizId or sessionToken." },
+        { message: "Missing session token." },
         { status: 400 }
       );
+    }
+
+    const session = await getSessionByToken(sessionToken);
+
+    if (!session) {
+      return NextResponse.json(
+        { message: "Session not found." },
+        { status: 404 }
+      );
+    }
+
+    const quizId = session.quiz_id;
+
+    if (!quizId) {
+      return NextResponse.json({
+        status: "pending",
+        hooks: null,
+        errorMessage: null,
+      });
     }
 
     const record = await getHookQuestionsByQuizId(quizId);
 
     if (!record) {
       return NextResponse.json({
-        quizId,
         status: "pending",
         hooks: null,
+        errorMessage: null,
       });
     }
 
     return NextResponse.json({
-      quizId,
       status: record.status,
       hooks: record.hooks,
       errorMessage: record.error_message,
-      modelVersion: record.model_version,
-      updatedAt: record.updated_at,
     });
   } catch (error) {
     logger.error({ err: error }, "GET /api/hooks failed");

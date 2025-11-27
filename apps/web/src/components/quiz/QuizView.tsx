@@ -459,14 +459,15 @@ export function QuizView({
               }
 
               return (
-                <button
+                <Button
                   type="button"
-                  className="load-more subtle"
+                  variant="subtle"
                   disabled={buttonDisabled}
                   onClick={buttonOnClick}
+                  width="100%"
                 >
                   {buttonLabel}
-                </button>
+                </Button>
               );
             })()}
           </div>
@@ -474,18 +475,17 @@ export function QuizView({
       </section>
 
       <div className="actions-row" style={{ marginTop: '2rem' }}>
-        <button
+        <Button
           type="button"
-          className="secondary-btn"
+          colorPalette="teal"
           onClick={() => {
             if (!showForm) {
               setShowForm(true);
             }
           }}
-          style={{ backgroundColor: 'teal', color: 'white' }}
         >
           Try another article
-        </button>
+        </Button>
       </div>
 
       {showForm && (

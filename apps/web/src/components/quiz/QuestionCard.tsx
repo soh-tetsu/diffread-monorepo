@@ -131,9 +131,26 @@ export function QuestionCard({
             </Box>
           )}
           {question.remediationPointer && (
-            <p className="remediation-pointer">
-              {question.remediationPointer}
-            </p>
+            <Box mt={4}>
+              <Blockquote variant="plain" colorPalette="teal" showDash icon={
+                <Float placement="top-start" offsetY="2">
+                  <BlockquoteIcon />
+                </Float>
+              }>
+                <Text
+                  textTransform="uppercase"
+                  fontSize="xs"
+                  letterSpacing="0.2em"
+                  color="teal.600"
+                  mb={2}
+                >
+                  From the article
+                </Text>
+                <Text color="gray.700" fontStyle="italic">
+                  {question.remediationPointer}
+                </Text>
+              </Blockquote>
+            </Box>
           )}
         </div>
       )}
