@@ -4,7 +4,8 @@ const level =
   process.env.LOG_LEVEL ??
   (process.env.NODE_ENV === "production" ? "info" : "debug");
 const isProd = process.env.NODE_ENV === "production";
-const isBun = typeof Bun !== "undefined";
+// Check if running under Bun (check for Bun-specific global)
+const isBun = "Bun" in globalThis;
 
 export const logger = pino({
   level,
