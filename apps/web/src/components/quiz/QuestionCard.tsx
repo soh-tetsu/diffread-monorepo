@@ -160,7 +160,7 @@ export function QuestionCard({
                 display="inline-block"
                 mt={3}
               >
-                Jump to "{question.sourceLocation.anchorText}"
+                Jump to &quot;{question.sourceLocation.anchorText}&quot;
                 {question.sourceLocation.estimatedParagraph
                   ? ` (para ${question.sourceLocation.estimatedParagraph})`
                   : ""}{" "}

@@ -458,7 +458,7 @@ export function QuizView({
             {hookQuestions.slice(0, visibleHookCount).map((question) => (
               <Box
                 key={`hook-${question.id}`}
-                ref={(el) => {
+                ref={(el: HTMLDivElement | null) => {
                   questionRefs.current[question.id] = el;
                 }}
               >
@@ -473,7 +473,7 @@ export function QuizView({
             {instructionsVisible && questions.length > 0 && questions.slice(0, visibleInstructionCount).map((question) => (
               <Box
                 key={`instruction-${question.id}`}
-                ref={(el) => {
+                ref={(el: HTMLDivElement | null) => {
                   questionRefs.current[question.id] = el;
                 }}
               >
@@ -550,8 +550,10 @@ export function QuizView({
       {showForm && (
         <Box
           as="form"
-          onSubmit={handleSubmitNewArticle}
-          ref={formRef}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onSubmit={handleSubmitNewArticle as any}
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ref={formRef as any}
         >
           <VStack gap={3} align="stretch">
             <Field label="URL">
