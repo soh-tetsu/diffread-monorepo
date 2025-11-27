@@ -502,6 +502,7 @@ export function QuizView({
               return (
                 <Button
                   type="button"
+                  colorPalette="teal"
                   variant="subtle"
                   disabled={buttonDisabled}
                   onClick={buttonOnClick}
