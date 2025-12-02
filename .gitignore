@@ -41,3 +41,6 @@ PRD.md
 
 # supabase temporary files
 apps/web/supabase/.temp/
+
+# Husky internal directory
+.husky/_

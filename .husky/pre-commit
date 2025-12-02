@@ -1,0 +1,5 @@
+# Run lint-staged (Biome format + lint on staged files)
+bunx lint-staged
+
+# Run osv-scanner on the entire project
+osv-scanner scan --lockfile=bun.lock
