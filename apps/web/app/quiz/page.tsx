@@ -5,8 +5,8 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import useSWR from 'swr'
 import { QuizView } from '@/components/quiz/QuizView'
-import type { QuizQuestion } from '@/lib/quiz/normalize-hook-questions'
-import { normalizeHookQuestions } from '@/lib/quiz/normalize-hook-questions'
+import type { QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
+import { normalizeHookQuestions } from '@/lib/quiz/normalize-curiosity-quizzes'
 import type { CuriosityQuizStatus, ScaffoldQuizStatus, SessionStatus } from '@/types/db'
 
 type QuizMetaResponse = {

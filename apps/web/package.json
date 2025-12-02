@@ -9,11 +9,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "admin:new-session": "tsx scripts/add-session.ts",
-    "admin:drain-session": "tsx scripts/drain-session.ts",
-    "admin:drain-pending": "tsx scripts/drain-pending.ts",
-    "admin:scaffold": "tsx scripts/scaffold.ts",
-    "task:analyze-metadata": "tsx scripts/analyze-metadata.ts"
+    "admin:new-session": "tsx scripts/add-session.ts"
   },
   "dependencies": {
     "@chakra-ui/react": "3.30.0",

@@ -18,7 +18,7 @@ import { QuestionCard } from '@/components/quiz/QuestionCard'
 import { Field } from '@/components/ui/field'
 import { toaster } from '@/components/ui/toaster'
 import { trackQuizSelection } from '@/lib/analytics/client'
-import type { QuizQuestion } from '@/lib/quiz/normalize-hook-questions'
+import type { QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
 
 import type { CuriosityQuizStatus } from '@/types/db'
 

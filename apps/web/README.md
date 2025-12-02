@@ -159,7 +159,7 @@ Returns hook questions status and data:
 }
 ```
 
-The `hooks` field is normalized client-side using `normalizeHookQuestions()` from `src/lib/quiz/normalize-hook-questions.ts`.
+The `hooks` field is normalized client-side using `normalizeHookQuestions()` from `src/lib/quiz/normalize-curiosity-quizzes.ts`.
 
 #### `GET /api/instructions?q={sessionToken}`
 
