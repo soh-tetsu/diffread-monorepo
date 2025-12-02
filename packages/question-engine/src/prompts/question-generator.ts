@@ -1,18 +1,18 @@
-import type { PromptContext, PromptDefinition } from "./types";
+import type { PromptContext, PromptDefinition } from './types'
 
 function assertNonEmpty(value: string | undefined, field: string): string {
-  const cleaned = value?.trim();
+  const cleaned = value?.trim()
   if (!cleaned) {
-    throw new Error(`questionGeneratorPrompt requires non-empty ${field}.`);
+    throw new Error(`questionGeneratorPrompt requires non-empty ${field}.`)
   }
-  return cleaned;
+  return cleaned
 }
 
 function renderQuestionGeneratorPrompt(context: PromptContext): string {
-  const relevantContext = assertNonEmpty(context.text, "relevant context text");
-  const taskInstruction = assertNonEmpty(context.taskInstruction, "task instruction");
-  const questionType = assertNonEmpty(context.questionType, "question type");
-  const language = assertNonEmpty(context.language ?? "en", "language");
+  const relevantContext = assertNonEmpty(context.text, 'relevant context text')
+  const taskInstruction = assertNonEmpty(context.taskInstruction, 'task instruction')
+  const questionType = assertNonEmpty(context.questionType, 'question type')
+  const language = assertNonEmpty(context.language ?? 'en', 'language')
 
   return `You are an expert Educator and Psychometrician. Your sole task is to generate **one single, high-quality Multiple Choice Question (MCQ)** based on a specific text snippet.
 
@@ -133,14 +133,14 @@ function renderQuestionGeneratorPrompt(context: PromptContext): string {
   **[TARGET_LANGUAGE]**
   ${language}
 
-  Produce only the JSON object described above.`;
+  Produce only the JSON object described above.`
 }
 
 export const questionGeneratorPrompt: PromptDefinition = {
-  id: "question-generator",
-  version: "question-generator-v1",
-  objective: "Generate a single MCQ from a snippet/task pairing for Diffread.",
+  id: 'question-generator',
+  version: 'question-generator-v1',
+  objective: 'Generate a single MCQ from a snippet/task pairing for Diffread.',
   systemInstruction:
-    "You create diagnostic MCQs by reading the provided snippet and fulfilling the given task instruction.",
+    'You create diagnostic MCQs by reading the provided snippet and fulfilling the given task instruction.',
   render: (context) => renderQuestionGeneratorPrompt(context),
-};
+}

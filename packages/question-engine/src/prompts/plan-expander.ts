@@ -1,49 +1,49 @@
-import type { ArticleMetadata, ReadingPlanPart, TaskTemplate } from "../types";
-import type { PromptContext, PromptDefinition } from "./types";
+import type { ArticleMetadata, ReadingPlanPart, TaskTemplate } from '../types'
+import type { PromptContext, PromptDefinition } from './types'
 
 function assertArticleText(text?: string): string {
-  const cleaned = text?.trim();
+  const cleaned = text?.trim()
   if (!cleaned) {
-    throw new Error("articleExpanderPrompt requires non-empty article text.");
+    throw new Error('articleExpanderPrompt requires non-empty article text.')
   }
-  return cleaned;
+  return cleaned
 }
 
 function assertMetadata(metadata?: ArticleMetadata): ArticleMetadata {
   if (!metadata) {
-    throw new Error("articleExpanderPrompt requires metadata input.");
+    throw new Error('articleExpanderPrompt requires metadata input.')
   }
-  return metadata;
+  return metadata
 }
 
 function assertTaskPool(taskPool?: TaskTemplate[] | null): TaskTemplate[] {
   if (!taskPool || taskPool.length === 0) {
-    throw new Error("articleExpanderPrompt requires a non-empty task pool.");
+    throw new Error('articleExpanderPrompt requires a non-empty task pool.')
   }
-  return taskPool;
+  return taskPool
 }
 
 function assertReadingPlan(plan?: ReadingPlanPart[]): ReadingPlanPart[] {
   if (!plan || plan.length === 0) {
-    throw new Error("articleExpanderPrompt requires a non-empty reading plan.");
+    throw new Error('articleExpanderPrompt requires a non-empty reading plan.')
   }
-  return plan;
+  return plan
 }
 
 function renderPlanExpanderPrompt(context: PromptContext): string {
-  const articleText = assertArticleText(context.text);
-  const metadata = assertMetadata(context.metadata);
-  const taskPool = assertTaskPool(context.taskPool);
-  const readingPlan = assertReadingPlan(context.readingPlan);
+  const articleText = assertArticleText(context.text)
+  const metadata = assertMetadata(context.metadata)
+  const taskPool = assertTaskPool(context.taskPool)
+  const readingPlan = assertReadingPlan(context.readingPlan)
 
-  const metadataJson = JSON.stringify(metadata, null, 2);
-  const planJson = JSON.stringify(readingPlan, null, 2);
+  const metadataJson = JSON.stringify(metadata, null, 2)
+  const planJson = JSON.stringify(readingPlan, null, 2)
   const legacyTaskPool = taskPool.map((task) => ({
     id: task.id,
     description: task.description,
     question_type: task.questionType,
-  }));
-  const taskPoolJson = JSON.stringify(legacyTaskPool, null, 2);
+  }))
+  const taskPoolJson = JSON.stringify(legacyTaskPool, null, 2)
 
   return `
   You are an expert Text Analyst and Curriculum Designer.
@@ -133,14 +133,14 @@ function renderPlanExpanderPrompt(context: PromptContext): string {
 
   **[METADATA]**
   ${metadataJson}
-  `;
+  `
 }
 
 export const planExpanderPrompt: PromptDefinition = {
-  id: "plan-expander",
-  version: "plan-expander-v2",
-  objective: "Expand high-level reading plan tasks into concrete instructions with coverage stats.",
+  id: 'plan-expander',
+  version: 'plan-expander-v2',
+  objective: 'Expand high-level reading plan tasks into concrete instructions with coverage stats.',
   systemInstruction:
-    "You expand Diffread reading plans by mapping each task to concrete instructions tied to the article text.",
+    'You expand Diffread reading plans by mapping each task to concrete instructions tied to the article text.',
   render: (context) => renderPlanExpanderPrompt(context),
-};
+}

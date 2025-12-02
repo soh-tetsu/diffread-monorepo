@@ -1,6 +1,6 @@
-import { GoogleGenAI, HarmBlockThreshold, HarmCategory } from "@google/genai";
-import { z } from "zod";
-import type { PromptDefinition, PromptContext } from "./types";
+import { type GoogleGenAI, HarmBlockThreshold, HarmCategory } from '@google/genai'
+import type { z } from 'zod'
+import type { PromptContext, PromptDefinition } from './types'
 
 export const DEFAULT_SAFETY_SETTINGS = [
   {
@@ -19,44 +19,56 @@ export const DEFAULT_SAFETY_SETTINGS = [
     category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
     threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
   },
-];
+]
 
 export type GenerationConfig = {
-  model: string;
-  temperature: number;
-  topP?: number;
-  topK?: number;
-  maxOutputTokens: number;
-  responseMimeType?: "application/json" | "text/plain";
+  model: string
+  temperature: number
+  topP?: number
+  topK?: number
+  maxOutputTokens: number
+  responseMimeType?: 'application/json' | 'text/plain'
   thinkingConfig?: {
-    includeThoughts?: boolean;
-    thinkingBudget?: number;
-  };
-};
+    includeThoughts?: boolean
+    thinkingBudget?: number
+  }
+}
 
 export class PromptExecutor {
   constructor(
     private client: GoogleGenAI,
     private config: GenerationConfig
-  ) { }
+  ) {}
 
   // TODO: After V2 migration is complete, remove V1 overload and simplify to only support generic prompts
   async execute<T>(
     prompt: PromptDefinition,
     context: PromptContext,
     schema: z.ZodSchema<T>
-  ): Promise<T>;
+  ): Promise<T>
   async execute<T, TContext>(
-    prompt: { id: string; version: string; systemInstruction: string; render(context: TContext): string },
+    prompt: {
+      id: string
+      version: string
+      systemInstruction: string
+      render(context: TContext): string
+    },
     context: TContext,
     schema: z.ZodSchema<T>
-  ): Promise<T>;
+  ): Promise<T>
   async execute<T, TContext>(
-    prompt: PromptDefinition | { id: string; version: string; systemInstruction: string; render(context: TContext): string },
+    prompt:
+      | PromptDefinition
+      | {
+          id: string
+          version: string
+          systemInstruction: string
+          render(context: TContext): string
+        },
     context: TContext,
     schema: z.ZodSchema<T>
   ): Promise<T> {
-    const rendered = prompt.render(context as any);
+    const rendered = prompt.render(context as any)
 
     const response = await this.client.models.generateContent({
       model: this.config.model,
@@ -66,55 +78,55 @@ export class PromptExecutor {
         ...this.config,
         safetySettings: DEFAULT_SAFETY_SETTINGS,
       },
-    });
+    })
 
-    const raw = response.text?.trim();
+    const raw = response.text?.trim()
     if (!raw) {
       throw new Error(
         `Gemini returned empty response for prompt ${prompt.id} (version: ${prompt.version})`
-      );
+      )
     }
 
     // console.error("Raw response:", raw);
 
     try {
       // Extract rationale from <rationale></rationale> block
-      const rationaleMatch = raw.match(/<rationale>([\s\S]*?)<\/rationale>/);
-      const rationale = rationaleMatch?.[1]?.trim() ?? "";
+      const rationaleMatch = raw.match(/<rationale>([\s\S]*?)<\/rationale>/)
+      const rationale = rationaleMatch?.[1]?.trim() ?? ''
 
       // console.error("Rationale:", rationale);
 
       // Extract JSON from ```json ... ``` block
-      const jsonStartMatch = raw.match(/```json\s*/);
-      let jsonContent: string;
+      const jsonStartMatch = raw.match(/```json\s*/)
+      let jsonContent: string
 
       if (jsonStartMatch) {
-        const jsonStart = jsonStartMatch.index! + jsonStartMatch[0].length;
-        const afterJson = raw.slice(jsonStart);
-        const jsonEndIndex = afterJson.lastIndexOf('```');
+        const jsonStart = jsonStartMatch.index! + jsonStartMatch[0].length
+        const afterJson = raw.slice(jsonStart)
+        const jsonEndIndex = afterJson.lastIndexOf('```')
 
         if (jsonEndIndex !== -1) {
-          jsonContent = afterJson.slice(0, jsonEndIndex).trim();
+          jsonContent = afterJson.slice(0, jsonEndIndex).trim()
         } else {
-          throw new Error("No closing ``` found for JSON block");
+          throw new Error('No closing ``` found for JSON block')
         }
       } else {
         // Fallback: try to parse raw as JSON if no code fence
-        jsonContent = raw;
+        jsonContent = raw
       }
 
-      const parsed = JSON.parse(jsonContent);
+      const parsed = JSON.parse(jsonContent)
 
       // Merge rationale into the parsed object
-      const withRationale = { rationale, ...parsed };
+      const withRationale = { rationale, ...parsed }
 
-      return schema.parse(withRationale);
+      return schema.parse(withRationale)
     } catch (error) {
-      const snippet = raw.slice(0, 500);
-      const reason = error instanceof Error ? error.message : String(error);
+      const snippet = raw.slice(0, 500)
+      const reason = error instanceof Error ? error.message : String(error)
       throw new Error(
         `Failed to parse response for prompt ${prompt.id} (version: ${prompt.version}): ${reason}. Snippet: ${snippet}`
-      );
+      )
     }
   }
 }

@@ -1,15 +1,15 @@
-"use client";
+'use client'
 
-import { Float, Box, Text, Button, Stack, VStack, Flex, Link } from "@chakra-ui/react";
-import { Blockquote, BlockquoteIcon } from "@/components/ui/blockquote";
-import { QuizOption, QuizQuestion } from "@/lib/quiz/normalize-question";
+import { Box, Button, Flex, Float, Link, Stack, Text, VStack } from '@chakra-ui/react'
+import { Blockquote, BlockquoteIcon } from '@/components/ui/blockquote'
+import type { QuizOption, QuizQuestion } from '@/lib/quiz/normalize-question'
 
 type Props = {
-  question: QuizQuestion;
-  selectedIndex: number | null;
-  articleUrl?: string | null;
-  onSelect: (optionIndex: number) => void;
-};
+  question: QuizQuestion
+  selectedIndex: number | null
+  articleUrl?: string | null
+  onSelect: (optionIndex: number) => void
+}
 
 function OptionButton({
   option,
@@ -18,23 +18,23 @@ function OptionButton({
   isCorrect,
   onClick,
 }: {
-  option: QuizOption;
-  index: number;
-  isSelected: boolean;
-  isCorrect: boolean;
-  onClick: () => void;
+  option: QuizOption
+  index: number
+  isSelected: boolean
+  isCorrect: boolean
+  onClick: () => void
 }) {
   const getBorderColor = () => {
-    if (isSelected && isCorrect) return "blue.500";
-    if (isSelected && !isCorrect) return "red.500";
-    return "gray.200";
-  };
+    if (isSelected && isCorrect) return 'blue.500'
+    if (isSelected && !isCorrect) return 'red.500'
+    return 'gray.200'
+  }
 
   const getBgColor = () => {
-    if (isSelected && isCorrect) return "blue.50";
-    if (isSelected && !isCorrect) return "red.50";
-    return "gray.50";
-  };
+    if (isSelected && isCorrect) return 'blue.50'
+    if (isSelected && !isCorrect) return 'red.50'
+    return 'gray.50'
+  }
 
   return (
     <Button
@@ -50,8 +50,8 @@ function OptionButton({
       borderWidth="1px"
       borderRadius="xl"
       _hover={{
-        borderColor: isSelected ? undefined : "blue.500",
-        shadow: isSelected ? undefined : "0 8px 20px rgba(37, 99, 235, 0.08)",
+        borderColor: isSelected ? undefined : 'blue.500',
+        shadow: isSelected ? undefined : '0 8px 20px rgba(37, 99, 235, 0.08)',
       }}
       cursor="pointer"
       textAlign="left"
@@ -78,17 +78,12 @@ function OptionButton({
         {option.text}
       </Text>
     </Button>
-  );
+  )
 }
 
-export function QuestionCard({
-  question,
-  selectedIndex,
-  articleUrl,
-  onSelect,
-}: Props) {
-  const showFeedback = selectedIndex !== null;
-  const isCorrect = selectedIndex === question.answerIndex;
+export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: Props) {
+  const showFeedback = selectedIndex !== null
+  const isCorrect = selectedIndex === question.answerIndex
 
   return (
     <Box
@@ -106,12 +101,7 @@ export function QuestionCard({
           <Text fontSize="sm" color="gray.500" mb={1}>
             {question.category}
           </Text>
-          <Text
-            as="h2"
-            fontSize={{ base: "lg", md: "xl" }}
-            fontWeight="semibold"
-            mt={2}
-          >
+          <Text as="h2" fontSize={{ base: 'lg', md: 'xl' }} fontWeight="semibold" mt={2}>
             {question.prompt}
           </Text>
         </Box>
@@ -120,6 +110,7 @@ export function QuestionCard({
         <Stack gap={{ base: 2, md: 3 }}>
           {question.options.map((option, idx) => (
             <OptionButton
+              // biome-ignore lint/suspicious/noArrayIndexKey: Options are static and don't reorder
               key={idx}
               option={option}
               index={idx}
@@ -136,11 +127,11 @@ export function QuestionCard({
             borderRadius="2xl"
             p={{ base: 3, md: 4 }}
             borderWidth="1px"
-            borderColor={isCorrect ? "blue.200" : "red.300"}
-            bg={isCorrect ? "blue.50" : "red.50"}
+            borderColor={isCorrect ? 'blue.200' : 'red.300'}
+            bg={isCorrect ? 'blue.50' : 'red.50'}
           >
             <Text fontWeight="semibold" color="gray.900" mb={2}>
-              {isCorrect ? "Nice! Your intuition matches the source." : "Not quite right."}
+              {isCorrect ? 'Nice! Your intuition matches the source.' : 'Not quite right.'}
             </Text>
 
             {selectedIndex !== null && question.options[selectedIndex]?.rationale && (
@@ -180,16 +171,20 @@ export function QuestionCard({
                   alignItems="center"
                   gap={1}
                   _hover={{
-                    color: "blue.700",
-                    textDecoration: "underline",
+                    color: 'blue.700',
+                    textDecoration: 'underline',
                   }}
                 >
                   <Text as="span">
-                    View in article: &quot;{question.sourceLocation.anchorText.length > 60
-                      ? question.sourceLocation.anchorText.slice(0, 60) + "..."
-                      : question.sourceLocation.anchorText}&quot;
+                    View in article: &quot;
+                    {question.sourceLocation.anchorText.length > 60
+                      ? `${question.sourceLocation.anchorText.slice(0, 60)}...`
+                      : question.sourceLocation.anchorText}
+                    &quot;
                   </Text>
-                  <Text as="span" fontSize="lg">↗</Text>
+                  <Text as="span" fontSize="lg">
+                    ↗
+                  </Text>
                 </Link>
                 {question.sourceLocation.estimatedParagraph && (
                   <Text fontSize="xs" color="gray.600" mt={1}>
@@ -201,11 +196,16 @@ export function QuestionCard({
 
             {question.relevantContext && (
               <Box mt={4}>
-                <Blockquote variant="plain" colorPalette="teal" showDash icon={
-                  <Float placement="top-start" offsetY="2">
-                    <BlockquoteIcon />
-                  </Float>
-                }>
+                <Blockquote
+                  variant="plain"
+                  colorPalette="teal"
+                  showDash
+                  icon={
+                    <Float placement="top-start" offsetY="2">
+                      <BlockquoteIcon />
+                    </Float>
+                  }
+                >
                   <Text
                     textTransform="uppercase"
                     fontSize="xs"
@@ -224,11 +224,16 @@ export function QuestionCard({
 
             {question.remediationPointer && (
               <Box mt={4}>
-                <Blockquote variant="plain" colorPalette="teal" showDash icon={
-                  <Float placement="top-start" offsetY="2">
-                    <BlockquoteIcon />
-                  </Float>
-                }>
+                <Blockquote
+                  variant="plain"
+                  colorPalette="teal"
+                  showDash
+                  icon={
+                    <Float placement="top-start" offsetY="2">
+                      <BlockquoteIcon />
+                    </Float>
+                  }
+                >
                   <Text
                     textTransform="uppercase"
                     fontSize="xs"
@@ -248,5 +253,5 @@ export function QuestionCard({
         )}
       </VStack>
     </Box>
-  );
+  )
 }

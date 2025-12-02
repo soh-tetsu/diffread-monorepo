@@ -1,16 +1,16 @@
-import type { PromptDefinitionV2 } from "../types";
-import type { Metadata } from "../../workflows/curiosity-question-workflow";
+import type { Metadata } from '../../workflows/curiosity-question-workflow'
+import type { PromptDefinitionV2 } from '../types'
 
 /**
  * V2-specific prompt context for hook generation
  */
 export type HookGeneratorPromptContext = {
-  metadata: Metadata;
-};
+  metadata: Metadata
+}
 
 function renderHookGeneratorPrompt(context: HookGeneratorPromptContext): string {
-  const language_code = context.metadata.language || "en";
-  const pedagogyJson = JSON.stringify({ pedagogy: context.metadata.pedagogy }, null, 2);
+  const language_code = context.metadata.language || 'en'
+  const pedagogyJson = JSON.stringify({ pedagogy: context.metadata.pedagogy }, null, 2)
 
   return `You are an expert Instructional Designer and Copywriter.
   **Task:** Convert the provided "Cognitive Metadata Profile" (JSON) into a high-engagement Pre-Test Quiz.
@@ -161,15 +161,14 @@ function renderHookGeneratorPrompt(context: HookGeneratorPromptContext): string 
   ### INPUT JSON
 
   ${pedagogyJson}
-`;
+`
 }
 
 export const hookGeneratorPromptV2: PromptDefinitionV2<HookGeneratorPromptContext> = {
-  id: "hook-generator-v2",
-  version: "v2.0.0",
-  objective:
-    "Generate 3 curiosity-driven hook questions from extracted hook context",
+  id: 'hook-generator-v2',
+  version: 'v2.0.0',
+  objective: 'Generate 3 curiosity-driven hook questions from extracted hook context',
   systemInstruction:
     "You are an expert educator. Generate hook questions that challenge assumptions and create curiosity by testing reader intuition against the article's counter-intuitive claims.",
   render: (context) => renderHookGeneratorPrompt(context),
-};
+}

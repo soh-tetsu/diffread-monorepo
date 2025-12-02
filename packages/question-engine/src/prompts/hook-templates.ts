@@ -1,17 +1,21 @@
-import type { ArticleMetadata } from "../types";
+import type { ArticleMetadata } from '../types'
 
 function sanitizeText(text: string): string {
-  const cleaned = text.trim();
+  const cleaned = text.trim()
   if (!cleaned) {
-    throw new Error("Hook prompt rendering requires non-empty article text.");
+    throw new Error('Hook prompt rendering requires non-empty article text.')
   }
-  return cleaned;
+  return cleaned
 }
 
 function serializeMetadata(metadata: ArticleMetadata): string {
-   return JSON.stringify({
-    language: metadata.language || "en", // Default to English if missing
-  }, null, 2); 
+  return JSON.stringify(
+    {
+      language: metadata.language || 'en', // Default to English if missing
+    },
+    null,
+    2
+  )
 }
 
 // GROUP 4: Impact (Factual, Narrative) - Default Fallback
@@ -24,7 +28,7 @@ ${serializeMetadata(metadata)}
 
 **Article Text:**
 ${sanitizeText(text)}
-`;
+`
 }
 
 // GROUP 3: High-Stakes (Procedural, Prescriptive)
@@ -36,7 +40,7 @@ ${serializeMetadata(metadata)}
 
 **Article Text:**
 ${sanitizeText(text)}
-`;
+`
 }
 
 // GROUP 2: Scientific Method (Academic Research)
@@ -48,7 +52,7 @@ ${serializeMetadata(metadata)}
 
 **Article Text:**
 ${sanitizeText(text)}
-`;
+`
 }
 
 // GROUP 1: Myth-Buster (Argumentative, Conceptual, Case Study)
@@ -60,9 +64,8 @@ ${serializeMetadata(metadata)}
 
 **Article Text:**
 ${sanitizeText(text)}
-`;
+`
 }
-
 
 // GROUP 4: Impact (Factual, Narrative) - Default Fallback
 // Includes 'Factual Report', 'Narrative / Chronology'
@@ -163,7 +166,7 @@ Generate exactly 3 questions following this strict logic:
 
 ### INPUT DATA
 
-`;
+`
 
 // GROUP 3: High-Stakes (Procedural, Prescriptive)
 const HIGH_STAKES_PROMPT = `You are an expert Technical Instructor and Mentor.
@@ -264,7 +267,7 @@ Generate exactly 3 questions following this strict logic:
 
 ### INPUT DATA
 
-`;
+`
 
 // GROUP 2: Scientific Method (Academic Research)
 const ACADEMIC_PROMPT = `You are an expert Research Scientist and Cognitive Science Educator.
@@ -364,7 +367,7 @@ Generate exactly 3 questions following this strict logic:
 
 ### INPUT DATA
 
-`;
+`
 
 // GROUP 1: Myth-Buster (Argumentative, Conceptual, Case Study)
 const MYTH_BUSTER_PROMPT = `You are an expert Debater and Cognitive Scientist.
@@ -458,4 +461,4 @@ Generate exactly 3 questions following this strict logic:
 
 ### INPUT DATA
 
-`;
+`

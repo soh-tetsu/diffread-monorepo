@@ -1,13 +1,13 @@
-import type { PromptDefinitionV2 } from "../types";
+import type { PromptDefinitionV2 } from '../types'
 
 type AnalysisPromptContext = {
-  text: string;
-};
+  text: string
+}
 
 function renderAnalysisPrompt({ text }: AnalysisPromptContext): string {
-  const cleaned = text?.trim();
+  const cleaned = text?.trim()
   if (!cleaned) {
-    throw new Error("analysisPromptV2 requires non-empty article text.");
+    throw new Error('analysisPromptV2 requires non-empty article text.')
   }
 
   return `You are an expert Cognitive Scientist and AI Content Strategist.
@@ -190,15 +190,14 @@ function renderAnalysisPrompt({ text }: AnalysisPromptContext): string {
   **Input Text:**
 
   ${cleaned}
-`;
+`
 }
 
 export const analysisPromptV2: PromptDefinitionV2<AnalysisPromptContext> = {
-  id: "analysis-v2",
-  version: "v2.0.0",
-  objective:
-    "Extract article metadata and hook context for curiosity question generation",
+  id: 'analysis-v2',
+  version: 'v2.0.0',
+  objective: 'Extract article metadata and hook context for curiosity question generation',
   systemInstruction:
-    "You are an expert content analyst. Extract structured metadata AND specific content elements (claims, facts, counter-intuitive points) for generating curiosity-driven hook questions.",
+    'You are an expert content analyst. Extract structured metadata AND specific content elements (claims, facts, counter-intuitive points) for generating curiosity-driven hook questions.',
   render: (context) => renderAnalysisPrompt(context),
-};
+}

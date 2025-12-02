@@ -1,102 +1,101 @@
-import { randomUUID } from "crypto";
-import { supabase } from "@/lib/supabase";
-import { upsertHookQuestions } from "@/lib/db/hooks";
-import { ArticleRow, QuizRow } from "@/types/db";
-import { normalizeUrl } from "@/lib/utils/normalize-url";
+import { randomUUID } from 'crypto'
+import { upsertHookQuestions } from '@/lib/db/hooks'
+import { supabase } from '@/lib/supabase'
+import { normalizeUrl } from '@/lib/utils/normalize-url'
+import type { ArticleRow, QuizRow } from '@/types/db'
 
 async function createPendingQuiz(articleId: number): Promise<QuizRow> {
   const { data, error } = await supabase
-    .from("quizzes")
+    .from('quizzes')
     .insert({
       article_id: articleId,
       quiz_id: randomUUID(),
-      status: "not_required",
+      status: 'not_required',
     })
-    .select("*")
-    .single();
+    .select('*')
+    .single()
 
   if (error || !data) {
-    throw new Error(`Failed to enqueue quiz: ${error?.message}`);
+    throw new Error(`Failed to enqueue quiz: ${error?.message}`)
   }
 
-  const quiz = data as QuizRow;
+  const quiz = data as QuizRow
 
   await upsertHookQuestions({
     quizId: quiz.id,
-    status: "pending",
-  });
+    status: 'pending',
+  })
 
-  return quiz;
+  return quiz
 }
 
 async function resetFailedQuiz(quiz: QuizRow): Promise<QuizRow> {
   const { data, error } = await supabase
-    .from("quizzes")
+    .from('quizzes')
     .update({
-      status: "pending",
+      status: 'pending',
       model_used: null,
     })
-    .eq("id", quiz.id)
-    .select("*")
-    .single();
+    .eq('id', quiz.id)
+    .select('*')
+    .single()
 
   if (error || !data) {
-    throw new Error(`Failed to reset quiz: ${error?.message}`);
+    throw new Error(`Failed to reset quiz: ${error?.message}`)
   }
 
-  return data as QuizRow;
+  return data as QuizRow
 }
 
-export type BootstrapQuizResult =
-  {
-    normalizedUrl: string;
-    article: ArticleRow;
-    quiz: QuizRow;
-    enqueued: boolean;
-  };
+export type BootstrapQuizResult = {
+  normalizedUrl: string
+  article: ArticleRow
+  quiz: QuizRow
+  enqueued: boolean
+}
 
 export async function bootstrapQuiz(originalUrl: string): Promise<BootstrapQuizResult> {
-  const normalizedUrl = normalizeUrl(originalUrl);
+  const normalizedUrl = normalizeUrl(originalUrl)
 
   const { data: existingArticle, error: articleError } = await supabase
-    .from("articles")
-    .select("*")
-    .eq("normalized_url", normalizedUrl)
-    .maybeSingle();
+    .from('articles')
+    .select('*')
+    .eq('normalized_url', normalizedUrl)
+    .maybeSingle()
 
-  if (articleError && articleError.code !== "PGRST116") {
-    throw new Error(`Failed to check article: ${articleError.message}`);
+  if (articleError && articleError.code !== 'PGRST116') {
+    throw new Error(`Failed to check article: ${articleError.message}`)
   }
 
-  let article = existingArticle as ArticleRow | null;
+  let article = existingArticle as ArticleRow | null
 
   if (!article) {
     const { data: insertedArticle, error: insertError } = await supabase
-      .from("articles")
+      .from('articles')
       .insert({
         normalized_url: normalizedUrl,
         original_url: originalUrl,
       })
-      .select("*")
-      .single();
+      .select('*')
+      .single()
 
     if (insertError || !insertedArticle) {
-      throw new Error(`Failed to insert article: ${insertError?.message}`);
+      throw new Error(`Failed to insert article: ${insertError?.message}`)
     }
 
-    article = insertedArticle as ArticleRow;
+    article = insertedArticle as ArticleRow
   }
 
   const { data: latestQuiz, error: quizError } = await supabase
-    .from("quizzes")
-    .select("*")
-    .eq("article_id", article.id)
-    .order("created_at", { ascending: false })
+    .from('quizzes')
+    .select('*')
+    .eq('article_id', article.id)
+    .order('created_at', { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle()
 
-  if (quizError && quizError.code !== "PGRST116") {
-    throw new Error(`Failed to load quiz status: ${quizError.message}`);
+  if (quizError && quizError.code !== 'PGRST116') {
+    throw new Error(`Failed to load quiz status: ${quizError.message}`)
   }
 
   if (!latestQuiz) {
@@ -105,16 +104,16 @@ export async function bootstrapQuiz(originalUrl: string): Promise<BootstrapQuizR
       article,
       quiz: await createPendingQuiz(article.id),
       enqueued: true,
-    };
+    }
   }
 
-  if (latestQuiz.status === "failed") {
+  if (latestQuiz.status === 'failed') {
     return {
       normalizedUrl,
       article,
       quiz: await resetFailedQuiz(latestQuiz as QuizRow),
       enqueued: true,
-    };
+    }
   }
 
   return {
@@ -122,5 +121,5 @@ export async function bootstrapQuiz(originalUrl: string): Promise<BootstrapQuizR
     article,
     quiz: latestQuiz as QuizRow,
     enqueued: false,
-  };
+  }
 }

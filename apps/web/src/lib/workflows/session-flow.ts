@@ -1,25 +1,20 @@
-import pLimit from "p-limit";
-import { logger } from "@/lib/logger";
-import { initSession } from "@/lib/workflows/session-init";
-import { processNextPendingQuiz } from "@/lib/workflows/process-quiz";
-import { concurrencyConfig } from "@/lib/config";
+import pLimit from 'p-limit'
+import { concurrencyConfig } from '@/lib/config'
+import { logger } from '@/lib/logger'
+import { processNextPendingQuiz } from '@/lib/workflows/process-quiz'
+import { initSession } from '@/lib/workflows/session-init'
 
-const sessionWorkerLimit = pLimit(concurrencyConfig.sessionWorkers);
-const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers);
+const sessionWorkerLimit = pLimit(concurrencyConfig.sessionWorkers)
+const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers)
 
-export async function enqueueAndProcessSession(
-  email: string,
-  originalUrl: string
-) {
-  const result = await sessionWorkerLimit(() =>
-    initSession(email, originalUrl)
-  );
+export async function enqueueAndProcessSession(email: string, originalUrl: string) {
+  const result = await sessionWorkerLimit(() => initSession(email, originalUrl))
 
   pendingWorkerLimit(() =>
     processNextPendingQuiz().catch((err) => {
-      logger.error({ err }, "Failed to process quiz immediately");
+      logger.error({ err }, 'Failed to process quiz immediately')
     })
-  );
+  )
 
   logger.info(
     {
@@ -27,8 +22,8 @@ export async function enqueueAndProcessSession(
       quizId: result.quiz.id,
       enqueued: result.enqueued,
     },
-    "Session enqueued"
-  );
+    'Session enqueued'
+  )
 
-  return result;
+  return result
 }

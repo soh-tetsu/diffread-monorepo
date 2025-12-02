@@ -1,9 +1,9 @@
-import type { PromptContext, PromptDefinition } from "./types";
+import type { PromptContext, PromptDefinition } from './types'
 
 function renderArticleAnalysisPrompt({ text }: PromptContext): string {
-  const cleaned = text?.trim();
+  const cleaned = text?.trim()
   if (!cleaned) {
-    throw new Error("articleAnalysisPrompt requires non-empty article text.");
+    throw new Error('articleAnalysisPrompt requires non-empty article text.')
   }
   return `You are an expert cognitive scientist, AI engineer, and educationist. Your task is to analyze the provided text and extract a comprehensive metadata profile based on the "Core 5 Framework" (plus language and reading time).
 
@@ -125,14 +125,14 @@ function renderArticleAnalysisPrompt({ text }: PromptContext): string {
   Analyze the following text:
 
   ${cleaned}
-  `;
+  `
 }
 
 export const articleAnalysisPrompt: PromptDefinition = {
-  id: "article-metadata",
-  version: "article-metadata-v1",
-  objective: "Summarize article metadata for Diffread ingestion",
+  id: 'article-metadata',
+  version: 'article-metadata-v1',
+  objective: 'Summarize article metadata for Diffread ingestion',
   systemInstruction:
-    "You classify articles for Diffread by producing machine-consumable metadata JSON.",
+    'You classify articles for Diffread by producing machine-consumable metadata JSON.',
   render: (context) => renderArticleAnalysisPrompt(context),
-};
+}

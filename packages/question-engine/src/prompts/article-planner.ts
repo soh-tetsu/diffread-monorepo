@@ -1,28 +1,26 @@
-import type { ArticleMetadata } from "../types";
-import type { PromptDefinition, PromptContext } from "./types";
+import type { ArticleMetadata } from '../types'
+import type { PromptContext, PromptDefinition } from './types'
 
 function assertMetadata(metadata?: ArticleMetadata): ArticleMetadata {
   if (!metadata) {
-    throw new Error("articlePlannerPrompt requires metadata input.");
+    throw new Error('articlePlannerPrompt requires metadata input.')
   }
-  return metadata;
+  return metadata
 }
 
-function assertTaskPool(
-  taskPool?: PromptContext["taskPool"]
-): PromptContext["taskPool"] {
+function assertTaskPool(taskPool?: PromptContext['taskPool']): PromptContext['taskPool'] {
   if (!taskPool || taskPool.length === 0) {
-    throw new Error("articlePlannerPrompt requires a non-empty task pool.");
+    throw new Error('articlePlannerPrompt requires a non-empty task pool.')
   }
-  return taskPool;
+  return taskPool
 }
 
 function renderArticlePlannerPrompt(context: PromptContext): string {
-  const metadata = assertMetadata(context.metadata);
-  const taskPool = assertTaskPool(context.taskPool);
+  const metadata = assertMetadata(context.metadata)
+  const taskPool = assertTaskPool(context.taskPool)
 
-  const metadataJson = JSON.stringify(metadata, null, 2);
-  const taskPoolJson = JSON.stringify(taskPool, null, 2);
+  const metadataJson = JSON.stringify(metadata, null, 2)
+  const taskPoolJson = JSON.stringify(taskPool, null, 2)
 
   return `You are an expert Reading Plan Strategist and Cognitive Scientist.
 Your goal is to generate a structured, pedagogical JSON reading plan based strictly on the provided metadata and a fixed pool of tasks.
@@ -94,15 +92,14 @@ ${metadataJson}
 
 [TASK_POOL]:
 ${taskPoolJson}
-`;
+`
 }
 
 export const articlePlannerPrompt: PromptDefinition = {
-  id: "article-planner",
-  version: "article-planner-v1",
-  objective:
-    "Create a phased reading plan tailored to article metadata and task pool.",
+  id: 'article-planner',
+  version: 'article-planner-v1',
+  objective: 'Create a phased reading plan tailored to article metadata and task pool.',
   systemInstruction:
-    "You select and adapt tasks from a predefined pool to generate a JSON reading plan for Diffread readers.",
+    'You select and adapt tasks from a predefined pool to generate a JSON reading plan for Diffread readers.',
   render: (context) => renderArticlePlannerPrompt(context),
-};
+}

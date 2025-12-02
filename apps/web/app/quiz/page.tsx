@@ -1,70 +1,71 @@
-"use client";
+'use client'
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import useSWR from "swr";
-import { Box, Heading, Text } from "@chakra-ui/react";
-import { QuizView } from "@/components/quiz/QuizView";
-import { normalizeHookQuestions } from "@/lib/quiz/normalize-hook-questions";
-import type { HookStatus, QuizStatus } from "@/types/db";
-import type { QuizQuestion } from "@/lib/quiz/normalize-question";
+import { Box, Heading, Text } from '@chakra-ui/react'
+import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
+import useSWR from 'swr'
+import { QuizView } from '@/components/quiz/QuizView'
+import { normalizeHookQuestions } from '@/lib/quiz/normalize-hook-questions'
+import type { QuizQuestion } from '@/lib/quiz/normalize-question'
+import type { HookStatus, QuizStatus } from '@/types/db'
 
 type QuizMetaResponse = {
   session: {
-    session_token: string;
-    status: "pending" | "ready" | "completed" | "errored";
-    article_url: string | null;
-  };
+    session_token: string
+    status: 'pending' | 'ready' | 'completed' | 'errored'
+    article_url: string | null
+  }
   article: {
-    id: number;
-    status: string;
+    id: number
+    status: string
     metadata: {
-      title: string | null;
-    };
-  } | null;
-};
+      title: string | null
+    }
+  } | null
+}
 
 type HooksResponse = {
-  status: HookStatus;
-  hooks: unknown;
-  errorMessage: string | null;
-};
+  status: HookStatus
+  hooks: unknown
+  errorMessage: string | null
+}
 
 type InstructionsResponse = {
-  status: QuizStatus;
-  questions: QuizQuestion[];
-  failureReason: string | null;
-};
+  status: QuizStatus
+  questions: QuizQuestion[]
+  failureReason: string | null
+}
 
-const fetcher = (url: string) => fetch(url).then((res) => {
-  if (!res.ok) throw new Error("Failed to fetch");
-  return res.json();
-});
+const fetcher = (url: string) =>
+  fetch(url).then((res) => {
+    if (!res.ok) throw new Error('Failed to fetch')
+    return res.json()
+  })
 
 function QuizPageContent() {
-  const searchParams = useSearchParams();
-  const token = searchParams.get("q");
-  const showInstructions = searchParams.get("show") === "instructions";
+  const searchParams = useSearchParams()
+  const token = searchParams.get('q')
+  const showInstructions = searchParams.get('show') === 'instructions'
 
   // Fetch quiz metadata (session + article info)
   const { data: quizMeta, error: metaError } = useSWR<QuizMetaResponse>(
     token ? `/api/quiz?q=${token}` : null,
     fetcher
-  );
+  )
 
   // Fetch hook questions
   const { data: hooksData, error: hooksError } = useSWR<HooksResponse>(
     token ? `/api/hooks?q=${token}` : null,
     fetcher
-  );
+  )
 
   // Fetch instruction questions (only if session is ready or if user explicitly wants to see them)
   const { data: instructionsData } = useSWR<InstructionsResponse>(
-    token && (quizMeta?.session.status === "ready" || showInstructions)
+    token && (quizMeta?.session.status === 'ready' || showInstructions)
       ? `/api/instructions?q=${token}`
       : null,
     fetcher
-  );
+  )
 
   if (!token) {
     return (
@@ -98,7 +99,7 @@ function QuizPageContent() {
           </Text>
         </Box>
       </Box>
-    );
+    )
   }
 
   // Handle loading state
@@ -131,7 +132,7 @@ function QuizPageContent() {
           </Text>
         </Box>
       </Box>
-    );
+    )
   }
 
   // Handle errors
@@ -163,15 +164,15 @@ function QuizPageContent() {
             Something went wrong.
           </Heading>
           <Text fontSize="md" color="fg.muted">
-            {metaError?.message || hooksError?.message || "Unknown error."}
+            {metaError?.message || hooksError?.message || 'Unknown error.'}
           </Text>
         </Box>
       </Box>
-    );
+    )
   }
 
   // Handle failed hook generation
-  if (hooksData.status === "failed" && hooksData.errorMessage) {
+  if (hooksData.status === 'failed' && hooksData.errorMessage) {
     return (
       <Box
         minH="100vh"
@@ -195,20 +196,18 @@ function QuizPageContent() {
           alignSelf="flex-start"
           mt={8}
         >
-          <Heading size="4xl">
-            Quiz generation failed
-          </Heading>
+          <Heading size="4xl">Quiz generation failed</Heading>
           <Text fontSize="md" color="fg.muted">
             {hooksData.errorMessage}
           </Text>
         </Box>
       </Box>
-    );
+    )
   }
 
   // Normalize questions
-  const hookQuestions = normalizeHookQuestions(hooksData.hooks);
-  const questions = instructionsData?.questions || [];
+  const hookQuestions = normalizeHookQuestions(hooksData.hooks)
+  const questions = instructionsData?.questions || []
 
   return (
     <Box
@@ -232,7 +231,7 @@ function QuizPageContent() {
         questions={questions}
       />
     </Box>
-  );
+  )
 }
 
 export default function QuizPage() {
@@ -270,5 +269,5 @@ export default function QuizPage() {
     >
       <QuizPageContent />
     </Suspense>
-  );
+  )
 }
