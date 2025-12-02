@@ -23,3 +23,11 @@ export type PromptDefinition = {
   systemInstruction: string;
   render(context: PromptContext): string;
 };
+
+export type PromptDefinitionV2<TContext> = {
+  id: string;
+  version: string;
+  objective: string;
+  systemInstruction: string;
+  render(context: TContext): string;
+};

@@ -8,10 +8,12 @@
     "start": "next start",
     "lint": "eslint --ext .ts,.tsx,.js app src scripts",
     "admin:hook": "tsx scripts/add-session.ts",
+    "admin:hook-v2": "tsx scripts/add-session-v2.ts",
     "admin:drain-session": "tsx scripts/drain-session.ts",
     "admin:drain-pending": "tsx scripts/drain-pending.ts",
     "admin:instruction": "tsx scripts/instruction.ts",
-    "task:analyze-metadata": "tsx scripts/analyze-metadata.ts"
+    "task:analyze-metadata": "tsx scripts/analyze-metadata.ts",
+    "test:v2": "tsx scripts/test-v2-workflow.ts"
   },
   "dependencies": {
     "@chakra-ui/react": "3.30.0",
