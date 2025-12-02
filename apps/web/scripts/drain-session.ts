@@ -20,14 +20,9 @@ if (existsSync(envPath)) {
 }
 
 async function main() {
-  const [
-    { getSessionByToken },
-    { enqueueAndProcessSession },
-    { processQuizByIdV2: processQuizById },
-  ] = await Promise.all([
+  const [{ getSessionByToken }, { enqueueAndProcessSession }] = await Promise.all([
     import('@/lib/db/sessions'),
     import('@/lib/workflows/session-flow'),
-    import('@/lib/workflows/process-quiz-v2'),
   ])
   const session = await getSessionByToken(sessionToken)
   if (!session) {
@@ -38,27 +33,12 @@ async function main() {
 
   logger.info(
     {
-      session: result.session.session_token,
-      status: result.session.status,
-      quizStatus: result.quiz.status,
+      session: result.session_token,
+      status: result.status,
+      quizId: result.quiz_id,
     },
-    'Session synchronized'
+    'Session synchronized - workers will process quiz in background'
   )
-
-  if (!result.session.quiz_id) {
-    logger.warn('Session has no quiz; nothing to drain.')
-    return
-  }
-
-  const outcome = await processQuizById(result.session.quiz_id)
-  if (outcome) {
-    logger.info(
-      { quizId: outcome.quiz.id, article: outcome.article.normalized_url },
-      'Quiz drained'
-    )
-  } else {
-    logger.warn('Quiz was already processed or missing.')
-  }
 }
 
 main().catch((err) => {

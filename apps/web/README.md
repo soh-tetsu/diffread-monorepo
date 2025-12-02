@@ -175,18 +175,6 @@ Returns instruction questions status and normalized questions:
 
 Questions are pre-normalized on the backend using `normalizeQuestion()` from `src/lib/quiz/normalize-question.ts`.
 
-### Data Flow
-
-1. **Page Load**: User visits `/quiz?q={sessionToken}`
-2. **Parallel Fetching**: SWR fetches from three endpoints simultaneously:
-   - `/api/quiz` - Session metadata (always fetched)
-   - `/api/hooks` - Hook questions (always fetched)
-   - `/api/instructions` - Instruction questions (only if session status is "ready" or `show=instructions` param is present)
-3. **Normalization**:
-   - Hook questions: Normalized client-side via `normalizeHookQuestions(hooksData.hooks)`
-   - Instruction questions: Already normalized by API, used directly
-4. **Rendering**: `QuizView` component receives normalized data and renders the quiz UI
-
 ### Security Model
 
 - **Session Token as Authentication**: The `sessionToken` (passed as `?q=xxx` in URL) is the only authentication mechanism, similar to a magic link
@@ -199,13 +187,6 @@ Questions are pre-normalized on the backend using `normalizeQuestion()` from `sr
 - **Deduplication**: Multiple requests to the same endpoint are automatically deduplicated
 - **Revalidation**: Data is automatically revalidated on focus/reconnection
 - **No Manual State Management**: No need for localStorage or complex state management
-
-### Component Structure
-
-- **`/app/quiz/page.tsx`**: Client Component that orchestrates SWR data fetching and handles loading/error states
-- **`/src/components/quiz/QuizView.tsx`**: Presentational component that renders quiz cards, handles answer selection, and manages UI interactions
-- **`/src/lib/quiz/normalize-hook-questions.ts`**: Normalizes raw hook question data from database format to `QuizQuestion` format
-- **`/src/lib/quiz/normalize-question.ts`**: Normalizes instruction question rows from database to unified `QuizQuestion` format
 
 ## Configuration
 

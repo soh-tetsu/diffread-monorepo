@@ -18,16 +18,16 @@ import { QuestionCard } from '@/components/quiz/QuestionCard'
 import { Field } from '@/components/ui/field'
 import { toaster } from '@/components/ui/toaster'
 import { trackQuizSelection } from '@/lib/analytics/client'
-import type { QuizQuestion } from '@/lib/quiz/normalize-question'
+import type { QuizQuestion } from '@/lib/quiz/normalize-hook-questions'
 
-import type { HookStatus } from '@/types/db'
+import type { CuriosityQuizStatus } from '@/types/db'
 
 type Props = {
   sessionToken: string
   articleUrl?: string | null
   articleTitle?: string | null
   hookQuestions: QuizQuestion[]
-  hookStatus: HookStatus | null
+  curiosityQuizStatus: CuriosityQuizStatus | null
   questions: QuizQuestion[]
   initialInstructionsVisible?: boolean
 }
@@ -37,77 +37,66 @@ export function QuizView({
   articleUrl,
   articleTitle,
   hookQuestions,
-  hookStatus,
+  curiosityQuizStatus,
   initialInstructionsVisible = false,
   questions,
 }: Props) {
   const router = useRouter()
-  const [hookAnswers, setHookAnswers] = useState<Record<number, number | null>>({})
-  const [instructionAnswers, setInstructionAnswers] = useState<Record<number, number | null>>({})
+  const [curiosityAnswers, setCuriosityAnswers] = useState<Record<number, number | null>>({})
+  const [scaffoldAnswers, setScaffoldAnswers] = useState<Record<number, number | null>>({})
   const [showForm, setShowForm] = useState(false)
   const [formUrl, setFormUrl] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [formLoading, setFormLoading] = useState(false)
-  const [requestingInstructions, setRequestingInstructions] = useState(false)
+  const [requestingScaffold, setRequestingScaffold] = useState(false)
   const formRef = useRef<HTMLFormElement | null>(null)
   const questionRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const CHUNK_SIZE = 3
-  const [visibleHookCount, setVisibleHookCount] = useState(() =>
-    Math.min(CHUNK_SIZE, hookQuestions.length)
-  )
-  const [visibleInstructionCount, setVisibleInstructionCount] = useState(() =>
-    Math.min(CHUNK_SIZE, questions.length)
-  )
-  const [instructionsVisible, setInstructionsVisible] = useState(
-    initialInstructionsVisible && questions.length > 0
-  )
+  const [visibleCuriosityCount, setVisibleCuriosityCount] = useState(CHUNK_SIZE)
+  const [visibleScaffoldCount, setVisibleScaffoldCount] = useState(CHUNK_SIZE)
+  const [scaffoldVisible, setScaffoldVisible] = useState(false)
 
-  const hookAnswered = useMemo(
+  const curiosityAnswered = useMemo(
     () =>
-      Object.values(hookAnswers).filter((value) => value !== null && value !== undefined).length,
-    [hookAnswers]
-  )
-
-  const instructionAnswered = useMemo(
-    () =>
-      Object.values(instructionAnswers).filter((value) => value !== null && value !== undefined)
+      Object.values(curiosityAnswers).filter((value) => value !== null && value !== undefined)
         .length,
-    [instructionAnswers]
+    [curiosityAnswers]
+  )
+
+  const scaffoldAnswered = useMemo(
+    () =>
+      Object.values(scaffoldAnswers).filter((value) => value !== null && value !== undefined)
+        .length,
+    [scaffoldAnswers]
   )
 
   useEffect(() => {
     if (initialInstructionsVisible && questions.length > 0) {
-      setInstructionsVisible(true)
-      setVisibleInstructionCount(Math.min(CHUNK_SIZE, questions.length))
+      setScaffoldVisible(true)
+      setVisibleScaffoldCount(Math.min(CHUNK_SIZE, questions.length))
     }
   }, [initialInstructionsVisible, questions.length])
 
   useEffect(() => {
-    setVisibleHookCount(Math.min(CHUNK_SIZE, hookQuestions.length))
+    setVisibleCuriosityCount(Math.min(CHUNK_SIZE, hookQuestions.length))
   }, [hookQuestions.length])
 
   useEffect(() => {
-    setVisibleInstructionCount(Math.min(CHUNK_SIZE, questions.length))
+    setVisibleScaffoldCount(Math.min(CHUNK_SIZE, questions.length))
   }, [questions.length])
 
   const progress = useMemo(() => {
-    if (instructionsVisible && questions.length > 0) {
-      return `${instructionAnswered}/${questions.length} instruction answered`
+    if (scaffoldVisible && questions.length > 0) {
+      return `${scaffoldAnswered}/${questions.length} scaffold answered`
     }
     if (hookQuestions.length > 0) {
-      return `${hookAnswered}/${hookQuestions.length} hook answered`
+      return `${curiosityAnswered}/${hookQuestions.length} curiosity answered`
     }
     return '0 answered'
-  }, [
-    hookAnswered,
-    hookQuestions.length,
-    instructionAnswered,
-    questions.length,
-    instructionsVisible,
-  ])
+  }, [curiosityAnswered, hookQuestions.length, scaffoldAnswered, questions.length, scaffoldVisible])
 
-  const handleHookSelect = (questionId: number, optionIndex: number) => {
-    setHookAnswers((prev) => ({ ...prev, [questionId]: optionIndex }))
+  const handleCuriositySelect = (questionId: number, optionIndex: number) => {
+    setCuriosityAnswers((prev) => ({ ...prev, [questionId]: optionIndex }))
     const question = hookQuestions.find((q) => q.id === questionId)
     if (question) {
       trackQuizSelection({
@@ -120,8 +109,8 @@ export function QuizView({
     }
   }
 
-  const handleInstructionSelect = (questionId: number, optionIndex: number) => {
-    setInstructionAnswers((prev) => ({ ...prev, [questionId]: optionIndex }))
+  const handleScaffoldSelect = (questionId: number, optionIndex: number) => {
+    setScaffoldAnswers((prev) => ({ ...prev, [questionId]: optionIndex }))
     const question = questions.find((q) => q.id === questionId)
     if (question) {
       trackQuizSelection({
@@ -149,19 +138,22 @@ export function QuizView({
     setFormError(null)
     setFormLoading(true)
     try {
-      const submissionPromise = fetch('/api/hooks', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          currentToken: sessionToken,
-          articleUrl: formUrl,
-        }),
-      }).then(async (response) => {
+      const submissionPromise = (async () => {
+        // Step 1: Submit new article and get session token
+        const response = await fetch('/api/curiosity', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            currentToken: sessionToken,
+            url: formUrl,
+          }),
+        })
+
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}))
-          let errorMessage = payload.message || 'Failed to register article.'
+          let errorMessage = payload.error || 'Failed to register article.'
 
           // Try to parse nested error object if message contains JSON
           try {
@@ -175,8 +167,27 @@ export function QuizView({
 
           throw new Error(errorMessage)
         }
-        return response.json()
-      })
+
+        const data = await response.json()
+        const newSessionToken = data.sessionToken
+
+        // Step 2: Poll the new session status until ready
+        const maxAttempts = 20
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          const statusResponse = await fetch(`/api/curiosity?q=${newSessionToken}`)
+          if (statusResponse.ok) {
+            const payload = await statusResponse.json()
+            if (payload.status === 'ready') {
+              return { sessionToken: newSessionToken }
+            }
+            if (payload.status === 'failed' || payload.status === 'skip_by_failure') {
+              throw new Error(payload.errorMessage || 'Quiz generation failed.')
+            }
+          }
+          await new Promise((resolve) => setTimeout(resolve, 3000))
+        }
+        throw new Error('Quiz is taking longer than expected. Please check back shortly.')
+      })()
 
       try {
         let toastId: string | undefined
@@ -262,7 +273,7 @@ export function QuizView({
     }
   }
 
-  const handleRequestInstructions = async () => {
+  const handleRequestScaffold = async () => {
     if (!articleUrl) {
       toaster.create({
         title: 'Missing article URL',
@@ -272,9 +283,9 @@ export function QuizView({
       return
     }
 
-    const enableInstructionView = () => {
-      setInstructionsVisible(true)
-      setVisibleInstructionCount(Math.min(CHUNK_SIZE, Math.max(questions.length, CHUNK_SIZE)))
+    const enableScaffoldView = () => {
+      setScaffoldVisible(true)
+      setVisibleScaffoldCount(Math.min(CHUNK_SIZE, Math.max(questions.length, CHUNK_SIZE)))
       const params = new URLSearchParams()
       params.set('q', sessionToken)
       params.set('show', 'instructions')
@@ -282,14 +293,14 @@ export function QuizView({
     }
 
     if (questions.length > 0) {
-      enableInstructionView()
+      enableScaffoldView()
       return
     }
 
-    setRequestingInstructions(true)
+    setRequestingScaffold(true)
     try {
       const instructionPromise = (async () => {
-        const response = await fetch('/api/instructions', {
+        const response = await fetch('/api/scaffold', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -319,7 +330,7 @@ export function QuizView({
         // Poll session status until instructions are ready (or errored).
         const maxAttempts = 20
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-          const statusResponse = await fetch(`/api/instructions?token=${sessionToken}`)
+          const statusResponse = await fetch(`/api/scaffold?token=${sessionToken}`)
           if (statusResponse.ok) {
             const payload = await statusResponse.json()
             if (payload.status === 'ready') {
@@ -355,7 +366,7 @@ export function QuizView({
 
         await instructionPromise
 
-        enableInstructionView()
+        enableScaffoldView()
         router.refresh()
       } catch {
         // Promise errors are already shown in toast by toaster.promise()
@@ -371,7 +382,7 @@ export function QuizView({
         closable: true,
       })
     } finally {
-      setRequestingInstructions(false)
+      setRequestingScaffold(false)
     }
   }
 
@@ -449,16 +460,16 @@ export function QuizView({
             textAlign="center"
           >
             <Text color="gray.700">
-              {hookStatus === 'pending'
+              {curiosityQuizStatus === 'pending'
                 ? 'Questions are still generating. Refresh in a few seconds.'
                 : 'No questions available for this quiz.'}
             </Text>
           </Box>
         ) : (
           <VStack gap={{ base: 4, md: 6 }} align="stretch">
-            {hookQuestions.slice(0, visibleHookCount).map((question) => (
+            {hookQuestions.slice(0, visibleCuriosityCount).map((question) => (
               <Box
-                key={`hook-${question.id}`}
+                key={`curiosity-${question.id}`}
                 ref={(el: HTMLDivElement | null) => {
                   questionRefs.current[question.id] = el
                 }}
@@ -466,16 +477,16 @@ export function QuizView({
                 <QuestionCard
                   question={question}
                   articleUrl={articleUrl}
-                  selectedIndex={hookAnswers[question.id] ?? null}
-                  onSelect={(index) => handleHookSelect(question.id, index)}
+                  selectedIndex={curiosityAnswers[question.id] ?? null}
+                  onSelect={(index) => handleCuriositySelect(question.id, index)}
                 />
               </Box>
             ))}
-            {instructionsVisible &&
+            {scaffoldVisible &&
               questions.length > 0 &&
-              questions.slice(0, visibleInstructionCount).map((question) => (
+              questions.slice(0, visibleScaffoldCount).map((question) => (
                 <Box
-                  key={`instruction-${question.id}`}
+                  key={`scaffold-${question.id}`}
                   ref={(el: HTMLDivElement | null) => {
                     questionRefs.current[question.id] = el
                   }}
@@ -483,43 +494,42 @@ export function QuizView({
                   <QuestionCard
                     question={question}
                     articleUrl={articleUrl}
-                    selectedIndex={instructionAnswers[question.id] ?? null}
-                    onSelect={(index) => handleInstructionSelect(question.id, index)}
+                    selectedIndex={scaffoldAnswers[question.id] ?? null}
+                    onSelect={(index) => handleScaffoldSelect(question.id, index)}
                   />
                 </Box>
               ))}
             {(() => {
-              // Determine if we can load more hook questions
-              const canLoadMoreHooks = visibleHookCount < hookQuestions.length
-              // Determine if we can load more instruction questions
-              const canLoadMoreInstructions =
-                instructionsVisible && visibleInstructionCount < questions.length
-              // Check if instructions need to be generated or shown
-              const needMoreQuestions = !instructionsVisible
+              // Determine if we can load more curiosity questions
+              const canLoadMoreCuriosity = visibleCuriosityCount < hookQuestions.length
+              // Determine if we can load more scaffold questions
+              const canLoadMoreScaffold = scaffoldVisible && visibleScaffoldCount < questions.length
+              // Check if scaffold needs to be generated or shown
+              const needMoreQuestions = !scaffoldVisible
 
               let buttonLabel = "That's all"
               let buttonDisabled = true
               let buttonOnClick = () => {}
 
-              if (requestingInstructions) {
+              if (requestingScaffold) {
                 buttonLabel = 'Generating…'
                 buttonDisabled = true
-              } else if (canLoadMoreHooks) {
+              } else if (canLoadMoreCuriosity) {
                 buttonLabel = 'Load more'
                 buttonDisabled = false
                 buttonOnClick = () =>
-                  setVisibleHookCount((prev) => Math.min(prev + CHUNK_SIZE, hookQuestions.length))
-              } else if (canLoadMoreInstructions) {
-                buttonLabel = 'Load more'
-                buttonDisabled = false
-                buttonOnClick = () =>
-                  setVisibleInstructionCount((prev) =>
-                    Math.min(prev + CHUNK_SIZE, questions.length)
+                  setVisibleCuriosityCount((prev) =>
+                    Math.min(prev + CHUNK_SIZE, hookQuestions.length)
                   )
+              } else if (canLoadMoreScaffold) {
+                buttonLabel = 'Load more'
+                buttonDisabled = false
+                buttonOnClick = () =>
+                  setVisibleScaffoldCount((prev) => Math.min(prev + CHUNK_SIZE, questions.length))
               } else if (needMoreQuestions) {
                 buttonLabel = 'More Quizzes'
                 buttonDisabled = !articleUrl
-                buttonOnClick = handleRequestInstructions
+                buttonOnClick = handleRequestScaffold
               }
 
               return (

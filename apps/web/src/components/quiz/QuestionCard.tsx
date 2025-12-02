@@ -2,7 +2,7 @@
 
 import { Box, Button, Flex, Float, Link, Stack, Text, VStack } from '@chakra-ui/react'
 import { Blockquote, BlockquoteIcon } from '@/components/ui/blockquote'
-import type { QuizOption, QuizQuestion } from '@/lib/quiz/normalize-question'
+import type { QuizOption, QuizQuestion } from '@/lib/quiz/normalize-hook-questions'
 
 type Props = {
   question: QuizQuestion

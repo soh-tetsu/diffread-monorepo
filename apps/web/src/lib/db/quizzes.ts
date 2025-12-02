@@ -1,69 +1,54 @@
 import { supabase } from '@/lib/supabase'
-import type { QuestionContent, QuestionRow, QuestionType, QuizRow, QuizStatus } from '@/types/db'
+import type { QuizRow } from '@/types/db'
 
-export type SaveQuizQuestionInput = {
-  question_type: QuestionType
-  content: QuestionContent
-  sort_order?: number
-}
+export async function getQuizById(id: number): Promise<QuizRow | null> {
+  const { data, error } = await supabase.from('quizzes').select('*').eq('id', id).maybeSingle()
 
-export type SaveQuizInput = {
-  quizId?: string
-  status?: QuizStatus
-  modelUsed?: string
-  questions: SaveQuizQuestionInput[]
-}
-
-export async function saveQuiz(
-  articleId: number,
-  quizData: SaveQuizInput
-): Promise<{ quiz: QuizRow; questions: QuestionRow[] }> {
-  const insertPayload: Record<string, unknown> = {
-    article_id: articleId,
-    status: quizData.status ?? 'ready',
-    model_used: quizData.modelUsed ?? null,
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(`Failed to load quiz: ${error.message}`)
   }
 
-  if (quizData.quizId) {
-    insertPayload.quiz_id = quizData.quizId
-  }
+  return (data as QuizRow) ?? null
+}
 
-  const { data: quiz, error: quizError } = await supabase
+export async function getQuizByArticleId(articleId: number): Promise<QuizRow | null> {
+  const { data, error } = await supabase
     .from('quizzes')
-    .insert(insertPayload)
+    .select('*')
+    .eq('article_id', articleId)
+    .is('user_id', null) // Shared quiz
+    .maybeSingle()
+
+  if (error && error.code !== 'PGRST116') {
+    throw new Error(`Failed to load quiz for article: ${error.message}`)
+  }
+
+  return (data as QuizRow) ?? null
+}
+
+export async function createQuiz(articleId: number): Promise<QuizRow> {
+  const { data, error } = await supabase
+    .from('quizzes')
+    .insert({
+      article_id: articleId,
+      user_id: null, // Shared quiz
+      variant: null, // Default variant
+    })
     .select('*')
     .single()
 
-  if (quizError || !quiz) {
-    throw new Error(`Failed to insert quiz: ${quizError?.message}`)
+  if (error || !data) {
+    throw new Error(`Failed to create quiz: ${error?.message}`)
   }
 
-  if (!quizData.questions.length) {
-    return {
-      quiz: quiz as QuizRow,
-      questions: [],
-    }
+  return data as QuizRow
+}
+
+export async function getOrCreateQuiz(articleId: number): Promise<QuizRow> {
+  const existing = await getQuizByArticleId(articleId)
+  if (existing) {
+    return existing
   }
 
-  const questionsPayload = quizData.questions.map((question, index) => ({
-    quiz_id: quiz.id,
-    question_type: question.question_type,
-    content: question.content,
-    sort_order: typeof question.sort_order === 'number' ? question.sort_order : index,
-  }))
-
-  const { data: questions, error: questionsError } = await supabase
-    .from('questions')
-    .insert(questionsPayload)
-    .select('*')
-
-  if (questionsError || !questions) {
-    await supabase.from('quizzes').delete().eq('id', quiz.id)
-    throw new Error(`Failed to insert questions: ${questionsError?.message}`)
-  }
-
-  return {
-    quiz: quiz as QuizRow,
-    questions: questions as QuestionRow[],
-  }
+  return createQuiz(articleId)
 }

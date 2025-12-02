@@ -5,14 +5,14 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import useSWR from 'swr'
 import { QuizView } from '@/components/quiz/QuizView'
+import type { QuizQuestion } from '@/lib/quiz/normalize-hook-questions'
 import { normalizeHookQuestions } from '@/lib/quiz/normalize-hook-questions'
-import type { QuizQuestion } from '@/lib/quiz/normalize-question'
-import type { HookStatus, QuizStatus } from '@/types/db'
+import type { CuriosityQuizStatus, ScaffoldQuizStatus, SessionStatus } from '@/types/db'
 
 type QuizMetaResponse = {
   session: {
     session_token: string
-    status: 'pending' | 'ready' | 'completed' | 'errored'
+    status: SessionStatus
     article_url: string | null
   }
   article: {
@@ -24,16 +24,16 @@ type QuizMetaResponse = {
   } | null
 }
 
-type HooksResponse = {
-  status: HookStatus
-  hooks: unknown
+type CuriosityQuizResponse = {
+  status: CuriosityQuizStatus
+  questions: unknown
   errorMessage: string | null
 }
 
-type InstructionsResponse = {
-  status: QuizStatus
+type ScaffoldQuizResponse = {
+  status: ScaffoldQuizStatus
   questions: QuizQuestion[]
-  failureReason: string | null
+  errorMessage: string | null
 }
 
 const fetcher = (url: string) =>
@@ -42,29 +42,38 @@ const fetcher = (url: string) =>
     return res.json()
   })
 
+// SWR config for Suspense mode
+const swrConfig = {
+  suspense: false, // Disable suspense mode to prevent hydration issues
+  revalidateOnFocus: false,
+}
+
 function QuizPageContent() {
   const searchParams = useSearchParams()
-  const token = searchParams.get('q')
-  const showInstructions = searchParams.get('show') === 'instructions'
+  const token = searchParams?.get('q') ?? null
+  const showInstructions = searchParams?.get('show') === 'instructions'
 
   // Fetch quiz metadata (session + article info)
   const { data: quizMeta, error: metaError } = useSWR<QuizMetaResponse>(
     token ? `/api/quiz?q=${token}` : null,
-    fetcher
+    fetcher,
+    swrConfig
   )
 
-  // Fetch hook questions
-  const { data: hooksData, error: hooksError } = useSWR<HooksResponse>(
-    token ? `/api/hooks?q=${token}` : null,
-    fetcher
+  // Fetch curiosity quiz questions
+  const { data: curiosityQuizData, error: curiosityQuizError } = useSWR<CuriosityQuizResponse>(
+    token ? `/api/curiosity?q=${token}` : null,
+    fetcher,
+    swrConfig
   )
 
-  // Fetch instruction questions (only if session is ready or if user explicitly wants to see them)
-  const { data: instructionsData } = useSWR<InstructionsResponse>(
+  // Fetch scaffold quiz questions (only if session is ready or if user explicitly wants to see them)
+  const { data: scaffoldQuizData } = useSWR<ScaffoldQuizResponse>(
     token && (quizMeta?.session.status === 'ready' || showInstructions)
-      ? `/api/instructions?q=${token}`
+      ? `/api/scaffold?q=${token}`
       : null,
-    fetcher
+    fetcher,
+    swrConfig
   )
 
   if (!token) {
@@ -103,7 +112,7 @@ function QuizPageContent() {
   }
 
   // Handle loading state
-  if (!quizMeta || !hooksData) {
+  if (!quizMeta || !curiosityQuizData) {
     return (
       <Box
         minH="100vh"
@@ -136,7 +145,7 @@ function QuizPageContent() {
   }
 
   // Handle errors
-  if (metaError || hooksError) {
+  if (metaError || curiosityQuizError) {
     return (
       <Box
         minH="100vh"
@@ -164,15 +173,18 @@ function QuizPageContent() {
             Something went wrong.
           </Heading>
           <Text fontSize="md" color="fg.muted">
-            {metaError?.message || hooksError?.message || 'Unknown error.'}
+            {metaError?.message || curiosityQuizError?.message || 'Unknown error.'}
           </Text>
         </Box>
       </Box>
     )
   }
 
-  // Handle failed hook generation
-  if (hooksData.status === 'failed' && hooksData.errorMessage) {
+  // Handle failed curiosity quiz generation
+  if (
+    (curiosityQuizData.status === 'failed' || curiosityQuizData.status === 'skip_by_failure') &&
+    curiosityQuizData.errorMessage
+  ) {
     return (
       <Box
         minH="100vh"
@@ -198,7 +210,7 @@ function QuizPageContent() {
         >
           <Heading size="4xl">Quiz generation failed</Heading>
           <Text fontSize="md" color="fg.muted">
-            {hooksData.errorMessage}
+            {curiosityQuizData.errorMessage}
           </Text>
         </Box>
       </Box>
@@ -206,8 +218,8 @@ function QuizPageContent() {
   }
 
   // Normalize questions
-  const hookQuestions = normalizeHookQuestions(hooksData.hooks)
-  const questions = instructionsData?.questions || []
+  const curiosityQuestions = normalizeHookQuestions(curiosityQuizData.questions)
+  const scaffoldQuestions = scaffoldQuizData?.questions || []
 
   return (
     <Box
@@ -226,9 +238,9 @@ function QuizPageContent() {
         articleUrl={quizMeta.session.article_url}
         articleTitle={quizMeta.article?.metadata?.title ?? null}
         initialInstructionsVisible={showInstructions}
-        hookQuestions={hookQuestions}
-        hookStatus={hooksData.status}
-        questions={questions}
+        hookQuestions={curiosityQuestions}
+        curiosityQuizStatus={curiosityQuizData.status}
+        questions={scaffoldQuestions}
       />
     </Box>
   )

@@ -1,12 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { ArticleRow, ArticleStatus, ContentMedium, QuestionRow, QuizRow } from '@/types/db'
-
-const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
-
-export type ArticleWithQuiz = {
-  article: ArticleRow
-  quiz: (QuizRow & { questions: QuestionRow[] }) | null
-}
+import type { ArticleRow, ArticleStatus, ContentMedium } from '@/types/db'
 
 export async function getArticleById(id: number): Promise<ArticleRow> {
   const { data, error } = await supabase.from('articles').select('*').eq('id', id).maybeSingle()
@@ -18,16 +11,8 @@ export async function getArticleById(id: number): Promise<ArticleRow> {
   return data as ArticleRow
 }
 
-export function isArticleFresh(article: ArticleRow): boolean {
-  if (!article.last_scraped_at || !article.storage_path) {
-    return false
-  }
-  const lastScraped = new Date(article.last_scraped_at).getTime()
-  return Date.now() - lastScraped <= MAX_AGE_MS
-}
-
-export async function findFreshArticle(normalizedUrl: string): Promise<ArticleWithQuiz | null> {
-  const { data: article, error } = await supabase
+export async function getArticleByNormalizedUrl(normalizedUrl: string): Promise<ArticleRow | null> {
+  const { data, error } = await supabase
     .from('articles')
     .select('*')
     .eq('normalized_url', normalizedUrl)
@@ -37,43 +22,45 @@ export async function findFreshArticle(normalizedUrl: string): Promise<ArticleWi
     throw new Error(`Failed to load article: ${error.message}`)
   }
 
-  if (!article || !article.last_scraped_at || !article.storage_path) {
-    return null
-  }
-
-  const lastScraped = new Date(article.last_scraped_at).getTime()
-  const isFresh = Date.now() - lastScraped <= MAX_AGE_MS
-
-  if (!isFresh) {
-    return null
-  }
-
-  const { data: quiz, error: quizError } = await supabase
-    .from('quizzes')
-    .select('*, questions(*)')
-    .eq('article_id', article.id)
-    .eq('status', 'ready')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  if (quizError && quizError.code !== 'PGRST116') {
-    throw new Error(`Failed to fetch quizzes: ${quizError.message}`)
-  }
-
-  const formattedQuiz = quiz?.questions
-    ? ({ ...quiz, questions: quiz.questions } as QuizRow & {
-        questions: QuestionRow[]
-      })
-    : null
-
-  return {
-    article: article as ArticleRow,
-    quiz: formattedQuiz,
-  }
+  return (data as ArticleRow) ?? null
 }
 
-export async function updateArticleStatus(articleId: number, status: ArticleStatus) {
+export async function createArticle(
+  normalizedUrl: string,
+  originalUrl: string
+): Promise<ArticleRow> {
+  const { data, error } = await supabase
+    .from('articles')
+    .insert({
+      normalized_url: normalizedUrl,
+      original_url: originalUrl,
+      status: 'pending' as ArticleStatus,
+      metadata: {},
+      storage_metadata: {},
+    })
+    .select('*')
+    .single()
+
+  if (error || !data) {
+    throw new Error(`Failed to create article: ${error?.message}`)
+  }
+
+  return data as ArticleRow
+}
+
+export async function getOrCreateArticle(
+  normalizedUrl: string,
+  originalUrl: string
+): Promise<ArticleRow> {
+  const existing = await getArticleByNormalizedUrl(normalizedUrl)
+  if (existing) {
+    return existing
+  }
+
+  return createArticle(normalizedUrl, originalUrl)
+}
+
+export async function updateArticleStatus(articleId: number, status: ArticleStatus): Promise<void> {
   const { error } = await supabase.from('articles').update({ status }).eq('id', articleId)
 
   if (error) {
@@ -90,27 +77,38 @@ export async function updateArticleContent(
     metadata: Record<string, unknown>
     content_medium: ContentMedium
   }
-) {
-  const updatePayload = {
-    storage_path: payload.storage_path,
-    storage_metadata: payload.storage_metadata,
-    content_hash: payload.content_hash,
-    metadata: payload.metadata,
-    content_medium: payload.content_medium,
-    last_scraped_at: new Date().toISOString(),
-  }
-
-  const { error } = await supabase.from('articles').update(updatePayload).eq('id', articleId)
+): Promise<void> {
+  const { error } = await supabase
+    .from('articles')
+    .update({
+      ...payload,
+      last_scraped_at: new Date().toISOString(),
+    })
+    .eq('id', articleId)
 
   if (error) {
     throw new Error(`Failed to update article content: ${error.message}`)
   }
 }
 
-export async function saveArticleMetadata(articleId: number, metadata: Record<string, unknown>) {
+export async function updateArticleMetadata(
+  articleId: number,
+  metadata: Record<string, unknown>
+): Promise<void> {
   const { error } = await supabase.from('articles').update({ metadata }).eq('id', articleId)
 
   if (error) {
     throw new Error(`Failed to update article metadata: ${error.message}`)
   }
+}
+
+export function isArticleFresh(article: ArticleRow): boolean {
+  const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+
+  if (!article.last_scraped_at || !article.storage_path) {
+    return false
+  }
+
+  const lastScraped = new Date(article.last_scraped_at).getTime()
+  return Date.now() - lastScraped <= MAX_AGE_MS
 }

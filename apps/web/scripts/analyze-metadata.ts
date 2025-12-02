@@ -36,9 +36,11 @@ function buildAdHocArticle(url: string): ArticleRow {
     storage_path: null,
     last_scraped_at: null,
     status: 'pending',
-    metadata: null,
-    storage_metadata: null,
+    metadata: {},
+    storage_metadata: {},
     content_medium: 'unknown',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   }
 }
 

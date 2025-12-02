@@ -1,34 +1,97 @@
-import type { HookQuestion, QuizCard } from '@diffread/question-engine'
-import type { QuizQuestion } from '@/lib/quiz/normalize-question'
+import type { QuizCard } from '@diffread/question-engine'
 
-type RawHookQuestion = Partial<HookQuestion> & { id?: number }
 type RawQuizCard = Partial<QuizCard>
+type RawQuizOption = Partial<QuizCard['options'][number]>
+type RawRemediation = Partial<QuizCard['remediation']>
 
-function isV1HookQuestion(input: unknown): input is RawHookQuestion {
+export type QuizOption = {
+  text: string
+  rationale?: string
+}
+
+export type QuizSourceLocation = {
+  anchorText: string
+  estimatedParagraph?: number
+}
+
+export type QuizQuestion = {
+  id: number
+  category: string
+  prompt: string
+  options: QuizOption[]
+  answerIndex: number
+  sourceLocation?: QuizSourceLocation
+  remediationPointer?: string
+  relevantContext?: string
+}
+
+function isQuizCard(input: unknown): input is RawQuizCard {
   if (!input || typeof input !== 'object') {
     return false
   }
-  const value = input as RawHookQuestion
+
+  const card = input as RawQuizCard
   return (
-    typeof value.question === 'string' &&
-    Array.isArray(value.options) &&
-    typeof value.answer_index === 'number'
+    typeof card.question === 'string' &&
+    typeof card.format === 'string' &&
+    Array.isArray(card.options)
   )
 }
 
-function isV2QuizCard(input: unknown): input is RawQuizCard {
-  if (!input || typeof input !== 'object') {
-    return false
+function normalizeOptions(options: RawQuizOption[] | undefined) {
+  if (!Array.isArray(options) || options.length === 0) {
+    return {
+      normalized: [],
+      answerIndex: 0,
+    }
   }
-  const value = input as RawQuizCard
-  return (
-    typeof value.question === 'string' &&
-    Array.isArray(value.options) &&
-    typeof value.format === 'string' &&
-    value.options.some(
-      (opt: unknown) => typeof opt === 'object' && opt !== null && 'is_correct' in opt
-    )
-  )
+
+  const normalized = options.map((option) => ({
+    text: typeof option?.text === 'string' ? option.text : '',
+    rationale: typeof option?.feedback === 'string' ? option.feedback : undefined,
+  }))
+
+  const correctIndex = options.findIndex((option) => option?.is_correct === true)
+
+  return {
+    normalized,
+    answerIndex: correctIndex >= 0 ? correctIndex : 0,
+  }
+}
+
+function buildSourceLocation(
+  remediation: RawRemediation | undefined
+): QuizSourceLocation | undefined {
+  if (!remediation || typeof remediation !== 'object') {
+    return undefined
+  }
+
+  const anchorText =
+    typeof remediation.go_read_anchor === 'string' ? remediation.go_read_anchor : ''
+
+  if (!anchorText.trim()) {
+    return undefined
+  }
+
+  return {
+    anchorText,
+  }
+}
+
+function buildRemediationPointer(remediation: RawRemediation | undefined): string | undefined {
+  if (!remediation || typeof remediation !== 'object') {
+    return undefined
+  }
+
+  const headline = typeof remediation.headline === 'string' ? remediation.headline.trim() : ''
+  const body = typeof remediation.body === 'string' ? remediation.body.trim() : ''
+  const parts = [headline, body].filter(Boolean)
+
+  if (parts.length === 0) {
+    return undefined
+  }
+
+  return parts.join('\n\n')
 }
 
 export function normalizeHookQuestions(hooks: unknown): QuizQuestion[] {
@@ -36,56 +99,19 @@ export function normalizeHookQuestions(hooks: unknown): QuizQuestion[] {
     return []
   }
 
-  const result: QuizQuestion[] = []
+  const quizCards = hooks.filter(isQuizCard)
 
-  for (let index = 0; index < hooks.length; index++) {
-    const hook = hooks[index]
+  return quizCards.map((card, index) => {
+    const { normalized: options, answerIndex } = normalizeOptions(card.options)
 
-    // Check if V2 format (quiz_cards)
-    if (isV2QuizCard(hook)) {
-      const card = hook as RawQuizCard
-      const answerIndex = card.options?.findIndex((opt: any) => opt.is_correct === true) ?? 0
-
-      result.push({
-        id: -(index + 1),
-        category: card.format?.toLowerCase() ?? 'hook',
-        prompt: card.question ?? '',
-        options: (card.options ?? []).map((option: any) => ({
-          text: option?.text ?? '',
-          rationale: option?.feedback,
-        })),
-        answerIndex,
-        sourceLocation:
-          typeof card.remediation === 'object' &&
-          card.remediation !== null &&
-          (card.remediation as any).go_read_anchor
-            ? {
-                anchorText: (card.remediation as any).go_read_anchor,
-              }
-            : undefined,
-        remediationPointer:
-          typeof card.remediation === 'object' && card.remediation !== null
-            ? `${(card.remediation as any).headline}\n\n${(card.remediation as any).body}`
-            : undefined,
-      })
-      continue
+    return {
+      id: -(index + 1),
+      category: card.format?.toLowerCase() ?? 'hook',
+      prompt: card.question ?? '',
+      options,
+      answerIndex,
+      sourceLocation: buildSourceLocation(card.remediation),
+      remediationPointer: buildRemediationPointer(card.remediation),
     }
-
-    // Fall back to V1 format (legacy)
-    if (isV1HookQuestion(hook)) {
-      result.push({
-        id: typeof hook.id === 'number' ? -Math.abs(hook.id) : -(index + 1),
-        category: hook.type ?? 'hook',
-        prompt: hook.question ?? '',
-        options: (hook.options ?? []).map((option) => ({
-          text: option?.text ?? '',
-          rationale: option?.rationale,
-        })),
-        answerIndex: hook.answer_index ?? 0,
-        remediationPointer: hook.remediation,
-      })
-    }
-  }
-
-  return result
+  })
 }

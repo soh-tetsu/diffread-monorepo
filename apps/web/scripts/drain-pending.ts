@@ -13,17 +13,10 @@ if (existsSync(envPath)) {
 }
 
 async function main() {
-  const { processNextPendingQuiz } = await import('@/lib/workflows/process-quiz')
-
-  const result = await processNextPendingQuiz()
-  if (result) {
-    logger.info(
-      { quizId: result.quiz.id, article: result.article.normalized_url },
-      'Drained pending quiz'
-    )
-  } else {
-    logger.info('No pending quizzes.')
-  }
+  // TODO: Implement new worker system with curiosity and scaffold quiz workers
+  logger.warn(
+    'drain-pending script needs implementation. Workers should be invoked via API routes or background job system.'
+  )
 }
 
 main().catch((err) => {

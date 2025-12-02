@@ -9,13 +9,11 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "admin:hook": "tsx scripts/add-session.ts",
-    "admin:hook-v2": "tsx scripts/add-session-v2.ts",
+    "admin:new-session": "tsx scripts/add-session.ts",
     "admin:drain-session": "tsx scripts/drain-session.ts",
     "admin:drain-pending": "tsx scripts/drain-pending.ts",
-    "admin:instruction": "tsx scripts/instruction.ts",
-    "task:analyze-metadata": "tsx scripts/analyze-metadata.ts",
-    "test:v2": "tsx scripts/test-v2-workflow.ts"
+    "admin:scaffold": "tsx scripts/scaffold.ts",
+    "task:analyze-metadata": "tsx scripts/analyze-metadata.ts"
   },
   "dependencies": {
     "@chakra-ui/react": "3.30.0",

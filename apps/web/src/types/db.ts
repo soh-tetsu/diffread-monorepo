@@ -1,137 +1,122 @@
-export type QuizStatus =
-  | 'pending'
-  | 'processing'
-  | 'ready'
-  | 'failed'
-  | 'skip_by_admin'
-  | 'skip_by_failure'
-  | 'not_required'
-export type SessionStatus =
-  | 'pending'
-  | 'ready'
-  | 'completed'
-  | 'errored'
-  | 'skip_by_admin'
-  | 'skip_by_failure'
+// New schema types
 export type ArticleStatus =
   | 'pending'
   | 'scraping'
   | 'ready'
+  | 'stale'
   | 'failed'
   | 'skip_by_admin'
   | 'skip_by_failure'
-export type HookStatus =
+
+export type SessionStatus = 'pending' | 'ready' | 'errored' | 'skip_by_admin' | 'skip_by_failure'
+
+export type CuriosityQuizStatus =
   | 'pending'
   | 'processing'
   | 'ready'
   | 'failed'
   | 'skip_by_admin'
   | 'skip_by_failure'
+
+export type ScaffoldQuizStatus =
+  | 'pending'
+  | 'processing'
+  | 'ready'
+  | 'failed'
+  | 'skip_by_admin'
+  | 'skip_by_failure'
+
 export type ContentMedium = 'markdown' | 'pdf' | 'html' | 'unknown'
-export type QuestionType = 'mcq' | 'true_false'
 
-export type MCQOption = {
-  id: string
-  label: string
-}
-
-type LegacyMCQContent = {
-  type: 'mcq'
-  prompt: string
-  options: MCQOption[]
-  answer: string
-  explanation?: string
-}
-
-type LegacyTrueFalse = {
-  type: 'true_false'
-  prompt: string
-  answer: boolean
-  explanation?: string
-}
-
-type StructuredContent = {
-  id?: number
-  type: 'common_sense_test' | 'root_cause' | 'conceptual_flip'
-  question: string
-  options: Array<{ text?: string; label?: string; rationale?: string }>
-  remediation?: string
-  source_location?: {
-    anchor_text: string
-    estimated_paragraph?: number
-  }
-  answer_index: number
-}
-
-type InstructionQuestionContent = {
-  instruction_id: string
-  type: string
-  question: string
-  options: Array<{ option: string; remediation: string }>
-  answer_index: number
-  rationale: string
-  relevant_context?: string
-  source_location?: {
-    anchor_text: string
-    estimated_paragraph?: number
-  }
-}
-
-export type QuestionContent =
-  | LegacyMCQContent
-  | LegacyTrueFalse
-  | StructuredContent
-  | InstructionQuestionContent
-
+// Article
 export interface ArticleRow {
   id: number
   normalized_url: string
   original_url: string
-  content_hash: string | null
-  storage_path: string | null
-  last_scraped_at: string | null
+
   status: ArticleStatus
-  metadata: Record<string, unknown> | null
-  storage_metadata: Record<string, unknown> | null
+  storage_path: string | null
+  content_hash: string | null
+  last_scraped_at: string | null
+
+  metadata: Record<string, unknown>
+  storage_metadata: Record<string, unknown>
   content_medium: ContentMedium
-  title?: string | null
+
+  created_at: string
+  updated_at: string
 }
 
+// Quiz (container)
 export interface QuizRow {
   id: number
-  quiz_id: string
   article_id: number
-  status: QuizStatus
-  model_used: string | null
+
+  user_id: number | null
+  variant: string | null
+
   created_at: string
+  updated_at: string
 }
 
-export interface QuestionRow {
+// Curiosity Quiz
+export interface CuriosityQuizRow {
   id: number
   quiz_id: number
-  question_type: QuestionType
-  content: QuestionContent
-  sort_order: number
+  status: CuriosityQuizStatus
+
+  questions: unknown | null // JSONB array of curiosity questions
+  pedagogy: unknown | null // JSONB metadata
+
+  model_version: string | null
+  error_message: string | null
+  retry_count: number
+
+  created_at: string
+  updated_at: string
 }
 
+// Scaffold Quiz
+export interface ScaffoldQuizRow {
+  id: number
+  quiz_id: number
+  status: ScaffoldQuizStatus
+
+  questions: unknown | null // JSONB array of instruction questions
+  reading_plan: unknown | null // JSONB metadata
+
+  model_version: string | null
+  error_message: string | null
+  retry_count: number
+
+  created_at: string
+  updated_at: string
+}
+
+// Session
 export interface SessionRow {
   id: number
   session_token: string
   user_email: string
   article_url: string
+
   quiz_id: number | null
   status: SessionStatus
-  metadata: Record<string, unknown> | null
-}
+  metadata: Record<string, unknown>
 
-export interface HookQuestionRow {
-  id: number
-  quiz_id: number
-  status: HookStatus
-  hooks: unknown | null
-  strategy_prompt: string | null
-  model_version: string | null
-  error_message: string | null
   created_at: string
   updated_at: string
+}
+
+// RPC function return types
+export interface ClaimedCuriosityQuiz {
+  curiosity_quiz_id: number
+  quiz_id: number
+  article_id: number
+}
+
+export interface ClaimedScaffoldQuiz {
+  scaffold_quiz_id: number
+  quiz_id: number
+  article_id: number
 }

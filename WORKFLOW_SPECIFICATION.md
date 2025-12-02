@@ -38,23 +38,23 @@ N sessions (per article)
 CREATE TABLE quizzes (
   id BIGSERIAL PRIMARY KEY,
   article_id BIGINT NOT NULL REFERENCES articles(id),
-  
+
   -- Future personalization (nullable for now)
   user_id BIGINT,    -- NULL = shared quiz, set = personalized
   variant TEXT,      -- NULL = default, could be 'beginner', 'advanced'
-  
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- One shared quiz per article (for now)
-CREATE UNIQUE INDEX one_shared_quiz_per_article 
-  ON quizzes(article_id) 
+CREATE UNIQUE INDEX one_shared_quiz_per_article
+  ON quizzes(article_id)
   WHERE user_id IS NULL;
 
 -- Table 2: curiosity_quizzes (Required, entry point)
 CREATE TYPE curiosity_quiz_status AS ENUM (
-  'pending', 'processing', 'ready', 'failed', 
+  'pending', 'processing', 'ready', 'failed',
   'skip_by_admin', 'skip_by_failure'
 );
 
@@ -62,19 +62,19 @@ CREATE TABLE curiosity_quizzes (
   id BIGSERIAL PRIMARY KEY,
   quiz_id BIGINT NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
   status curiosity_quiz_status NOT NULL DEFAULT 'pending',
-  
+
   -- Questions data (JSONB, not normalized)
   questions JSONB,  -- Array of 3 curiosity questions
   pedagogy JSONB,   -- Metadata analysis (for idempotency)
-  
+
   -- Metadata
   model_version TEXT,
   error_message TEXT,
   retry_count INT DEFAULT 0,
-  
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  
+
   UNIQUE(quiz_id)  -- 1:1 with quiz
 );
 
@@ -88,19 +88,19 @@ CREATE TABLE scaffold_quizzes (
   id BIGSERIAL PRIMARY KEY,
   quiz_id BIGINT NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
   status scaffold_quiz_status NOT NULL DEFAULT 'pending',
-  
+
   -- Questions data (JSONB, not normalized)
   questions JSONB,  -- Array of N instruction questions
   reading_plan JSONB,  -- For idempotency
-  
+
   -- Metadata
   model_version TEXT,
   error_message TEXT,
   retry_count INT DEFAULT 0,
-  
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  
+
   UNIQUE(quiz_id)  -- 0..1 per quiz
 );
 
@@ -110,14 +110,14 @@ CREATE TABLE sessions (
   session_token TEXT NOT NULL UNIQUE,
   user_email TEXT NOT NULL,
   article_url TEXT NOT NULL,
-  
+
   quiz_id BIGINT REFERENCES quizzes(id),  -- Can be NULL temporarily
   status session_status NOT NULL DEFAULT 'pending',
   metadata JSONB,
-  
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
-  
+
   UNIQUE(user_email, article_url)
 );
 
@@ -131,16 +131,16 @@ CREATE TABLE articles (
   id BIGSERIAL PRIMARY KEY,
   normalized_url TEXT NOT NULL UNIQUE,
   original_url TEXT NOT NULL,
-  
+
   status article_status NOT NULL DEFAULT 'pending',
   storage_path TEXT,
   content_hash TEXT,
   last_scraped_at TIMESTAMPTZ,
-  
+
   metadata JSONB,  -- Mixed: scraping metadata + AI metadata
   storage_metadata JSONB,  -- Storage-only metadata
   content_medium content_medium DEFAULT 'html',
-  
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -151,6 +151,7 @@ CREATE TABLE articles (
 ```
 session.status ← depends on ← curiosity_quiz.status
   - curiosity='pending' → session='pending'
+  - curiosity='processing' → session='pending'
   - curiosity='ready' → session='ready'
   - curiosity='failed' → session='errored'
   - curiosity='skip_by_failure' → session='skip_by_failure'
@@ -278,7 +279,7 @@ Pattern 1: API-triggered (fire and forget)
   - API calls pendingWorkerLimit(() => processNextPendingHookV2())
   - Worker runs asynchronously
   - API returns immediately
-  
+
 Pattern 2: Scheduled (cron)
   - Periodic polling for stuck/failed jobs
   - Processes backlog of pending hooks
@@ -307,10 +308,10 @@ User Interaction:
 ```
 Scraping (from web):
   normalized_url → scrapeArticle() → raw content
-  
+
 Caching (to storage):
   raw content → uploadArticleBundle() → storage_path
-  
+
 Retrieval (from cache):
   storage_path → downloadArticleContent() → cached content
 
@@ -347,7 +348,7 @@ CASE status = 'ready':
   - Download FROM storage_path
   - Use cached content directly
   - No scraping needed
-  
+
 CASE status = 'stale':
   - Content exists but old (last_scraped_at >= 30 days)
   - Old content still available in storage_path
@@ -359,25 +360,25 @@ CASE status = 'stale':
       → Download FROM storage_path (fallback to old content)
       → Keep status='stale' OR update to 'failed' (based on severity)
       → Use old content (graceful degradation)
-  
+
 CASE status = 'pending':
   - Article record exists but no content scraped yet
   - storage_path IS NULL
   - Trigger scraping FROM normalized_url
   - ensureArticleContent() updates to 'scraping'
-  
+
 CASE status = 'scraping':
   - Scraping currently in progress
   - Do NOT trigger another scrape (avoid duplicate work)
   - Wait for completion (or timeout)
   - Will update to 'ready' or 'failed'
-  
+
 CASE status = 'failed':
   - Previous scraping attempt failed
   - Trigger retry scraping FROM normalized_url
   - ensureArticleContent() updates to 'scraping'
   - After 3 failures → 'skip_by_failure'
-  
+
 CASE status IN ('skip_by_admin', 'skip_by_failure'):
   - Terminal state, cannot scrape
   - Throw error
@@ -393,7 +394,7 @@ Article Status Flow:
             failed (retry up to 3)       failed
                ↓                            ↓
          skip_by_failure            skip_by_failure
-  
+
   * → skip_by_admin (manual intervention)
 
 Transition Rules:
@@ -405,7 +406,7 @@ Transition Rules:
   - ready → stale: ensureArticleContent() checks (NOW() - last_scraped_at) > 30 days
   - stale → scraping: ensureArticleContent() starts re-scrape
   - * → skip_by_admin: Manual override
-  
+
 Note: 'stale' is set lazily when article is accessed, not by scheduled job
 ```
 
@@ -413,15 +414,15 @@ Note: 'stale' is set lazily when article is accessed, not by scheduled job
 
 ```
 ensureArticleContent() is called by hook worker and must:
-  
+
   1. Check article.status (source of truth)
-  
+
   2. CASE status = 'ready':
        - Check freshness: IF (NOW() - last_scraped_at) > 30 days
            THEN UPDATE status='stale', continue to Case 'stale'
        - Download FROM storage_path
        - RETURN cached content
-  
+
   3. CASE status = 'stale':
        - Try re-scraping FROM normalized_url
        - IF success:
@@ -432,7 +433,7 @@ ensureArticleContent() is called by hook worker and must:
            → Download FROM storage_path (old content)
            → Keep status='stale' (or 'failed' based on error type)
            → RETURN stale content (product decision: serve something vs nothing)
-  
+
   4. CASE status IN ('pending', 'failed'):
        - UPDATE status='scraping'
        - Scrape FROM normalized_url
@@ -443,11 +444,11 @@ ensureArticleContent() is called by hook worker and must:
            → UPDATE status='failed', increment retry_count
            → IF retry_count >= 3 THEN UPDATE status='skip_by_failure'
            → THROW error
-  
+
   5. CASE status = 'scraping':
        - Another process is scraping (race condition or timeout)
        - Wait or throw error (implementation detail)
-  
+
   6. CASE status IN ('skip_by_*'):
        - THROW error (terminal state)
 ```
@@ -459,12 +460,12 @@ Freshness constant:
   MAX_ARTICLE_AGE_MS = 30 * 24 * 60 * 60 * 1000  // 30 days
 
 Transition ready → stale:
-  IF article.status = 'ready' 
+  IF article.status = 'ready'
      AND article.last_scraped_at IS NOT NULL
      AND (NOW() - article.last_scraped_at) > MAX_ARTICLE_AGE_MS
   THEN:
     UPDATE article.status = 'stale'
-    
+
 This check happens in ensureArticleContent() before using content.
 ```
 
@@ -477,7 +478,7 @@ Two types of metadata:
    - Set during scraping/upload
    - Contains storage bucket info, fingerprints
    - Not used for quiz generation
-   
+
 2. metadata (JSONB):
    - Contains mixed data:
      a) Scraping metadata: title, byline, excerpt, lang (from @mozilla/readability)
@@ -498,13 +499,13 @@ Merge strategy:
 
 ```typescript
 // apps/web/src/types/db.ts
-export type ArticleStatus = 
-  | 'pending' 
-  | 'scraping' 
-  | 'ready' 
+export type ArticleStatus =
+  | 'pending'
+  | 'scraping'
+  | 'ready'
   | 'stale'              // NEW STATUS
-  | 'failed' 
-  | 'skip_by_admin' 
+  | 'failed'
+  | 'skip_by_admin'
   | 'skip_by_failure'
 ```
 
@@ -558,7 +559,7 @@ THEN:
 ```
 Manual Skip:
   - Admin sets quiz.status = 'skip_by_admin'
-  
+
 Automatic Skip:
   - Article.status = 'skip_by_failure' → quiz.status = 'skip_by_failure'
   - Hook_questions.status = 'skip_by_failure' → quiz.status = 'skip_by_failure'
@@ -573,7 +574,7 @@ Quiz Status Flow:
                   failed (can retry)
                      ↓
               skip_by_failure (after max retries)
-  
+
   * → skip_by_admin (manual intervention)
 
 Transition Rules:
@@ -647,7 +648,7 @@ THEN:
 ```
 Manual Skip:
   - Admin sets hook_questions.status = 'skip_by_admin'
-  
+
 Automatic Skip:
   - Article.status = 'skip_by_failure' → hook_questions.status = 'skip_by_failure'
   - After MAX_RETRIES failures → hook_questions.status = 'skip_by_failure'
@@ -662,7 +663,7 @@ Hook Questions Status Flow:
             failed (retry up to 3 times)
                ↓
          skip_by_failure (after 3 failures)
-  
+
   * → skip_by_admin (manual intervention)
 
 Transition Rules:
@@ -687,35 +688,35 @@ but status remains 'processing' until final hooks are generated.
 ```typescript
 async function initSession(email: string, originalUrl: string) {
   const normalizedUrl = normalizeUrl(originalUrl)
-  
+
   // Step 1: Get/create session (quiz_id can be NULL)
   let session = await getOrCreateSession(email, originalUrl)
-  
+
   // Step 2: Early return if ready
   if (session.status === 'ready') {
     return session  // No work needed
   }
-  
+
   // Step 3: Bootstrap quiz if session has no quiz_id
   if (!session.quiz_id) {
     // 3a. Create/get article
     const article = await getOrCreateArticle(normalizedUrl, originalUrl)
-    
+
     // 3b. Create quiz (container, no transaction)
     const quiz = await createQuiz(article.id)
-    
+
     // 3c. Create curiosity quiz (status='pending')
     await createCuriosityQuiz(quiz.id)
-    
+
     // 3d. Link session to quiz
     session = await updateSession(session.id, { quiz_id: quiz.id })
   }
-  
+
   // Step 4: Invoke worker if session needs processing
   if (session.status === 'pending' || session.status === 'errored') {
     pendingWorkerLimit(() => processNextPendingCuriosityQuiz())
   }
-  
+
   return session
 }
 ```
@@ -727,12 +728,12 @@ async function processNextPendingCuriosityQuiz() {
   // Step 1: Claim next pending curiosity quiz (atomic lock)
   const curiosityQuiz = await claimNextCuriosityQuiz()
   if (!curiosityQuiz) return  // No work
-  
+
   try {
     // Step 2: Load article content
     const article = await getArticleByQuizId(curiosityQuiz.quiz_id)
     const content = await ensureArticleContent(article)
-    
+
     // Step 3: Check if pedagogy already extracted (idempotency)
     let pedagogy
     if (curiosityQuiz.pedagogy) {
@@ -743,20 +744,20 @@ async function processNextPendingCuriosityQuiz() {
       await updateCuriosityQuiz(curiosityQuiz.id, { pedagogy })
       await updateArticleMetadata(article.id, pedagogy)
     }
-    
+
     // Step 4: Generate curiosity questions from pedagogy
     const questions = await generateCuriosityQuestions(pedagogy)
-    
+
     // Step 5: Store questions and mark ready
     await updateCuriosityQuiz(curiosityQuiz.id, {
       questions,
       status: 'ready',
       model_version: GEMINI_MODEL
     })
-    
+
     // Step 6: Update ALL sessions linked to this quiz
     await updateSessionsByQuizId(curiosityQuiz.quiz_id, { status: 'ready' })
-    
+
   } catch (error) {
     // Handle failure
     await handleCuriosityQuizFailure(curiosityQuiz.id, error)
@@ -771,18 +772,18 @@ async function requestScaffoldQuiz(sessionToken: string) {
   // Step 1: Get session
   const session = await getSessionByToken(sessionToken)
   if (!session.quiz_id) throw new Error('Session has no quiz')
-  
+
   // Step 2: Create scaffold quiz if doesn't exist
   let scaffoldQuiz = await getScaffoldQuizByQuizId(session.quiz_id)
   if (!scaffoldQuiz) {
     scaffoldQuiz = await createScaffoldQuiz(session.quiz_id, { status: 'pending' })
   }
-  
+
   // Step 3: Invoke worker if pending
   if (scaffoldQuiz.status === 'pending' || scaffoldQuiz.status === 'failed') {
     pendingWorkerLimit(() => processNextPendingScaffoldQuiz())
   }
-  
+
   return { scaffoldQuizId: scaffoldQuiz.id, status: scaffoldQuiz.status }
 }
 ```
@@ -899,10 +900,10 @@ Trigger: hook_questions.status changes
 Action:
   - IF hook_questions.status = 'ready'
       THEN UPDATE sessions SET status='ready' WHERE quiz_id = hook_questions.quiz_id
-  
+
   - IF hook_questions.status = 'failed' AND retry_count < MAX_RETRIES
       THEN UPDATE sessions SET status='errored' WHERE quiz_id = hook_questions.quiz_id
-  
+
   - IF hook_questions.status = 'skip_by_failure'
       THEN UPDATE sessions SET status='skip_by_failure' WHERE quiz_id = hook_questions.quiz_id
 ```
@@ -914,13 +915,13 @@ Trigger: ensureArticleContent() called
 Action:
   - IF reusing fresh content
       THEN UPDATE articles SET status='ready' WHERE id = article.id
-  
+
   - IF starting scrape
       THEN UPDATE articles SET status='scraping' WHERE id = article.id
-  
+
   - IF scrape succeeds
       THEN UPDATE articles SET status='ready' WHERE id = article.id
-  
+
   - IF scrape fails
       THEN UPDATE articles SET status='failed' WHERE id = article.id
       THEN IF failure_count >= 3
@@ -934,10 +935,10 @@ Trigger: processNextPendingHookV2() processing
 Action:
   - IF claim_next_hook_job() succeeds
       THEN UPDATE hook_questions SET status='processing' WHERE id = claimed_id
-  
+
   - IF pedagogy + hooks generated successfully
       THEN UPDATE hook_questions SET status='ready' WHERE id = claimed_id
-  
+
   - IF generation fails
       THEN UPDATE hook_questions SET status='failed', error_message=error WHERE id = claimed_id
       THEN IF retry_count >= MAX_RETRIES

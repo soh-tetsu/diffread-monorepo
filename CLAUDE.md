@@ -46,11 +46,11 @@ bun run dev             # Watch mode compilation
 All scripts run from `apps/web/` using `tsx`:
 
 ```bash
-# Generate hook + instruction questions for a session
-bun run admin:hook user@example.com https://article-url.com
+# Generate curiosity quiz for a session (synchronous)
+bun run admin:curiosity user@example.com https://article-url.com
 
-# Generate hook questions only (use /api/instructions later to add instruction questions)
-bun run admin:instruction user@example.com https://article-url.com
+# Generate scaffold quiz for a session (synchronous)
+bun run admin:scaffold user@example.com https://article-url.com
 
 # Manually process a specific session by token
 bun run admin:drain-session <session_token>
@@ -77,34 +77,36 @@ bun run task:analyze-metadata https://article-url.com
 **Core Tables** (in `public` schema, exposed via `api` schema views):
 
 - **`articles`**: Normalized article records with storage paths, metadata, scraping status
-- **`quizzes`**: Job queue for question generation (status: not_required → pending → processing → ready/failed)
-- **`hook_questions`**: Separate job tracking for hook workflow (independent retry/failure)
-- **`questions`**: Instruction questions for deep-dive learning
+- **`quizzes`**: Container linking articles to quiz types (no status field)
+- **`curiosity_quizzes`**: 3 predictive questions to raise curiosity (required entry point)
+- **`scaffold_quizzes`**: N deep-dive questions for learning (optional, created on-demand)
 - **`sessions`**: User-facing records linking email + URL to quiz token
 
 **Status Flow:**
 
 ```
-Hook Questions:  pending → processing → ready/failed
-Quizzes:         not_required → pending → processing → ready/failed
-Sessions:        pending → ready/completed/errored
+Curiosity Quizzes:  pending → processing → ready / failed / skip_by_failure
+Scaffold Quizzes:   pending → processing → ready / failed / skip_by_failure
+Articles:           pending → scraping → ready / stale / failed / skip_by_failure
+Sessions:           pending → ready / errored / skip_by_failure
 ```
 
 ### Worker Architecture
 
 **Two Independent Queues:**
 
-1. **Hook Worker** (`buildHookQuestionsForQuiz`):
-   - Generates 3 predictive "common sense test" questions
-   - Claims jobs via `claim_next_hook_job()` RPC (atomic locking)
-   - On success: marks hooks `ready`, may auto-promote quiz to `pending`
-   - On failure: marks hooks `failed`, does not block instruction workflow
+1. **Curiosity Quiz Worker** (`processNextPendingCuriosityQuiz`):
+   - Generates 3 predictive questions to raise curiosity
+   - Claims jobs via `claim_next_curiosity_quiz()` RPC (atomic locking)
+   - On success: marks curiosity quiz `ready`, updates all linked sessions to `ready`
+   - On failure: retries up to 3 times, then marks as `skip_by_failure`
 
-2. **Instruction Worker** (`handleInstructionJob`):
+2. **Scaffold Quiz Worker** (`processNextPendingScaffoldQuiz`):
    - Generates deep-dive questions via multi-stage Gemini workflow
-   - Claims jobs via `claim_next_instruction_job()` RPC
-   - Only runs when hooks are `ready` and quiz is `pending`/`processing`
-   - Stores questions in `questions` table, marks quiz `ready`
+   - Claims jobs via `claim_next_scaffold_quiz()` RPC
+   - Created on-demand (not auto-created with curiosity quiz)
+   - Stores questions in JSONB column, marks scaffold quiz `ready`
+   - Failures do NOT affect session status (scaffold is optional)
 
 **Concurrency Controls:**
 
@@ -113,14 +115,14 @@ Sessions:        pending → ready/completed/errored
 
 ### Question Generation Pipeline
 
-**Hook Workflow** (`@diffread/question-engine`):
+**Curiosity Quiz Workflow** (`@diffread/question-engine`):
 
-1. `analyzeArticleMetadata()`: Extract archetype, complexity, domain, thesis
+1. `analyzeArticleMetadata()`: Extract archetype, complexity, domain, thesis (cached as "pedagogy")
 2. `generateHookQuestions()`: Create 3 MCQs with remediation + source locations
 
-**Instruction Workflow** (multi-stage):
+**Scaffold Quiz Workflow** (multi-stage):
 
-1. `analyzeArticleMetadata()`: Same metadata extraction as hooks
+1. `analyzeArticleMetadata()`: Reuses pedagogy from curiosity quiz if available
 2. `generateReadingPlan()`: Break article into parts with task templates
 3. `expandReadingPlan()`: Generate instruction details + coverage report
 4. `generateInstructionQuestions()`: Convert instructions to MCQs with remediations
@@ -135,10 +137,12 @@ Both workflows use structured Gemini prompts (in `packages/question-engine/src/p
 
 ### API Routes
 
-- **`POST /api/hooks`**: Submit URL → create session → trigger hook workflow
-- **`POST /api/instructions`**: Promote existing session's quiz to `pending` → trigger instruction workflow
-- **`GET /api/sessions`**: Query sessions by email/URL
-- **`GET /quiz?q=<token>`**: Render quiz UI with hook + instruction questions
+- **`POST /api/curiosity`**: Submit URL + email → create session → trigger curiosity quiz worker (async)
+- **`GET /api/curiosity?q=<token>`**: Fetch curiosity quiz status + questions
+- **`POST /api/scaffold`**: Create scaffold quiz on-demand → trigger scaffold quiz worker (async)
+- **`GET /api/scaffold?q=<token>`**: Fetch scaffold quiz status + questions
+- **`GET /api/quiz?q=<token>`**: Fetch session + article metadata
+- **`GET /quiz?q=<token>`**: Render quiz UI with curiosity + scaffold questions
 
 ## Environment Variables
 
@@ -150,8 +154,8 @@ Both workflows use structured Gemini prompts (in `packages/question-engine/src/p
 
 ### Optional
 
-- `GEMINI_MODEL`: Override default `gemini-1.5-flash` for instruction workflow
-- `GEMINI_HOOK_MODEL`: Override default hook model (defaults to `GEMINI_MODEL`)
+- `GEMINI_MODEL`: Override default `gemini-1.5-flash` for scaffold quiz workflow
+- `GEMINI_HOOK_MODEL`: Override default curiosity quiz model (defaults to `GEMINI_MODEL`)
 - `SUPABASE_DB_SCHEMA`: Schema for Data API (default: `api`)
 - `SUPABASE_ARTICLE_BUCKET`: Storage bucket for markdown content (default: `articles`)
 - `SUPABASE_PDF_BUCKET`: Storage bucket for PDFs (default: `articles-pdf`)
@@ -171,9 +175,10 @@ apps/web/
 ├── src/
 │   ├── components/               # React components (QuizView, QuestionCard)
 │   ├── lib/
-│   │   ├── workflows/            # Orchestration logic (session-flow, process-quiz, hook-generation)
-│   │   ├── quiz/                 # Quiz engine integration (scraper, question-engine, bootstrap)
-│   │   ├── db/                   # Database access layer (articles, quizzes, sessions, hooks)
+│   │   ├── workflows/            # Orchestration logic (session-init, enqueue-session, article-content)
+│   │   ├── workers/              # Background workers (process-curiosity-quiz, process-scaffold-quiz)
+│   │   ├── quiz/                 # Quiz engine integration (scraper, normalize-questions)
+│   │   ├── db/                   # Database access layer (articles, quizzes, sessions, curiosity-quizzes, scaffold-quizzes)
 │   │   └── utils/                # Utilities (normalize-url)
 │   └── types/                    # TypeScript types (db.ts)
 ├── scripts/                      # Admin CLI tools (add-session, drain-pending, etc.)
@@ -228,19 +233,23 @@ To quickly test the full pipeline without manual URL submission:
 # From apps/web
 SUPABASE_URL=https://xxx.supabase.co \
 SUPABASE_SERVICE_ROLE_KEY=your-key \
-bun run admin:hook test@example.com https://article-url.com
+bun run admin:curiosity test@example.com https://article-url.com
 ```
 
-This synchronously runs scraping → metadata analysis → hook generation → instruction generation (if quiz transitions to `pending`).
+This synchronously runs scraping → metadata analysis → curiosity quiz generation.
 
 ## Common Gotchas
 
-1. **Race Conditions**: The worker uses `for update skip locked` to prevent duplicate processing, but if you bypass the RPC functions, you may process the same quiz twice.
+1. **Race Conditions**: Workers use `FOR UPDATE SKIP LOCKED` in RPC functions to prevent duplicate processing. Don't bypass RPC functions or you may process the same quiz twice.
 
-2. **PDF Support**: Hook questions do **not** support PDFs (will throw error). Instruction questions may support PDFs in the future, but currently the content must be markdown.
+2. **PDF Support**: Curiosity quizzes do **not** support PDFs (will throw error). Scaffold quizzes may support PDFs in the future, but currently content must be markdown.
 
-3. **Failed Quiz Reset**: `bootstrapQuiz()` auto-resets `failed` quizzes to `pending`. If a quiz keeps failing, check the `model_used` column for error messages (truncated to 120 chars).
+3. **Retry Logic**: Both quiz types retry up to 3 times before marking as `skip_by_failure`. Check the `error_message` column for details (truncated to 500 chars).
 
-4. **Storage Paths**: Article content is stored at `article/<article_id>/content.md`. The `storage_path` column stores this path, **not** the full URL.
+4. **Storage Paths**: Article content is stored at `article/<article_id>/content.md`. The `storage_path` column stores this relative path, **not** the full URL.
 
 5. **Metadata Null Handling**: The `articles.metadata` column defaults to `{}` but can be `null` in legacy records. Always check `metadata?.title` rather than `metadata.title`.
+
+6. **Scaffold Quiz is Optional**: Scaffold quiz failures do NOT affect session status. Sessions become `ready` when curiosity quiz is `ready`, regardless of scaffold quiz state.
+
+7. **Stale Content**: Articles older than 30 days are marked as `stale`. Workers attempt to re-scrape but gracefully degrade to old content if re-scraping fails.
