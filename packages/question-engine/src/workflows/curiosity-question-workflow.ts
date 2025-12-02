@@ -63,7 +63,7 @@ export type Metadata = {
   domain: Domain
   core_thesis: CoreThesis
   pedagogy: Pedagogy
-  language: 'en'
+  language: string
 }
 
 export type HookQuestionOption = {
@@ -181,7 +181,7 @@ export const MetadataSchema: z.ZodType<Metadata> = z.object({
   domain: DomainSchema,
   core_thesis: CoreThesisSchema,
   pedagogy: PedagogySchema,
-  language: z.literal('en'),
+  language: z.string(),
 })
 
 export const HookQuestionOptionSchema: z.ZodType<HookQuestionOption> = z.object({

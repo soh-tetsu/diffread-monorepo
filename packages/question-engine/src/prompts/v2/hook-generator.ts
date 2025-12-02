@@ -9,8 +9,8 @@ export type HookGeneratorPromptContext = {
 }
 
 function renderHookGeneratorPrompt(context: HookGeneratorPromptContext): string {
-  const language_code = context.metadata.language || 'en'
-  const pedagogyJson = JSON.stringify({ pedagogy: context.metadata.pedagogy }, null, 2)
+  const language_code: string = context.metadata.language || 'en'
+  const pedagogyJson: string = JSON.stringify({ pedagogy: context.metadata.pedagogy }, null, 2)
 
   return `You are an expert Instructional Designer and Copywriter.
   **Task:** Convert the provided "Cognitive Metadata Profile" (JSON) into a high-engagement Pre-Test Quiz.

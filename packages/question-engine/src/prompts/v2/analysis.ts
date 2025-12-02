@@ -114,6 +114,10 @@ function renderAnalysisPrompt({ text }: AnalysisPromptContext): string {
       *   **The Reveal:** The sentence containing the core insight.
       *   *Reason:* This context allows external systems to generate questions without seeing the full text.
 
+  **H. Language Detection
+      Identify the dominant language of the main body text.
+      *   **Output:** The ISO 639-1 code (e.g., "en", "ja", "es", "fr").
+
   ---
   ### 2. Output Structure (TypeScript Interface)
 
@@ -152,7 +156,8 @@ function renderAnalysisPrompt({ text }: AnalysisPromptContext): string {
           cognitive_impact_score: number; // See Rule F.5
         }>;
       };
-      language: "en";
+      // The detected language of the article
+      language: string; // ISO 639-1 Code (e.g., "en", "ja")
     }
   }
 
