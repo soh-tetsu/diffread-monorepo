@@ -57,6 +57,13 @@ export function normalizeHookQuestions(
           rationale: option?.feedback,
         })),
         answerIndex,
+        sourceLocation: typeof card.remediation === "object" &&
+          card.remediation !== null &&
+          (card.remediation as any).go_read_anchor
+          ? {
+            anchorText: (card.remediation as any).go_read_anchor,
+          }
+          : undefined,
         remediationPointer: typeof card.remediation === "object" && card.remediation !== null
           ? `${(card.remediation as any).headline}\n\n${(card.remediation as any).body}`
           : undefined,

@@ -150,22 +150,53 @@ export function QuestionCard({
             )}
 
             {question.sourceLocation && articleUrl && (
-              <Link
-                href={`${articleUrl}#:~:text=${encodeURIComponent(
-                  question.sourceLocation.anchorText
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                color="blue.600"
-                display="inline-block"
+              <Box
                 mt={3}
+                p={3}
+                bg="white"
+                borderRadius="xl"
+                borderWidth="1px"
+                borderColor="blue.300"
               >
-                Jump to &quot;{question.sourceLocation.anchorText}&quot;
-                {question.sourceLocation.estimatedParagraph
-                  ? ` (para ${question.sourceLocation.estimatedParagraph})`
-                  : ""}{" "}
-                ↗
-              </Link>
+                <Text
+                  fontSize="xs"
+                  textTransform="uppercase"
+                  letterSpacing="0.1em"
+                  color="blue.700"
+                  mb={1}
+                  fontWeight="semibold"
+                >
+                  Source Reference
+                </Text>
+                <Link
+                  href={`${articleUrl}#:~:text=${encodeURIComponent(
+                    question.sourceLocation.anchorText
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  color="blue.600"
+                  fontWeight="medium"
+                  display="inline-flex"
+                  alignItems="center"
+                  gap={1}
+                  _hover={{
+                    color: "blue.700",
+                    textDecoration: "underline",
+                  }}
+                >
+                  <Text as="span">
+                    View in article: &quot;{question.sourceLocation.anchorText.length > 60
+                      ? question.sourceLocation.anchorText.slice(0, 60) + "..."
+                      : question.sourceLocation.anchorText}&quot;
+                  </Text>
+                  <Text as="span" fontSize="lg">↗</Text>
+                </Link>
+                {question.sourceLocation.estimatedParagraph && (
+                  <Text fontSize="xs" color="gray.600" mt={1}>
+                    Located near paragraph {question.sourceLocation.estimatedParagraph}
+                  </Text>
+                )}
+              </Box>
             )}
 
             {question.relevantContext && (

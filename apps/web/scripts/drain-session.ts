@@ -20,11 +20,11 @@ if (existsSync(envPath)) {
 }
 
 async function main() {
-  const [{ getSessionByToken }, { enqueueAndProcessSession }, { processQuizById }] =
+  const [{ getSessionByToken }, { enqueueAndProcessSession }, { processQuizByIdV2: processQuizById }] =
     await Promise.all([
       import("@/lib/db/sessions"),
       import("@/lib/workflows/session-flow"),
-      import("@/lib/workflows/process-quiz"),
+      import("@/lib/workflows/process-quiz-v2"),
     ]);
   const session = await getSessionByToken(sessionToken);
   if (!session) {

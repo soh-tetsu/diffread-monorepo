@@ -312,13 +312,28 @@ export async function processNextPendingHookV2(): Promise<void> {
   logger.info({ quizId: hookQuiz.id }, "V2 hook workflow completed");
 }
 
-export async function processQuizByIdV2(quizId: number): Promise<void> {
+export type ProcessResult =
+  | {
+    quiz: QuizRow;
+    article: ArticleRow;
+    status: "ready";
+  }
+  | null;
+
+export async function processQuizByIdV2(quizId: number): Promise<ProcessResult> {
   const quiz = await loadQuizById(quizId);
   if (!quiz) {
-    return;
+    return null;
   }
 
+  const articleRecord = await getArticleById(quiz.article_id);
   const analysisResponse = await handleV2HookJob(quiz);
   await handleV2HookGenerationJob(quizId, analysisResponse);
   await setSessionStatusByQuiz(quizId, "ready");
+
+  return {
+    quiz: { ...quiz, status: "ready" },
+    article: articleRecord,
+    status: "ready",
+  };
 }

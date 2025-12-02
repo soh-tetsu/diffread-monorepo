@@ -22,12 +22,12 @@ if (!email || !articleUrl) {
 async function main() {
   const [
     { enqueueAndProcessSession },
-    { processQuizById },
+    { processQuizByIdV2: processQuizById },
     { supabase },
   ] =
     await Promise.all([
       import("@/lib/workflows/session-flow"),
-      import("@/lib/workflows/process-quiz"),
+      import("@/lib/workflows/process-quiz-v2"),
       import("@/lib/supabase"),
     ]);
 

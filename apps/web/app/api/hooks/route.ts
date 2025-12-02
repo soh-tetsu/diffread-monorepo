@@ -5,7 +5,7 @@ import { getSessionByToken } from "@/lib/db/sessions";
 import { getArticleById } from "@/lib/db/articles";
 import { initSession } from "@/lib/workflows/session-init";
 import { getHookQuestionsByQuizId, upsertHookQuestions } from "@/lib/db/hooks";
-import { processQuizById } from "@/lib/workflows/process-quiz";
+import { processQuizByIdV2 as processQuizById } from "@/lib/workflows/process-quiz-v2";
 
 function parseForceFlag(value: unknown): boolean {
   if (typeof value === "boolean") {

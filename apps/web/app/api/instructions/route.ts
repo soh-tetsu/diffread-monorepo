@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { enqueueAndProcessSession } from "@/lib/workflows/session-flow";
-import { processQuizById } from "@/lib/workflows/process-quiz";
+import { processQuizByIdV2 as processQuizById } from "@/lib/workflows/process-quiz-v2";
 import { supabase } from "@/lib/supabase";
 import { getSessionByToken } from "@/lib/db/sessions";
 import { normalizeQuestion, QuizQuestion } from "@/lib/quiz/normalize-question";
