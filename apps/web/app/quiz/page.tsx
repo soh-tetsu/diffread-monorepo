@@ -1,7 +1,7 @@
 'use client'
 
 import { Box, Button, Heading, Text } from '@chakra-ui/react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import useSWR from 'swr'
 import { QuizView } from '@/components/quiz/QuizView'
@@ -55,6 +55,7 @@ const swrConfig = {
 }
 
 function QuizPageContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams?.get('q') ?? null
   const showInstructions = searchParams?.get('show') === 'instructions'
@@ -152,7 +153,7 @@ function QuizPageContent() {
             This quiz belongs to another guest profile. Head back to the homepage to create your own
             session or paste a new URL.
           </Text>
-          <Button as="a" href="/" colorPalette="teal">
+          <Button colorPalette="teal" onClick={() => router.push('/')}>
             Go to homepage
           </Button>
         </Box>
