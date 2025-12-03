@@ -3,10 +3,19 @@ import { getSessionByToken } from '@/lib/db/sessions'
 import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
 
+function extractGuestId(request: Request): string | null {
+  const guestId = request.headers.get('x-diffread-guest-id')
+  if (guestId && typeof guestId === 'string') {
+    return guestId
+  }
+  return null
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const token = searchParams.get('q')
+    const guestId = extractGuestId(request)
 
     if (!token) {
       return NextResponse.json({ message: 'Missing session token.' }, { status: 400 })
@@ -16,6 +25,13 @@ export async function GET(request: Request) {
 
     if (!session) {
       return NextResponse.json({ message: 'Session not found.' }, { status: 404 })
+    }
+
+    if (guestId && session.user_id !== guestId) {
+      return NextResponse.json(
+        { message: 'Session token does not match guest user.' },
+        { status: 403 }
+      )
     }
 
     let article = null

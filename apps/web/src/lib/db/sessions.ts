@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid'
+import { synthesizeGuestEmail } from '@/lib/db/users'
 import { supabase } from '@/lib/supabase'
 import type { SessionRow, SessionStatus } from '@/types/db'
 
@@ -18,14 +19,14 @@ export async function getSessionByToken(token: string): Promise<SessionRow | nul
   return (data as SessionRow) ?? null
 }
 
-export async function getSessionByEmailAndUrl(
-  email: string,
+export async function getSessionByUserIdAndUrl(
+  userId: string,
   articleUrl: string
 ): Promise<SessionRow | null> {
   const { data, error } = await supabase
     .from('sessions')
     .select('*')
-    .eq('user_email', email)
+    .eq('user_id', userId)
     .eq('article_url', articleUrl)
     .maybeSingle()
 
@@ -36,12 +37,23 @@ export async function getSessionByEmailAndUrl(
   return (data as SessionRow) ?? null
 }
 
-export async function createSession(email: string, articleUrl: string): Promise<SessionRow> {
+type CreateSessionInput = {
+  userId: string
+  articleUrl: string
+  email?: string
+}
+
+export async function createSession({
+  userId,
+  articleUrl,
+  email,
+}: CreateSessionInput): Promise<SessionRow> {
   const { data, error } = await supabase
     .from('sessions')
     .insert({
       session_token: nanoid(SESSION_TOKEN_LENGTH),
-      user_email: email,
+      user_id: userId,
+      user_email: email ?? synthesizeGuestEmail(userId),
       article_url: articleUrl,
       quiz_id: null, // Will be set later
       status: 'pending' as SessionStatus,
@@ -57,13 +69,13 @@ export async function createSession(email: string, articleUrl: string): Promise<
   return data as SessionRow
 }
 
-export async function getOrCreateSession(email: string, articleUrl: string): Promise<SessionRow> {
-  const existing = await getSessionByEmailAndUrl(email, articleUrl)
+export async function getOrCreateSession(params: CreateSessionInput): Promise<SessionRow> {
+  const existing = await getSessionByUserIdAndUrl(params.userId, params.articleUrl)
   if (existing) {
     return existing
   }
 
-  return createSession(email, articleUrl)
+  return createSession(params)
 }
 
 export async function updateSession(

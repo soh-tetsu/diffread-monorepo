@@ -101,7 +101,13 @@ export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: 
           <Text fontSize="sm" color="gray.500" mb={1}>
             {question.category}
           </Text>
-          <Text as="h2" fontSize={{ base: 'lg', md: 'xl' }} fontWeight="semibold" mt={2}>
+          <Text
+            as="h2"
+            fontSize={{ base: 'lg', md: 'xl' }}
+            fontWeight="semibold"
+            mt={2}
+            color="gray.900"
+          >
             {question.prompt}
           </Text>
         </Box>

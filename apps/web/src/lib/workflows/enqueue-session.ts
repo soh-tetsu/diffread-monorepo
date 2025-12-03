@@ -1,9 +1,10 @@
 import pLimit from 'p-limit'
 import { concurrencyConfig } from '@/lib/config'
+import { ensureGuestUser, ensureUserByEmail, synthesizeGuestEmail } from '@/lib/db/users'
 import { logger } from '@/lib/logger'
 import { processNextPendingCuriosityQuiz } from '@/lib/workers/process-curiosity-quiz'
 import { initSession } from '@/lib/workflows/session-init'
-import type { SessionRow } from '@/types/db'
+import type { SessionRow, UserRow } from '@/types/db'
 
 const sessionWorkerLimit = pLimit(concurrencyConfig.sessionWorkers)
 const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers)
@@ -38,15 +39,45 @@ export type EnqueueSessionResult = {
  * 2. If session needs processing (pending/errored), invoke worker
  * 3. Return session immediately (async) or after processing (sync)
  */
+type SessionIdentity = {
+  userId?: string
+  email?: string
+}
+
+async function resolveSessionUser(identity: SessionIdentity): Promise<UserRow> {
+  if (identity.userId) {
+    const { user } = await ensureGuestUser({ userId: identity.userId })
+    return user.email
+      ? user
+      : {
+          ...user,
+          email: synthesizeGuestEmail(user.id),
+        }
+  }
+
+  if (identity.email) {
+    return ensureUserByEmail(identity.email)
+  }
+
+  throw new Error('enqueueAndProcessSession requires a userId or email')
+}
+
 export async function enqueueAndProcessSession(
-  email: string,
+  identity: SessionIdentity,
   originalUrl: string,
   options: EnqueueSessionOptions = {}
 ): Promise<EnqueueSessionResult> {
   const { sync = false } = options
+  const user = await resolveSessionUser(identity)
 
   // Step 1: Initialize session
-  const session = await sessionWorkerLimit(() => initSession(email, originalUrl))
+  const session = await sessionWorkerLimit(() =>
+    initSession({
+      userId: user.id,
+      email: user.email ?? synthesizeGuestEmail(user.id),
+      originalUrl,
+    })
+  )
 
   logger.info(
     {

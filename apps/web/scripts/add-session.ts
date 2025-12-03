@@ -35,7 +35,7 @@ async function main() {
   )
   const { enqueueAndProcessSession } = await import('@/lib/workflows/enqueue-session')
 
-  const result = await enqueueAndProcessSession(email, originalUrl, {
+  const result = await enqueueAndProcessSession({ email }, originalUrl, {
     sync: true, // Wait for completion
   })
 

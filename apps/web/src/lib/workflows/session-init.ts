@@ -6,11 +6,21 @@ import { normalizeUrl } from '@/lib/utils/normalize-url'
 import type { SessionRow } from '@/types/db'
 import { logger } from '../logger'
 
-export async function initSession(email: string, originalUrl: string): Promise<SessionRow> {
+type InitSessionParams = {
+  userId: string
+  email?: string
+  originalUrl: string
+}
+
+export async function initSession({
+  userId,
+  email,
+  originalUrl,
+}: InitSessionParams): Promise<SessionRow> {
   const normalizedUrl = normalizeUrl(originalUrl)
 
   // Step 1: Get/create session (quiz_id can be NULL)
-  let session = await getOrCreateSession(email, originalUrl)
+  let session = await getOrCreateSession({ userId, articleUrl: originalUrl, email })
 
   // Step 2: Early return if ready
   if (session.status === 'ready') {

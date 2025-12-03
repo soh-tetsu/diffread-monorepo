@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import useSWR from 'swr'
 import { QuizView } from '@/components/quiz/QuizView'
+import { readGuestId } from '@/lib/guest/storage'
 import type { QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
 import { normalizeHookQuestions } from '@/lib/quiz/normalize-curiosity-quizzes'
 import type { CuriosityQuizStatus, ScaffoldQuizStatus, SessionStatus } from '@/types/db'
@@ -36,11 +37,14 @@ type ScaffoldQuizResponse = {
   errorMessage: string | null
 }
 
-const fetcher = (url: string) =>
-  fetch(url).then((res) => {
+const fetcher = (url: string) => {
+  const guestId = readGuestId()
+  const headers: HeadersInit = guestId ? { 'X-Diffread-Guest-Id': guestId } : {}
+  return fetch(url, { headers }).then((res) => {
     if (!res.ok) throw new Error('Failed to fetch')
     return res.json()
   })
+}
 
 // SWR config for Suspense mode
 const swrConfig = {

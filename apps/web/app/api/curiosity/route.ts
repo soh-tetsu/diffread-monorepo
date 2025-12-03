@@ -4,10 +4,19 @@ import { getSessionByToken } from '@/lib/db/sessions'
 import { logger } from '@/lib/logger'
 import { enqueueAndProcessSession } from '@/lib/workflows/enqueue-session'
 
+function extractGuestId(request: Request): string | null {
+  const guestId = request.headers.get('x-diffread-guest-id')
+  if (guestId && typeof guestId === 'string' && guestId.trim().length > 0) {
+    return guestId
+  }
+  return null
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const token = searchParams.get('q')
+    const guestId = extractGuestId(request)
 
     if (!token) {
       return NextResponse.json({ error: 'Missing session token' }, { status: 400 })
@@ -17,6 +26,13 @@ export async function GET(request: Request) {
 
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+    }
+
+    if (guestId && session.user_id !== guestId) {
+      return NextResponse.json(
+        { error: 'Session token does not match guest user.' },
+        { status: 403 }
+      )
     }
 
     if (!session.quiz_id) {
@@ -56,6 +72,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const { currentToken, url } = body
+    const guestId = extractGuestId(request)
 
     if (!currentToken || typeof currentToken !== 'string') {
       return NextResponse.json({ error: 'Invalid session token' }, { status: 400 })
@@ -71,9 +88,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
     }
 
+    if (guestId && currentSession.user_id !== guestId) {
+      return NextResponse.json(
+        { error: 'Session token does not match guest user.' },
+        { status: 403 }
+      )
+    }
+
     // Enqueue session and invoke worker asynchronously
     const { session, workerInvoked } = await enqueueAndProcessSession(
-      currentSession.user_email,
+      {
+        userId: currentSession.user_id,
+        email: currentSession.user_email,
+      },
       url,
       {
         sync: false, // API returns immediately

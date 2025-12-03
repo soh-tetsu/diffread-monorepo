@@ -35,8 +35,8 @@ The task reuses the production scraper to fetch the page, calls `analyzeArticleM
 
 ## What ships in this placeholder
 
-- Opinionated copy that references the quiz-guided reading loop from the PRD.
-- Status tiles outlining the three major modules (Hook, IDE Split View, Skip Logic).
+- Manifesto-driven copy straight from “Stop Hoarding. Start Mastering.” so visitors grasp why curiosity-first reading matters.
+- A static onboarding flow that pairs **The Filter** (curiosity pre-test) with **The Scaffold** (micro-predictions) to mirror the real product arc.
 - A lightweight CTA so interested testers can email `alpha@diffread.app`.
 
 Feel free to update the content or styling as you unlock more of the prototype. All UI lives inside `app/page.tsx` with global styles in `app/globals.css`.

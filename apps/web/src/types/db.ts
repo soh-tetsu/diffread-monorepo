@@ -52,7 +52,7 @@ export interface QuizRow {
   id: number
   article_id: number
 
-  user_id: number | null
+  user_id: string | null
   variant: string | null
 
   created_at: string
@@ -97,6 +97,7 @@ export interface ScaffoldQuizRow {
 export interface SessionRow {
   id: number
   session_token: string
+  user_id: string
   user_email: string
   article_url: string
 
@@ -104,6 +105,19 @@ export interface SessionRow {
   status: SessionStatus
   metadata: Record<string, unknown>
 
+  created_at: string
+  updated_at: string
+}
+
+export type AuthMethod = 'guest' | 'email' | 'oauth' | 'admin'
+
+export interface UserRow {
+  id: string
+  auth_method: AuthMethod
+  email: string | null
+  display_name: string | null
+  last_seen_at: string | null
+  metadata: Record<string, unknown>
   created_at: string
   updated_at: string
 }

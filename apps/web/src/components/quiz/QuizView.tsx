@@ -4,6 +4,8 @@ import {
   Badge,
   Box,
   Button,
+  chakra,
+  Field,
   Flex,
   Heading,
   Input,
@@ -15,9 +17,9 @@ import {
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { QuestionCard } from '@/components/quiz/QuestionCard'
-import { Field } from '@/components/ui/field'
 import { toaster } from '@/components/ui/toaster'
 import { trackQuizSelection } from '@/lib/analytics/client'
+import { readGuestId } from '@/lib/guest/storage'
 import type { QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
 
 import type { CuriosityQuizStatus } from '@/types/db'
@@ -42,6 +44,7 @@ export function QuizView({
   questions,
 }: Props) {
   const router = useRouter()
+  const guestId = readGuestId()
   const [curiosityAnswers, setCuriosityAnswers] = useState<Record<number, number | null>>({})
   const [scaffoldAnswers, setScaffoldAnswers] = useState<Record<number, number | null>>({})
   const [showForm, setShowForm] = useState(false)
@@ -140,11 +143,11 @@ export function QuizView({
     try {
       const submissionPromise = (async () => {
         // Step 1: Submit new article and get session token
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (guestId) headers['X-Diffread-Guest-Id'] = guestId
         const response = await fetch('/api/curiosity', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             currentToken: sessionToken,
             url: formUrl,
@@ -174,7 +177,10 @@ export function QuizView({
         // Step 2: Poll the new session status until ready
         const maxAttempts = 20
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-          const statusResponse = await fetch(`/api/curiosity?q=${newSessionToken}`)
+          const statusHeaders: HeadersInit = guestId ? { 'X-Diffread-Guest-Id': guestId } : {}
+          const statusResponse = await fetch(`/api/curiosity?q=${newSessionToken}`, {
+            headers: statusHeaders,
+          })
           if (statusResponse.ok) {
             const payload = await statusResponse.json()
             if (payload.status === 'ready') {
@@ -300,11 +306,11 @@ export function QuizView({
     setRequestingScaffold(true)
     try {
       const instructionPromise = (async () => {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (guestId) headers['X-Diffread-Guest-Id'] = guestId
         const response = await fetch('/api/scaffold', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify({
             currentToken: sessionToken,
             articleUrl,
@@ -330,7 +336,10 @@ export function QuizView({
         // Poll session status until instructions are ready (or errored).
         const maxAttempts = 20
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-          const statusResponse = await fetch(`/api/scaffold?token=${sessionToken}`)
+          const statusHeaders: HeadersInit = guestId ? { 'X-Diffread-Guest-Id': guestId } : {}
+          const statusResponse = await fetch(`/api/scaffold?token=${sessionToken}`, {
+            headers: statusHeaders,
+          })
           if (statusResponse.ok) {
             const payload = await statusResponse.json()
             if (payload.status === 'ready') {
@@ -564,15 +573,10 @@ export function QuizView({
       </Flex>
 
       {showForm && (
-        <Box
-          as="form"
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          onSubmit={handleSubmitNewArticle as any}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ref={formRef as any}
-        >
+        <chakra.form onSubmit={handleSubmitNewArticle} ref={formRef}>
           <VStack gap={3} align="stretch">
-            <Field label="URL">
+            <Field.Root>
+              <Field.Label>URL</Field.Label>
               <Input
                 id="new-article-url"
                 type="url"
@@ -584,7 +588,7 @@ export function QuizView({
                 borderColor="gray.200"
                 bg="white"
               />
-            </Field>
+            </Field.Root>
             <Stack direction={{ base: 'column', sm: 'row' }} gap={3}>
               <Button
                 type="submit"
@@ -610,7 +614,7 @@ export function QuizView({
             </Stack>
             {formError && <Text color="red.600">{formError}</Text>}
           </VStack>
-        </Box>
+        </chakra.form>
       )}
     </Box>
   )
