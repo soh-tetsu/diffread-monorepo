@@ -1,15 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getSessionByToken } from '@/lib/db/sessions'
+import { ensureSessionForGuest, extractGuestId, GuestSessionError } from '@/lib/api/guest-session'
 import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
-
-function extractGuestId(request: Request): string | null {
-  const guestId = request.headers.get('x-diffread-guest-id')
-  if (guestId && typeof guestId === 'string') {
-    return guestId
-  }
-  return null
-}
 
 export async function GET(request: Request) {
   try {
@@ -17,22 +9,12 @@ export async function GET(request: Request) {
     const token = searchParams.get('q')
     const guestId = extractGuestId(request)
 
-    if (!token) {
-      return NextResponse.json({ message: 'Missing session token.' }, { status: 400 })
-    }
-
-    const session = await getSessionByToken(token)
-
-    if (!session) {
-      return NextResponse.json({ message: 'Session not found.' }, { status: 404 })
-    }
-
-    if (guestId && session.user_id !== guestId) {
-      return NextResponse.json(
-        { message: 'Session token does not match guest user.' },
-        { status: 403 }
-      )
-    }
+    const session = await ensureSessionForGuest(token, guestId, {
+      messages: {
+        MISSING_TOKEN: 'Missing session token.',
+        SESSION_NOT_FOUND: 'Session not found.',
+      },
+    })
 
     let article = null
 
@@ -68,6 +50,9 @@ export async function GET(request: Request) {
       article,
     })
   } catch (error) {
+    if (error instanceof GuestSessionError) {
+      return NextResponse.json({ message: error.message }, { status: error.status })
+    }
     logger.error({ err: error }, 'GET /api/quiz failed')
     return NextResponse.json(
       { message: error instanceof Error ? error.message : 'Server error.' },

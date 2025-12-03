@@ -1,39 +1,20 @@
 import { NextResponse } from 'next/server'
+import { ensureSessionForGuest, extractGuestId, GuestSessionError } from '@/lib/api/guest-session'
 import { getCuriosityQuizByQuizId } from '@/lib/db/curiosity-quizzes'
-import { getSessionByToken } from '@/lib/db/sessions'
 import { logger } from '@/lib/logger'
 import { enqueueAndProcessSession } from '@/lib/workflows/enqueue-session'
-
-function extractGuestId(request: Request): string | null {
-  const guestId = request.headers.get('x-diffread-guest-id')
-  if (guestId && typeof guestId === 'string' && guestId.trim().length > 0) {
-    return guestId
-  }
-  return null
-}
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const token = searchParams.get('q')
     const guestId = extractGuestId(request)
-
-    if (!token) {
-      return NextResponse.json({ error: 'Missing session token' }, { status: 400 })
-    }
-
-    const session = await getSessionByToken(token)
-
-    if (!session) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-    }
-
-    if (guestId && session.user_id !== guestId) {
-      return NextResponse.json(
-        { error: 'Session token does not match guest user.' },
-        { status: 403 }
-      )
-    }
+    const session = await ensureSessionForGuest(token, guestId, {
+      messages: {
+        MISSING_TOKEN: 'Missing session token',
+        SESSION_NOT_FOUND: 'Session not found',
+      },
+    })
 
     if (!session.quiz_id) {
       return NextResponse.json({
@@ -59,6 +40,9 @@ export async function GET(request: Request) {
       errorMessage: curiosityQuiz.error_message,
     })
   } catch (error) {
+    if (error instanceof GuestSessionError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     const err = error instanceof Error ? error : new Error(String(error))
     logger.error({ err }, 'Failed to fetch curiosity quiz')
     return NextResponse.json(
@@ -74,26 +58,17 @@ export async function POST(request: Request) {
     const { currentToken, url } = body
     const guestId = extractGuestId(request)
 
-    if (!currentToken || typeof currentToken !== 'string') {
-      return NextResponse.json({ error: 'Invalid session token' }, { status: 400 })
-    }
-
     if (!url || typeof url !== 'string') {
       return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
     }
 
     // Look up email from current session token
-    const currentSession = await getSessionByToken(currentToken)
-    if (!currentSession) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-    }
-
-    if (guestId && currentSession.user_id !== guestId) {
-      return NextResponse.json(
-        { error: 'Session token does not match guest user.' },
-        { status: 403 }
-      )
-    }
+    const currentSession = await ensureSessionForGuest(currentToken, guestId, {
+      messages: {
+        MISSING_TOKEN: 'Invalid session token',
+        SESSION_NOT_FOUND: 'Session not found',
+      },
+    })
 
     // Enqueue session and invoke worker asynchronously
     const { session, workerInvoked } = await enqueueAndProcessSession(
@@ -113,6 +88,9 @@ export async function POST(request: Request) {
       workerInvoked,
     })
   } catch (error) {
+    if (error instanceof GuestSessionError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     const err = error instanceof Error ? error : new Error(String(error))
     logger.error({ err }, 'Failed to initialize session')
     return NextResponse.json(

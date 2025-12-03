@@ -1,34 +1,19 @@
 import { NextResponse } from 'next/server'
+import { ensureSessionForGuest, extractGuestId, GuestSessionError } from '@/lib/api/guest-session'
 import { getScaffoldQuizByQuizId } from '@/lib/db/scaffold-quizzes'
-import { getSessionByToken } from '@/lib/db/sessions'
 import { logger } from '@/lib/logger'
-
-function extractGuestId(request: Request): string | null {
-  const guestId = request.headers.get('x-diffread-guest-id')
-  return guestId && guestId.trim().length > 0 ? guestId : null
-}
 
 export async function POST(request: Request) {
   try {
     const { currentToken } = await request.json()
     const guestId = extractGuestId(request)
-
-    if (!currentToken) {
-      return NextResponse.json({ message: 'Missing currentToken.' }, { status: 400 })
-    }
-
-    const session = await getSessionByToken(currentToken)
-
-    if (!session) {
-      return NextResponse.json({ message: 'Session not found.' }, { status: 404 })
-    }
-
-    if (guestId && session.user_id !== guestId) {
-      return NextResponse.json(
-        { message: 'Session token does not match guest user.' },
-        { status: 403 }
-      )
-    }
+    const session = await ensureSessionForGuest(currentToken, guestId, {
+      tokenName: 'currentToken',
+      messages: {
+        MISSING_TOKEN: 'Missing currentToken.',
+        SESSION_NOT_FOUND: 'Session not found.',
+      },
+    })
 
     if (!session.quiz_id) {
       return NextResponse.json({ message: 'Session has no quiz.' }, { status: 400 })
@@ -60,6 +45,9 @@ export async function POST(request: Request) {
       status: 'pending',
     })
   } catch (error) {
+    if (error instanceof GuestSessionError) {
+      return NextResponse.json({ message: error.message }, { status: error.status })
+    }
     logger.error({ err: error }, 'POST /api/instructions failed')
     return NextResponse.json(
       { message: error instanceof Error ? error.message : 'Server error.' },
@@ -73,23 +61,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const token = searchParams.get('q')
     const guestId = extractGuestId(request)
-
-    if (!token) {
-      return NextResponse.json({ message: 'Missing session token.' }, { status: 400 })
-    }
-
-    const session = await getSessionByToken(token)
-
-    if (!session) {
-      return NextResponse.json({ message: 'Session not found.' }, { status: 404 })
-    }
-
-    if (guestId && session.user_id !== guestId) {
-      return NextResponse.json(
-        { message: 'Session token does not match guest user.' },
-        { status: 403 }
-      )
-    }
+    const session = await ensureSessionForGuest(token, guestId, {
+      messages: {
+        MISSING_TOKEN: 'Missing session token.',
+        SESSION_NOT_FOUND: 'Session not found.',
+      },
+    })
 
     if (!session.quiz_id) {
       // No quiz yet - return pending status
@@ -120,6 +97,9 @@ export async function GET(request: Request) {
       failureReason: scaffoldQuiz.error_message,
     })
   } catch (error) {
+    if (error instanceof GuestSessionError) {
+      return NextResponse.json({ message: error.message }, { status: error.status })
+    }
     logger.error({ err: error }, 'GET /api/instructions failed')
     return NextResponse.json(
       { message: error instanceof Error ? error.message : 'Server error.' },

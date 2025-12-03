@@ -404,10 +404,15 @@ export function QuizView({
                     </Popover.Trigger>
                     <Popover.Positioner>
                       <Popover.Content borderRadius="lg" borderColor="gray.200">
-                        <Text fontSize="sm" color="gray.700">
-                          More quizzes are coming soon. We&apos;re still training the scaffold
-                          engine.
-                        </Text>
+                        <Popover.Arrow />
+                        <Popover.Body>
+                          <Popover.Title fontWeight="semibold" mb={2}>
+                            Coming Soon!
+                          </Popover.Title>
+                          <Text fontSize="sm" color="gray.700">
+                            We&apos;re still training the scaffold engine.
+                          </Text>
+                        </Popover.Body>
                       </Popover.Content>
                     </Popover.Positioner>
                   </Popover.Root>
