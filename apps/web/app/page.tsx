@@ -237,8 +237,14 @@ function UrlRegistrationSection({ guestId }: { guestId: string }) {
     }
 
     setIsSubmitting(true)
+    const toastId = `url-submit-${Date.now()}`
+    toaster.loading({
+      id: toastId,
+      title: 'Analyzing quizzes…',
+      description: 'This usually takes a few seconds.',
+    })
     try {
-      const submissionPromise = (async () => {
+      const submissionResult = await (async () => {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' }
         if (guestId) {
           headers['X-Diffread-Guest-Id'] = guestId
@@ -278,63 +284,46 @@ function UrlRegistrationSection({ guestId }: { guestId: string }) {
         throw new Error('Quiz is taking longer than expected. Please check back shortly.')
       })()
 
-      let toastId: string | undefined
-
-      toaster.promise(submissionPromise, {
-        loading: {
-          title: 'Analyzing quizzes…',
-          description: 'This usually takes a few seconds.',
-        },
-        success: (data: { sessionToken: string }) => {
-          const quizUrl = `/quiz?q=${encodeURIComponent(data.sessionToken)}`
-          setTimeout(() => {
-            toastId = toaster.create({
-              title: 'Quiz ready!',
-              description: 'Click anywhere to open now.',
-              type: 'success',
-              duration: Infinity,
-              closable: true,
-              onStatusChange: (details) => {
-                if (details.status === 'visible') {
-                  setTimeout(() => {
-                    const toastElements = document.querySelectorAll('[role="status"]')
-                    const toastEl = Array.from(toastElements).find((el) =>
-                      el.textContent?.includes('Quiz ready!')
-                    )
-
-                    if (toastEl) {
-                      const element = toastEl as HTMLElement
-                      element.style.cursor = 'pointer'
-                      const clickHandler = (e: Event) => {
-                        const target = e.target as HTMLElement
-                        if (!target.closest('[data-part="close-trigger"]')) {
-                          window.location.href = quizUrl
-                          if (toastId) toaster.dismiss(toastId)
-                        }
-                      }
-                      element.addEventListener('click', clickHandler, { once: true })
-                    }
-                  }, 50)
-                }
-              },
-            })
-          }, 0)
-          return { title: 'Quiz ready!' }
-        },
-        error: (error) => ({
-          title: 'Quiz generation failed',
-          description: error instanceof Error ? error.message : 'Please try again later.',
-          closable: true,
-        }),
-      })
-
-      await submissionPromise
+      const quizUrl = `/quiz?q=${encodeURIComponent(submissionResult.sessionToken)}`
       setUrl('')
+      const attachClickableToast = () => {
+        setTimeout(() => {
+          const toastElements = document.querySelectorAll('[role="status"]')
+          const toastEl = Array.from(toastElements).find((el) =>
+            el.textContent?.includes('Quiz ready!')
+          )
+
+          if (toastEl) {
+            const element = toastEl as HTMLElement
+            element.style.cursor = 'pointer'
+            const clickHandler = (e: Event) => {
+              const target = e.target as HTMLElement
+              if (!target.closest('[data-part="close-trigger"]')) {
+                window.location.href = quizUrl
+                toaster.dismiss(toastId)
+              }
+            }
+            element.addEventListener('click', clickHandler, { once: true })
+          }
+        }, 50)
+      }
+
+      toaster.update(toastId, {
+        title: 'Quiz ready!',
+        description: 'Click anywhere to open now.',
+        type: 'success',
+        duration: Infinity,
+        closable: true,
+      })
+      attachClickableToast()
     } catch (error) {
-      toaster.create({
-        title: 'Unable to create quiz',
-        description: error instanceof Error ? error.message : 'Unknown error',
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      toaster.update(toastId, {
+        title: 'Quiz generation failed',
+        description: message,
         type: 'error',
+        duration: Infinity,
+        closable: true,
       })
     } finally {
       setIsSubmitting(false)

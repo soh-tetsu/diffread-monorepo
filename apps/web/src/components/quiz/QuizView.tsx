@@ -10,11 +10,11 @@ import {
   Heading,
   Input,
   Link,
+  Popover,
   Stack,
   Text,
   VStack,
 } from '@chakra-ui/react'
-import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { QuestionCard } from '@/components/quiz/QuestionCard'
 import { toaster } from '@/components/ui/toaster'
@@ -43,7 +43,6 @@ export function QuizView({
   initialInstructionsVisible = false,
   questions,
 }: Props) {
-  const router = useRouter()
   const guestId = readGuestId()
   const [curiosityAnswers, setCuriosityAnswers] = useState<Record<number, number | null>>({})
   const [scaffoldAnswers, setScaffoldAnswers] = useState<Record<number, number | null>>({})
@@ -51,7 +50,6 @@ export function QuizView({
   const [formUrl, setFormUrl] = useState('')
   const [formError, setFormError] = useState<string | null>(null)
   const [formLoading, setFormLoading] = useState(false)
-  const [requestingScaffold, setRequestingScaffold] = useState(false)
   const formRef = useRef<HTMLFormElement | null>(null)
   const questionRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const CHUNK_SIZE = 3
@@ -140,9 +138,14 @@ export function QuizView({
     event.preventDefault()
     setFormError(null)
     setFormLoading(true)
+    const toastId = `quiz-submit-${Date.now()}`
+    toaster.loading({
+      id: toastId,
+      title: 'Analyzing quizzes…',
+      description: 'This usually takes a few seconds.',
+    })
     try {
-      const submissionPromise = (async () => {
-        // Step 1: Submit new article and get session token
+      const submissionResult = await (async () => {
         const headers: Record<string, string> = { 'Content-Type': 'application/json' }
         if (guestId) headers['X-Diffread-Guest-Id'] = guestId
         const response = await fetch('/api/curiosity', {
@@ -157,8 +160,6 @@ export function QuizView({
         if (!response.ok) {
           const payload = await response.json().catch(() => ({}))
           let errorMessage = payload.error || 'Failed to register article.'
-
-          // Try to parse nested error object if message contains JSON
           try {
             const parsed = JSON.parse(errorMessage)
             if (parsed.error?.message) {
@@ -167,14 +168,12 @@ export function QuizView({
           } catch {
             // Not JSON, use original message
           }
-
           throw new Error(errorMessage)
         }
 
         const data = await response.json()
         const newSessionToken = data.sessionToken
 
-        // Step 2: Poll the new session status until ready
         const maxAttempts = 20
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
           const statusHeaders: HeadersInit = guestId ? { 'X-Diffread-Guest-Id': guestId } : {}
@@ -195,203 +194,53 @@ export function QuizView({
         throw new Error('Quiz is taking longer than expected. Please check back shortly.')
       })()
 
-      try {
-        let toastId: string | undefined
+      const quizUrl = `/quiz?q=${submissionResult.sessionToken}`
+      setShowForm(false)
+      setFormUrl('')
+      setFormError(null)
 
-        toaster.promise(submissionPromise, {
-          loading: {
-            title: 'Analyzing quizzes…',
-            description: 'This usually takes a few seconds.',
-          },
-          success: (data: { sessionToken: string }) => {
-            const quizUrl = `/quiz?q=${data.sessionToken}`
+      const makeToastClickable = () => {
+        setTimeout(() => {
+          const toastElements = document.querySelectorAll('[role="status"]')
+          const toastEl = Array.from(toastElements).find((el) =>
+            el.textContent?.includes('Quiz ready!')
+          )
 
-            // Create a toast with custom behavior
-            setTimeout(() => {
-              toastId = toaster.create({
-                title: 'Quiz ready!',
-                description: 'Click anywhere to open in new tab',
-                type: 'success',
-                duration: Infinity,
-                closable: true,
-                onStatusChange: (details) => {
-                  if (details.status === 'visible') {
-                    setTimeout(() => {
-                      // Find the toast element
-                      const toastElements = document.querySelectorAll('[role="status"]')
-                      const toastEl = Array.from(toastElements).find((el) =>
-                        el.textContent?.includes('Quiz ready!')
-                      )
-
-                      if (toastEl) {
-                        // Style the toast to look clickable
-                        ;(toastEl as HTMLElement).style.cursor = 'pointer'
-
-                        // Add click handler
-                        const clickHandler = (e: Event) => {
-                          const target = e.target as HTMLElement
-                          // Don't trigger if clicking close button
-                          if (!target.closest('[data-part="close-trigger"]')) {
-                            window.open(quizUrl, '_blank')
-                            if (toastId) toaster.dismiss(toastId)
-                          }
-                        }
-
-                        toastEl.addEventListener('click', clickHandler, { once: true })
-                      }
-                    }, 50)
-                  }
-                },
-              })
-            }, 0)
-
-            // Return object with title to satisfy toaster.promise type
-            return { title: 'Quiz ready!' }
-          },
-          error: (error) => ({
-            title: 'Quiz generation failed',
-            description: error instanceof Error ? error.message : 'Please try again later.',
-            closable: true,
-          }),
-        })
-
-        await submissionPromise
-
-        setShowForm(false)
-        setFormUrl('')
-        setFormError(null)
-        // Don't auto-navigate, let user click the toast
-      } catch {
-        // Promise errors are already shown in toast by toaster.promise()
-        // This catch is just to prevent unhandled promise rejection
+          if (toastEl) {
+            const toastElement = toastEl as HTMLElement
+            toastElement.style.cursor = 'pointer'
+            const clickHandler = (e: Event) => {
+              const target = e.target as HTMLElement
+              if (!target.closest('[data-part="close-trigger"]')) {
+                window.open(quizUrl, '_blank')
+                toaster.dismiss(toastId)
+              }
+            }
+            toastElement.addEventListener('click', clickHandler, { once: true })
+          }
+        }, 50)
       }
+
+      toaster.update(toastId, {
+        title: 'Quiz ready!',
+        description: 'Click anywhere to open in new tab.',
+        type: 'success',
+        duration: Infinity,
+        closable: true,
+      })
+      makeToastClickable()
     } catch (error) {
-      // Catch any unexpected errors outside the promise flow
-      toaster.create({
-        title: 'Unexpected error',
-        description: error instanceof Error ? error.message : 'Something went wrong.',
+      const message = error instanceof Error ? error.message : 'Something went wrong.'
+      setFormError(message)
+      toaster.update(toastId, {
+        title: 'Quiz generation failed',
+        description: message,
         type: 'error',
         duration: Infinity,
         closable: true,
       })
     } finally {
       setFormLoading(false)
-    }
-  }
-
-  const handleRequestScaffold = async () => {
-    if (!articleUrl) {
-      toaster.create({
-        title: 'Missing article URL',
-        description: 'Missing article URL for this quiz.',
-        type: 'error',
-      })
-      return
-    }
-
-    const enableScaffoldView = () => {
-      setScaffoldVisible(true)
-      setVisibleScaffoldCount(Math.min(CHUNK_SIZE, Math.max(questions.length, CHUNK_SIZE)))
-      const params = new URLSearchParams()
-      params.set('q', sessionToken)
-      params.set('show', 'instructions')
-      router.replace(`/quiz?${params.toString()}`, { scroll: false })
-    }
-
-    if (questions.length > 0) {
-      enableScaffoldView()
-      return
-    }
-
-    setRequestingScaffold(true)
-    try {
-      const instructionPromise = (async () => {
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-        if (guestId) headers['X-Diffread-Guest-Id'] = guestId
-        const response = await fetch('/api/scaffold', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            currentToken: sessionToken,
-            articleUrl,
-          }),
-        })
-        if (!response.ok) {
-          const payload = await response.json().catch(() => ({}))
-          let errorMessage = payload.message || 'Failed to generate instructions.'
-
-          // Try to parse nested error object if message contains JSON
-          try {
-            const parsed = JSON.parse(errorMessage)
-            if (parsed.error?.message) {
-              errorMessage = parsed.error.message
-            }
-          } catch {
-            // Not JSON, use original message
-          }
-
-          throw new Error(errorMessage)
-        }
-
-        // Poll session status until instructions are ready (or errored).
-        const maxAttempts = 20
-        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-          const statusHeaders: HeadersInit = guestId ? { 'X-Diffread-Guest-Id': guestId } : {}
-          const statusResponse = await fetch(`/api/scaffold?token=${sessionToken}`, {
-            headers: statusHeaders,
-          })
-          if (statusResponse.ok) {
-            const payload = await statusResponse.json()
-            if (payload.status === 'ready') {
-              return payload
-            }
-            if (payload.status === 'errored') {
-              throw new Error(payload.failureReason || 'Instruction generation failed.')
-            }
-          }
-          await new Promise((resolve) => setTimeout(resolve, 3000))
-        }
-        throw new Error('Instructions are taking longer than expected. Please check back shortly.')
-      })()
-
-      try {
-        toaster.promise(instructionPromise, {
-          loading: {
-            title: 'Generating more quizzes…',
-            description: 'Sit tight while we prepare more questions.',
-          },
-          success: {
-            title: 'More quizzes ready!',
-            description: 'Refreshing with new questions.',
-            duration: Infinity,
-            closable: true,
-          },
-          error: (error) => ({
-            title: 'More quiz generation failed',
-            description: error instanceof Error ? error.message : 'Please try again later.',
-            closable: true,
-          }),
-        })
-
-        await instructionPromise
-
-        enableScaffoldView()
-        router.refresh()
-      } catch {
-        // Promise errors are already shown in toast by toaster.promise()
-        // This catch is just to prevent unhandled promise rejection
-      }
-    } catch (error) {
-      // Catch any unexpected errors outside the promise flow
-      toaster.create({
-        title: 'Unexpected error',
-        description: error instanceof Error ? error.message : 'Something went wrong.',
-        type: 'error',
-        duration: Infinity,
-        closable: true,
-      })
-    } finally {
-      setRequestingScaffold(false)
     }
   }
 
@@ -519,11 +368,9 @@ export function QuizView({
               let buttonLabel = "That's all"
               let buttonDisabled = true
               let buttonOnClick = () => {}
+              let comingSoonPopover = false
 
-              if (requestingScaffold) {
-                buttonLabel = 'Generating…'
-                buttonDisabled = true
-              } else if (canLoadMoreCuriosity) {
+              if (canLoadMoreCuriosity) {
                 buttonLabel = 'Load more'
                 buttonDisabled = false
                 buttonOnClick = () =>
@@ -537,8 +384,34 @@ export function QuizView({
                   setVisibleScaffoldCount((prev) => Math.min(prev + CHUNK_SIZE, questions.length))
               } else if (needMoreQuestions) {
                 buttonLabel = 'More Quizzes'
-                buttonDisabled = !articleUrl
-                buttonOnClick = handleRequestScaffold
+                buttonDisabled = true
+                comingSoonPopover = true
+              }
+
+              if (comingSoonPopover) {
+                return (
+                  <Popover.Root>
+                    <Popover.Trigger asChild>
+                      <Button
+                        type="button"
+                        colorPalette="gray"
+                        variant="subtle"
+                        aria-disabled="true"
+                        width="100%"
+                      >
+                        {buttonLabel}
+                      </Button>
+                    </Popover.Trigger>
+                    <Popover.Positioner>
+                      <Popover.Content borderRadius="lg" borderColor="gray.200">
+                        <Text fontSize="sm" color="gray.700">
+                          More quizzes are coming soon. We&apos;re still training the scaffold
+                          engine.
+                        </Text>
+                      </Popover.Content>
+                    </Popover.Positioner>
+                  </Popover.Root>
+                )
               }
 
               return (
