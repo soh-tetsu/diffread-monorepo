@@ -1,6 +1,6 @@
 'use client'
 
-import { Box, Heading, Text } from '@chakra-ui/react'
+import { Box, Button, Heading, Text } from '@chakra-ui/react'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import useSWR from 'swr'
@@ -37,13 +37,15 @@ type ScaffoldQuizResponse = {
   errorMessage: string | null
 }
 
-const fetcher = (url: string) => {
+const GUEST_BINDING_ERROR = 'guest-binding-mismatch'
+
+const fetcher = async (url: string) => {
   const guestId = readGuestId()
   const headers: HeadersInit = guestId ? { 'X-Diffread-Guest-Id': guestId } : {}
-  return fetch(url, { headers }).then((res) => {
-    if (!res.ok) throw new Error('Failed to fetch')
-    return res.json()
-  })
+  const res = await fetch(url, { headers })
+  if (res.status === 403) throw new Error(GUEST_BINDING_ERROR)
+  if (!res.ok) throw new Error('Failed to fetch')
+  return res.json()
 }
 
 // SWR config for Suspense mode
@@ -80,6 +82,10 @@ function QuizPageContent() {
     swrConfig
   )
 
+  const guestMismatch =
+    metaError?.message === GUEST_BINDING_ERROR ||
+    curiosityQuizError?.message === GUEST_BINDING_ERROR
+
   if (!token) {
     return (
       <Box
@@ -115,8 +121,7 @@ function QuizPageContent() {
     )
   }
 
-  // Handle loading state
-  if (!quizMeta || !curiosityQuizData) {
+  if (guestMismatch) {
     return (
       <Box
         minH="100vh"
@@ -140,15 +145,21 @@ function QuizPageContent() {
           alignSelf="flex-start"
           mt={8}
         >
-          <Text color="gray.700" fontSize="lg">
-            Loading quiz…
+          <Heading as="h1" size="xl" mb={3} color="gray.900">
+            Session secured
+          </Heading>
+          <Text color="gray.700" mb={6}>
+            This quiz belongs to another guest profile. Head back to the homepage to create your own
+            session or paste a new URL.
           </Text>
+          <Button as="a" href="/" colorPalette="teal">
+            Go to homepage
+          </Button>
         </Box>
       </Box>
     )
   }
 
-  // Handle errors
   if (metaError || curiosityQuizError) {
     return (
       <Box
@@ -178,6 +189,39 @@ function QuizPageContent() {
           </Heading>
           <Text fontSize="md" color="fg.muted">
             {metaError?.message || curiosityQuizError?.message || 'Unknown error.'}
+          </Text>
+        </Box>
+      </Box>
+    )
+  }
+
+  // Handle loading state
+  if (!quizMeta || !curiosityQuizData) {
+    return (
+      <Box
+        minH="100vh"
+        bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)"
+        py={8}
+        px={4}
+        display="flex"
+        justifyContent="center"
+        color="gray.900"
+      >
+        <Box
+          maxW="720px"
+          w="full"
+          p={8}
+          bg="white"
+          borderWidth="1px"
+          borderColor="gray.200"
+          borderRadius="2xl"
+          textAlign="center"
+          shadow="lg"
+          alignSelf="flex-start"
+          mt={8}
+        >
+          <Text color="gray.700" fontSize="lg">
+            Loading quiz…
           </Text>
         </Box>
       </Box>

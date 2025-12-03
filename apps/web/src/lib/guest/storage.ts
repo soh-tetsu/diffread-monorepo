@@ -11,4 +11,9 @@ export function writeGuestId(value: string): void {
   window.localStorage.setItem(STORAGE_KEY, value)
 }
 
+export function clearGuestId(): void {
+  if (typeof window === 'undefined') return
+  window.localStorage.removeItem(STORAGE_KEY)
+}
+
 export { STORAGE_KEY as GUEST_STORAGE_KEY }
