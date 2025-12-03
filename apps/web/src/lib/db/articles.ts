@@ -1,51 +1,41 @@
+import { execute, queryMaybeSingle, querySingle } from '@/lib/db/supabase-helpers'
 import { supabase } from '@/lib/supabase'
 import type { ArticleRow, ArticleStatus, ContentMedium } from '@/types/db'
 
 export async function getArticleById(id: number): Promise<ArticleRow> {
-  const { data, error } = await supabase.from('articles').select('*').eq('id', id).maybeSingle()
-
-  if (error || !data) {
-    throw new Error(`Unable to load article ${id}: ${error?.message}`)
-  }
-
-  return data as ArticleRow
+  const result = await supabase.from('articles').select('*').eq('id', id).maybeSingle()
+  return querySingle<ArticleRow>(result, { context: `load article ${id}` })
 }
 
 export async function getArticleByNormalizedUrl(normalizedUrl: string): Promise<ArticleRow | null> {
-  const { data, error } = await supabase
+  const result = await supabase
     .from('articles')
     .select('*')
     .eq('normalized_url', normalizedUrl)
     .maybeSingle()
-
-  if (error && error.code !== 'PGRST116') {
-    throw new Error(`Failed to load article: ${error.message}`)
-  }
-
-  return (data as ArticleRow) ?? null
+  return queryMaybeSingle<ArticleRow>(result, {
+    context: `load article by normalized url ${normalizedUrl}`,
+  })
 }
 
 export async function createArticle(
   normalizedUrl: string,
   originalUrl: string
 ): Promise<ArticleRow> {
-  const { data, error } = await supabase
-    .from('articles')
-    .insert({
-      normalized_url: normalizedUrl,
-      original_url: originalUrl,
-      status: 'pending' as ArticleStatus,
-      metadata: {},
-      storage_metadata: {},
-    })
-    .select('*')
-    .single()
-
-  if (error || !data) {
-    throw new Error(`Failed to create article: ${error?.message}`)
-  }
-
-  return data as ArticleRow
+  return querySingle<ArticleRow>(
+    await supabase
+      .from('articles')
+      .insert({
+        normalized_url: normalizedUrl,
+        original_url: originalUrl,
+        status: 'pending' as ArticleStatus,
+        metadata: {},
+        storage_metadata: {},
+      })
+      .select('*')
+      .single(),
+    { context: 'create article' }
+  )
 }
 
 export async function getOrCreateArticle(
@@ -61,11 +51,8 @@ export async function getOrCreateArticle(
 }
 
 export async function updateArticleStatus(articleId: number, status: ArticleStatus): Promise<void> {
-  const { error } = await supabase.from('articles').update({ status }).eq('id', articleId)
-
-  if (error) {
-    throw new Error(`Failed to update article status: ${error.message}`)
-  }
+  const result = await supabase.from('articles').update({ status }).eq('id', articleId)
+  execute(result, { context: `update article ${articleId} status` })
 }
 
 export async function updateArticleContent(
@@ -78,28 +65,22 @@ export async function updateArticleContent(
     content_medium: ContentMedium
   }
 ): Promise<void> {
-  const { error } = await supabase
+  const result = await supabase
     .from('articles')
     .update({
       ...payload,
       last_scraped_at: new Date().toISOString(),
     })
     .eq('id', articleId)
-
-  if (error) {
-    throw new Error(`Failed to update article content: ${error.message}`)
-  }
+  execute(result, { context: `update article ${articleId} content` })
 }
 
 export async function updateArticleMetadata(
   articleId: number,
   metadata: Record<string, unknown>
 ): Promise<void> {
-  const { error } = await supabase.from('articles').update({ metadata }).eq('id', articleId)
-
-  if (error) {
-    throw new Error(`Failed to update article metadata: ${error.message}`)
-  }
+  const result = await supabase.from('articles').update({ metadata }).eq('id', articleId)
+  execute(result, { context: `update article ${articleId} metadata` })
 }
 
 export function isArticleFresh(article: ArticleRow): boolean {

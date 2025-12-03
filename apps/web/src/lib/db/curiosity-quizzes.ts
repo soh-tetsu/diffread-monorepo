@@ -1,36 +1,26 @@
+import type { PostgrestSingleResponse } from '@supabase/supabase-js'
+import { execute, queryMaybeSingle, querySingle } from '@/lib/db/supabase-helpers'
 import { supabase } from '@/lib/supabase'
 import type { ClaimedCuriosityQuiz, CuriosityQuizRow, CuriosityQuizStatus } from '@/types/db'
 
 export async function getCuriosityQuizById(id: number): Promise<CuriosityQuizRow | null> {
-  const { data, error } = await supabase
-    .from('curiosity_quizzes')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle()
-
-  if (error && error.code !== 'PGRST116') {
-    throw new Error(`Failed to load curiosity quiz: ${error.message}`)
-  }
-
-  return (data as CuriosityQuizRow) ?? null
+  const result = await supabase.from('curiosity_quizzes').select('*').eq('id', id).maybeSingle()
+  return queryMaybeSingle<CuriosityQuizRow>(result, { context: `load curiosity quiz ${id}` })
 }
 
 export async function getCuriosityQuizByQuizId(quizId: number): Promise<CuriosityQuizRow | null> {
-  const { data, error } = await supabase
+  const result = await supabase
     .from('curiosity_quizzes')
     .select('*')
     .eq('quiz_id', quizId)
     .maybeSingle()
-
-  if (error && error.code !== 'PGRST116') {
-    throw new Error(`Failed to load curiosity quiz: ${error.message}`)
-  }
-
-  return (data as CuriosityQuizRow) ?? null
+  return queryMaybeSingle<CuriosityQuizRow>(result, {
+    context: `load curiosity quiz for quiz ${quizId}`,
+  })
 }
 
 export async function createCuriosityQuiz(quizId: number): Promise<CuriosityQuizRow> {
-  const { data, error } = await supabase
+  const result = await supabase
     .from('curiosity_quizzes')
     .insert({
       quiz_id: quizId,
@@ -39,12 +29,7 @@ export async function createCuriosityQuiz(quizId: number): Promise<CuriosityQuiz
     })
     .select('*')
     .single()
-
-  if (error || !data) {
-    throw new Error(`Failed to create curiosity quiz: ${error?.message}`)
-  }
-
-  return data as CuriosityQuizRow
+  return querySingle<CuriosityQuizRow>(result, { context: 'create curiosity quiz' })
 }
 
 export async function updateCuriosityQuiz(
@@ -58,19 +43,13 @@ export async function updateCuriosityQuiz(
     retry_count: number
   }>
 ): Promise<void> {
-  const { error } = await supabase.from('curiosity_quizzes').update(updates).eq('id', id)
-
-  if (error) {
-    throw new Error(`Failed to update curiosity quiz: ${error.message}`)
-  }
+  const result = await supabase.from('curiosity_quizzes').update(updates).eq('id', id)
+  execute(result, { context: `update curiosity quiz ${id}` })
 }
 
 export async function claimNextCuriosityQuiz(): Promise<ClaimedCuriosityQuiz | null> {
-  const { data, error } = await supabase.rpc('claim_next_curiosity_quiz').maybeSingle()
-
-  if (error && error.code !== 'PGRST116') {
-    throw new Error(`Failed to claim curiosity quiz: ${error.message}`)
-  }
-
-  return (data as ClaimedCuriosityQuiz) ?? null
+  const result = (await supabase
+    .rpc('claim_next_curiosity_quiz')
+    .maybeSingle()) as PostgrestSingleResponse<ClaimedCuriosityQuiz>
+  return queryMaybeSingle<ClaimedCuriosityQuiz>(result, { context: 'claim curiosity quiz' })
 }

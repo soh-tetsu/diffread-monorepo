@@ -1,6 +1,7 @@
 'use server'
 
 import { randomUUID } from 'node:crypto'
+import { execute, queryMaybeSingle, querySingle } from '@/lib/db/supabase-helpers'
 import { supabase } from '@/lib/supabase'
 import type { UserRow } from '@/types/db'
 import { logger } from '../logger'
@@ -14,27 +15,17 @@ function synthesizeGuestEmail(userId: string): string {
 }
 
 export async function getUserById(userId: string): Promise<UserRow | null> {
-  const { data, error } = await supabase.from('users').select('*').eq('id', userId).maybeSingle()
-
-  if (error && error.code !== 'PGRST116') {
-    throw new Error(`Failed to load user ${userId}: ${error.message}`)
-  }
-
-  return (data as UserRow) ?? null
+  const result = await supabase.from('users').select('*').eq('id', userId).maybeSingle()
+  return queryMaybeSingle<UserRow>(result, { context: `load user ${userId}` })
 }
 
 export async function getUserByEmail(email: string): Promise<UserRow | null> {
-  const { data, error } = await supabase.from('users').select('*').eq('email', email).maybeSingle()
-
-  if (error && error.code !== 'PGRST116') {
-    throw new Error(`Failed to load user by email: ${error.message}`)
-  }
-
-  return (data as UserRow) ?? null
+  const result = await supabase.from('users').select('*').eq('email', email).maybeSingle()
+  return queryMaybeSingle<UserRow>(result, { context: `load user by email ${email}` })
 }
 
 async function insertUser(payload: Partial<UserRow> & { metadata?: Metadata }): Promise<UserRow> {
-  const { data, error } = await supabase
+  const result = await supabase
     .from('users')
     .insert({
       auth_method: 'guest',
@@ -43,12 +34,7 @@ async function insertUser(payload: Partial<UserRow> & { metadata?: Metadata }): 
     })
     .select('*')
     .single()
-
-  if (error || !data) {
-    throw new Error(`Failed to insert user: ${error?.message}`)
-  }
-
-  return data as UserRow
+  return querySingle<UserRow>(result, { context: 'insert user' })
 }
 
 export async function createGuestUser(
@@ -118,27 +104,20 @@ export async function updateUserMetadata(userId: string, patch: Metadata): Promi
     ...patch,
   }
 
-  const { data, error } = await supabase
-    .from('users')
-    .update({ metadata })
-    .eq('id', userId)
-    .select('*')
-    .single()
-
-  if (error || !data) {
-    throw new Error(`Failed to update metadata for user ${userId}: ${error?.message}`)
-  }
-
-  return data as UserRow
+  return querySingle<UserRow>(
+    await supabase.from('users').update({ metadata }).eq('id', userId).select('*').single(),
+    { context: `update user ${userId} metadata` }
+  )
 }
 
 export async function touchUserLastSeen(userId: string): Promise<void> {
-  const { error } = await supabase
-    .from('users')
-    .update({ last_seen_at: new Date().toISOString() })
-    .eq('id', userId)
-
-  if (error) {
+  try {
+    const result = await supabase
+      .from('users')
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq('id', userId)
+    execute(result, { context: `touch user ${userId} last seen` })
+  } catch (error) {
     logger.warn({ userId, err: error }, 'Failed to update last_seen_at')
   }
 }
