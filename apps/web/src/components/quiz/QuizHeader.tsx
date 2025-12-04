@@ -1,3 +1,5 @@
+'use client'
+
 import { Badge, Box, Flex, Heading, Link, Text } from '@chakra-ui/react'
 
 type Props = {
@@ -56,20 +58,27 @@ export function QuizHeader({
           </Link>
         )}
       </Box>
-      <Badge
-        px={4}
-        py={2.5}
-        borderRadius="full"
-        borderWidth="1px"
-        borderColor="gray.200"
-        fontSize="sm"
-        colorPalette="gray"
-        variant="outline"
-        alignSelf={{ base: 'stretch', md: 'flex-start' }}
-        textAlign={{ base: 'center', md: 'left' }}
-      >
-        {progressText}
-      </Badge>
+      {progressText && (
+        <Badge
+          px={4}
+          py={2.5}
+          borderRadius="full"
+          borderWidth="1px"
+          borderColor="gray.200"
+          fontSize="sm"
+          colorPalette="gray"
+          variant="outline"
+          bg="white"
+          position="fixed"
+          top={4}
+          right={4}
+          zIndex={50}
+          textAlign="center"
+          shadow="md"
+        >
+          {progressText}
+        </Badge>
+      )}
     </Flex>
   )
 }
