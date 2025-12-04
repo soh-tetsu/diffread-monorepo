@@ -83,3 +83,18 @@ export async function updateSessionsByQuizId(
   const result = await supabase.from('sessions').update(updates).eq('quiz_id', quizId)
   execute(result, { context: `update sessions for quiz ${quizId}` })
 }
+
+export async function getSessionsByUserId(userId: string, limit = 50): Promise<SessionRow[]> {
+  const result = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (result.error) {
+    throw new Error(`Failed to fetch sessions: ${result.error.message}`)
+  }
+
+  return result.data || []
+}

@@ -2,6 +2,7 @@
 
 import { Box, Button, Flex, Spinner, Stack, Text } from '@chakra-ui/react'
 import { useCallback, useEffect, useState } from 'react'
+import { AchievementCard } from '@/components/achievement/AchievementCard'
 import { ArticleSubmissionForm } from '@/components/forms/ArticleSubmissionForm'
 import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
 import { QuestionList } from '@/components/quiz/QuestionList'
@@ -9,6 +10,7 @@ import { QuizHeader } from '@/components/quiz/QuizHeader'
 import { toaster } from '@/components/ui/toaster'
 import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
+import { useUserStats } from '@/hooks/useUserStats'
 import { readGuestId, writeGuestId } from '@/lib/guest/storage'
 import type { QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
 
@@ -162,6 +164,7 @@ function OnboardingSection({
 
 function UrlRegistrationSection({ guestId }: { guestId: string }) {
   const { isSubmitting, error, submit } = useQuizSubmission()
+  const { stats } = useUserStats()
 
   const handleSubmit = async (url: string) => {
     await submit(url, { guestId })
@@ -177,6 +180,9 @@ function UrlRegistrationSection({ guestId }: { guestId: string }) {
       gap={{ base: 6, md: 8 }}
     >
       <QuizHeader title="Ready to clear your tabs." subtitle="Submit new article" progressText="" />
+
+      {/* Achievement Card */}
+      <AchievementCard stats={stats} />
 
       <Box
         bg="white"

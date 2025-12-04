@@ -1,6 +1,7 @@
 'use client'
 
 import { Box, Button, Popover } from '@chakra-ui/react'
+import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { ArticleSubmissionForm } from '@/components/forms/ArticleSubmissionForm'
 import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
@@ -9,6 +10,7 @@ import { QuizHeader } from '@/components/quiz/QuizHeader'
 import { toaster } from '@/components/ui/toaster'
 import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
+import { useUserStats } from '@/hooks/useUserStats'
 import { trackQuizSelection } from '@/lib/analytics/client'
 import { readGuestId } from '@/lib/guest/storage'
 import type { QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
@@ -35,6 +37,7 @@ export function QuizView({
   initialInstructionsVisible = false,
   questions,
 }: Props) {
+  const router = useRouter()
   const guestId = readGuestId()
   const [showForm, setShowForm] = useState(false)
   const [scaffoldVisible, setScaffoldVisible] = useState(false)
@@ -47,6 +50,9 @@ export function QuizView({
 
   // Quiz submission management
   const { isSubmitting, error, submit } = useQuizSubmission()
+
+  // User stats tracking
+  const { recordSkip, recordDeepDive } = useUserStats()
 
   // Initialize visibility based on props
   useEffect(() => {
@@ -256,6 +262,12 @@ export function QuizView({
                 totalQuestions={hookQuestions.length}
                 correctCount={curiosityQuiz.correctCount}
                 onDeepDive={() => {
+                  recordDeepDive(
+                    hookQuestions.length,
+                    curiosityQuiz.correctCount,
+                    articleTitle,
+                    articleUrl
+                  )
                   if (questions.length > 0) {
                     setScaffoldVisible(true)
                   } else {
@@ -266,7 +278,15 @@ export function QuizView({
                     })
                   }
                 }}
-                onSkip={articleUrl ? () => window.open(articleUrl, '_blank') : undefined}
+                onSkip={() => router.push('/')}
+                onRecordSkip={() =>
+                  recordSkip(
+                    hookQuestions.length,
+                    curiosityQuiz.correctCount,
+                    articleTitle,
+                    articleUrl
+                  )
+                }
               />
             )}
 

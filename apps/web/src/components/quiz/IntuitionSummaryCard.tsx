@@ -7,9 +7,16 @@ type Props = {
   correctCount: number
   onDeepDive?: () => void
   onSkip?: () => void
+  onRecordSkip?: () => void // Callback to record stats before navigating
 }
 
-export function IntuitionSummaryCard({ totalQuestions, correctCount, onDeepDive, onSkip }: Props) {
+export function IntuitionSummaryCard({
+  totalQuestions,
+  correctCount,
+  onDeepDive,
+  onSkip,
+  onRecordSkip,
+}: Props) {
   const percentage = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0
   const isHighScore = correctCount >= Math.ceil(totalQuestions * 0.67)
 
@@ -97,7 +104,10 @@ export function IntuitionSummaryCard({ totalQuestions, correctCount, onDeepDive,
             <Button
               colorPalette="gray"
               variant="outline"
-              onClick={onSkip}
+              onClick={() => {
+                onRecordSkip?.()
+                onSkip()
+              }}
               w={{ base: '100%', sm: 'auto' }}
             >
               {isHighScore ? 'Skip Article' : 'Skip Anyway'}
