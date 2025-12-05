@@ -8,9 +8,21 @@ import { defaultLocale, type Locale } from '@/i18n/config'
 import { Providers } from './providers'
 
 export const metadata: Metadata = {
-  title: 'Diffread Alpha Placeholder',
-  description:
-    'Quiz-guided reading prototype placeholder so you can wire up alpha.diffread.app on Vercel.',
+  title: 'Diffread - Quiz-Guided Reading',
+  description: 'Transform passive reading into active learning with quiz-guided approach',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Diffread',
+  },
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: '#0d9488',
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
