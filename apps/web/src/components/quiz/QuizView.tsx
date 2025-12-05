@@ -8,6 +8,8 @@ import { ArticleSubmissionForm } from '@/components/forms/ArticleSubmissionForm'
 import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
 import { QuestionList } from '@/components/quiz/QuestionList'
 import { QuizHeader } from '@/components/quiz/QuizHeader'
+import { SettingsMenu } from '@/components/ui/SettingsMenu'
+import { Toolbar } from '@/components/ui/Toolbar'
 import { toaster } from '@/components/ui/toaster'
 import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
@@ -217,124 +219,126 @@ export function QuizView({
   }
 
   return (
-    <Box
-      as="section"
-      w="100%"
-      maxW="960px"
-      display="flex"
-      flexDirection="column"
-      gap={{ base: 6, md: 8 }}
-    >
-      <QuizHeader
-        title={articleTitle || 'Verify your intuition'}
-        subtitle={t('intuitionCheck')}
-        articleUrl={articleUrl}
-        progressText={progressText}
-        linkText={t('originalArticle')}
-      />
+    <>
+      <Toolbar progressText={progressText}>
+        <SettingsMenu showHomeButton />
+      </Toolbar>
 
-      <Box as="section">
-        {hookQuestions.length === 0 && questions.length === 0 ? (
-          <Box
-            maxW="720px"
-            mx="auto"
-            p={{ base: 6, md: 8 }}
-            bg="white"
-            borderWidth="1px"
-            borderColor="gray.200"
-            borderRadius="2xl"
-            textAlign="center"
-          >
-            <Box color="gray.700">
-              {curiosityQuizStatus === 'pending'
-                ? 'Questions are still generating. Refresh in a few seconds.'
-                : 'No questions available for this quiz.'}
+      <Box
+        as="section"
+        w="100%"
+        maxW="960px"
+        mx="auto"
+        px={4}
+        py={1}
+        display="flex"
+        flexDirection="column"
+        gap={6}
+      >
+        <QuizHeader
+          title={articleTitle || 'Verify your intuition'}
+          subtitle={t('intuitionCheck')}
+          articleUrl={articleUrl}
+          linkText={t('originalArticle')}
+        />
+
+        <Box as="section">
+          {hookQuestions.length === 0 && questions.length === 0 ? (
+            <Box
+              maxW="720px"
+              mx="auto"
+              p={{ base: 6, md: 8 }}
+              bg="white"
+              borderWidth="1px"
+              borderColor="gray.200"
+              borderRadius="2xl"
+              textAlign="center"
+            >
+              <Box color="gray.700">
+                {curiosityQuizStatus === 'pending'
+                  ? 'Questions are still generating. Refresh in a few seconds.'
+                  : 'No questions available for this quiz.'}
+              </Box>
             </Box>
-          </Box>
-        ) : (
-          <Box display="flex" flexDirection="column" gap={{ base: 4, md: 6 }}>
-            {visibleCuriosityQuestions.length > 0 && (
-              <QuestionList
-                questions={visibleCuriosityQuestions}
-                answers={curiosityQuiz.answers}
-                articleUrl={articleUrl}
-                onSelect={handleCuriositySelect}
-              />
-            )}
+          ) : (
+            <Box display="flex" flexDirection="column" gap={{ base: 4, md: 6 }}>
+              {visibleCuriosityQuestions.length > 0 && (
+                <QuestionList
+                  questions={visibleCuriosityQuestions}
+                  answers={curiosityQuiz.answers}
+                  articleUrl={articleUrl}
+                  onSelect={handleCuriositySelect}
+                />
+              )}
 
-            {/* Show intuition summary after all curiosity questions are answered */}
-            {curiosityQuiz.allAnswered && visibleCuriosityCount >= hookQuestions.length && (
-              <IntuitionSummaryCard
-                totalQuestions={hookQuestions.length}
-                correctCount={curiosityQuiz.correctCount}
-                onDeepDive={() => {
-                  recordDeepDive(
-                    hookQuestions.length,
-                    curiosityQuiz.correctCount,
-                    articleTitle,
-                    articleUrl
-                  )
-                  if (questions.length > 0) {
-                    setScaffoldVisible(true)
-                  } else {
-                    toaster.create({
-                      title: 'Coming Soon!',
-                      description: "We're still training the scaffold engine.",
-                      type: 'info',
-                    })
+              {/* Show intuition summary after all curiosity questions are answered */}
+              {curiosityQuiz.allAnswered && visibleCuriosityCount >= hookQuestions.length && (
+                <IntuitionSummaryCard
+                  totalQuestions={hookQuestions.length}
+                  correctCount={curiosityQuiz.correctCount}
+                  onDeepDive={() => {
+                    recordDeepDive(
+                      hookQuestions.length,
+                      curiosityQuiz.correctCount,
+                      articleTitle,
+                      articleUrl
+                    )
+                    if (questions.length > 0) {
+                      setScaffoldVisible(true)
+                    } else {
+                      toaster.create({
+                        title: 'Coming Soon!',
+                        description: "We're still training the scaffold engine.",
+                        type: 'info',
+                      })
+                    }
+                  }}
+                  onSkip={() => router.push('/')}
+                  onRecordSkip={() =>
+                    recordSkip(
+                      hookQuestions.length,
+                      curiosityQuiz.correctCount,
+                      articleTitle,
+                      articleUrl
+                    )
                   }
-                }}
-                onSkip={() => router.push('/')}
-                onRecordSkip={() =>
-                  recordSkip(
-                    hookQuestions.length,
-                    curiosityQuiz.correctCount,
-                    articleTitle,
-                    articleUrl
-                  )
-                }
-              />
-            )}
+                />
+              )}
 
-            {visibleScaffoldQuestions.length > 0 && (
-              <QuestionList
-                questions={visibleScaffoldQuestions}
-                answers={scaffoldQuiz.answers}
-                articleUrl={articleUrl}
-                onSelect={handleScaffoldSelect}
-              />
-            )}
+              {visibleScaffoldQuestions.length > 0 && (
+                <QuestionList
+                  questions={visibleScaffoldQuestions}
+                  answers={scaffoldQuiz.answers}
+                  articleUrl={articleUrl}
+                  onSelect={handleScaffoldSelect}
+                />
+              )}
 
-            {loadMoreButton}
+              {loadMoreButton}
+            </Box>
+          )}
+        </Box>
+
+        {!showForm && (
+          <Box>
+            <Button type="button" colorPalette="teal" onClick={() => setShowForm(true)}>
+              {t('tryAnotherArticle')}
+            </Button>
+          </Box>
+        )}
+
+        {showForm && (
+          <Box bg="white" borderRadius="lg" borderWidth="1px" borderColor="gray.200" p={4}>
+            <ArticleSubmissionForm
+              onSubmit={handleSubmitNewArticle}
+              onCancel={() => setShowForm(false)}
+              isLoading={isSubmitting}
+              error={error}
+              submitButtonText="Start quiz"
+            />
           </Box>
         )}
       </Box>
-
-      {!showForm && (
-        <Box mt={{ base: 6, md: 8 }}>
-          <Button type="button" colorPalette="teal" onClick={() => setShowForm(true)}>
-            {t('tryAnotherArticle')}
-          </Button>
-        </Box>
-      )}
-
-      {showForm && (
-        <Box
-          bg="white"
-          borderRadius="2xl"
-          borderWidth="1px"
-          borderColor="gray.200"
-          p={{ base: 4, md: 6 }}
-        >
-          <ArticleSubmissionForm
-            onSubmit={handleSubmitNewArticle}
-            onCancel={() => setShowForm(false)}
-            isLoading={isSubmitting}
-            error={error}
-            submitButtonText="Start quiz"
-          />
-        </Box>
-      )}
-    </Box>
+    </>
   )
 }

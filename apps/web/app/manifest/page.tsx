@@ -4,6 +4,8 @@ import { Box, Container, Heading, Link, Text, VStack } from '@chakra-ui/react'
 import { cookies } from 'next/headers'
 import type { Components } from 'react-markdown'
 import ReactMarkdown from 'react-markdown'
+import { SettingsMenu } from '@/components/ui/SettingsMenu'
+import { Toolbar } from '@/components/ui/Toolbar'
 import { defaultLocale, type Locale } from '@/i18n/config'
 
 export const dynamic = 'force-dynamic' // Change to dynamic to read cookies
@@ -108,8 +110,12 @@ export default async function ManifestPage() {
   const markdown = await getManifestoContent(locale)
 
   return (
-    <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)" py={12} px={4}>
-      <Container maxW="3xl" py={8}>
+    <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)">
+      <Toolbar>
+        <SettingsMenu showHomeButton />
+      </Toolbar>
+
+      <Container maxW="3xl" py={1} px={4}>
         <Box
           bg="white"
           borderWidth="1px"

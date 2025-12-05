@@ -254,10 +254,6 @@ function QuizPageContent() {
       id="quiz-top"
       minH="100vh"
       bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)"
-      py={8}
-      px={4}
-      display="flex"
-      justifyContent="center"
       color="gray.900"
     >
       <QuizView

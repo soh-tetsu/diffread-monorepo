@@ -3,7 +3,6 @@ import { cookies } from 'next/headers'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages } from 'next-intl/server'
 import './globals.css'
-import { SettingsMenu } from '@/components/ui/SettingsMenu'
 import { defaultLocale, type Locale } from '@/i18n/config'
 import { Providers } from './providers'
 
@@ -37,7 +36,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <Providers>
           <NextIntlClientProvider messages={messages} locale={locale}>
-            <SettingsMenu />
             {children}
           </NextIntlClientProvider>
         </Providers>

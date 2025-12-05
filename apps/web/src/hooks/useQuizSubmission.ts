@@ -85,7 +85,7 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
     })
 
     try {
-      // Step 1: Submit URL to create session (run in parallel with fake delay)
+      // Step 1: Submit URL to create session
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (guestId) {
         headers['X-Diffread-Guest-Id'] = guestId
@@ -94,17 +94,11 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
       const endpoint = currentToken ? '/api/curiosity' : '/api/sessions'
       const body = currentToken ? { currentToken, url } : { userId: guestId, url }
 
-      const [response] = await Promise.all([
-        fetch(endpoint, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(body),
-        }),
-        // Simulate: Scraping URL (min 5 seconds)
-        new Promise((resolve) => setTimeout(resolve, 5000)),
-      ])
-
-      updateStatus(t('extractingMetadata'))
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      })
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}))
@@ -126,58 +120,67 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
       const data = (await response.json()) as { sessionToken: string }
       const newSessionToken = data.sessionToken
 
-      // Wait 10 seconds for "extracting metadata" phase, then move to analyzing
-      await new Promise((resolve) => setTimeout(resolve, 10000))
-      updateStatus(t('analyzingArticle'))
-
-      // Step 2: Poll quiz status until ready or failed
-      const maxAttempts = 20
-      let hasShownGenerating = false
+      // Step 2: Start fake progress messages in background (non-blocking)
       const startTime = Date.now()
-
-      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const progressInterval = setInterval(() => {
         const elapsedSeconds = (Date.now() - startTime) / 1000
 
-        // Show "Generating quizzes" after 30 seconds total elapsed time
-        if (elapsedSeconds >= 30 && !hasShownGenerating) {
+        if (elapsedSeconds >= 5 && elapsedSeconds < 15) {
+          updateStatus(t('extractingMetadata'))
+        } else if (elapsedSeconds >= 15 && elapsedSeconds < 30) {
+          updateStatus(t('analyzingArticle'))
+        } else if (elapsedSeconds >= 30) {
           updateStatus(t('generatingQuizzes'))
-          hasShownGenerating = true
         }
+      }, 1000) // Check every second
 
-        const statusHeaders: HeadersInit = guestId ? { 'X-Diffread-Guest-Id': guestId } : {}
-        const statusResponse = await fetch(`/api/curiosity?q=${newSessionToken}`, {
-          headers: statusHeaders,
-        })
+      // Step 3: Poll quiz status immediately and continuously
+      const maxAttempts = 40 // Increase attempts since we're polling faster
+      const statusHeaders: HeadersInit = guestId ? { 'X-Diffread-Guest-Id': guestId } : {}
 
-        if (statusResponse.ok) {
-          const payload = await statusResponse.json()
-          if (payload.status === 'ready') {
-            // Success! Quiz is ready
-            const quizUrl = `/quiz?q=${encodeURIComponent(newSessionToken)}`
+      try {
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          const statusResponse = await fetch(`/api/curiosity?q=${newSessionToken}`, {
+            headers: statusHeaders,
+          })
 
-            toaster.update(toastId, {
-              title: t('quizReady'),
-              description: openInNewTab ? t('clickToOpenNewTab') : t('clickToOpen'),
-              type: 'success',
-              duration: Infinity,
-              closable: true,
-            })
+          if (statusResponse.ok) {
+            const payload = await statusResponse.json()
+            if (payload.status === 'ready') {
+              // Success! Quiz is ready - stop fake progress
+              clearInterval(progressInterval)
 
-            makeToastClickable(toastId, quizUrl, openInNewTab)
+              const quizUrl = `/quiz?q=${encodeURIComponent(newSessionToken)}`
 
-            return { sessionToken: newSessionToken }
+              toaster.update(toastId, {
+                title: t('quizReady'),
+                description: openInNewTab ? t('clickToOpenNewTab') : t('clickToOpen'),
+                type: 'success',
+                duration: Infinity,
+                closable: true,
+              })
+
+              makeToastClickable(toastId, quizUrl, openInNewTab)
+
+              return { sessionToken: newSessionToken }
+            }
+
+            if (payload.status === 'failed' || payload.status === 'skip_by_failure') {
+              clearInterval(progressInterval)
+              throw new Error(payload.errorMessage || t('generationFailed'))
+            }
           }
 
-          if (payload.status === 'failed' || payload.status === 'skip_by_failure') {
-            throw new Error(payload.errorMessage || t('generationFailed'))
-          }
+          // Wait 3 seconds before next poll
+          await new Promise((resolve) => setTimeout(resolve, 3000))
         }
 
-        // Wait 3 seconds before next attempt
-        await new Promise((resolve) => setTimeout(resolve, 3000))
+        clearInterval(progressInterval)
+        throw new Error(t('takingLonger'))
+      } catch (err) {
+        clearInterval(progressInterval)
+        throw err
       }
-
-      throw new Error(t('takingLonger'))
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       setError(message)

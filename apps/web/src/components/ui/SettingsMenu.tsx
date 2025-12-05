@@ -24,15 +24,15 @@ const localeConfig = {
   ja: { flag: '🇯🇵', label: '日本語' },
 } as const
 
-export function SettingsMenu() {
+type SettingsMenuProps = {
+  showHomeButton?: boolean
+}
+
+export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
   const t = useTranslations('settings')
   const locale = useLocale()
   const router = useRouter()
-  const pathname = usePathname()
   const [open, setOpen] = useState(false)
-
-  // Check if we're on the home page
-  const isHomePage = pathname === '/' || pathname === '/en' || pathname === '/ja'
 
   const switchLocale = async (newLocale: string) => {
     // Store in localStorage
@@ -59,15 +59,7 @@ export function SettingsMenu() {
         size={{ base: 'xs', md: 'sm' }}
       >
         <DrawerTrigger asChild>
-          <Button
-            size="sm"
-            variant="ghost"
-            colorPalette="teal"
-            position="fixed"
-            top={0}
-            left={4}
-            zIndex={1000}
-          >
+          <Button size="sm" variant="ghost" colorPalette="teal">
             <LuMenu size={20} />
           </Button>
         </DrawerTrigger>
@@ -80,6 +72,7 @@ export function SettingsMenu() {
               colorPalette="teal"
               top={2}
               right={2}
+              rounded="full"
               onClick={() => setOpen(false)}
             >
               <LuChevronLeft />
@@ -133,18 +126,9 @@ export function SettingsMenu() {
         </DrawerContent>
       </DrawerRoot>
 
-      {/* Home Button - only visible on non-home pages */}
-      {!isHomePage && (
-        <Button
-          asChild
-          size="sm"
-          variant="ghost"
-          colorPalette="teal"
-          position="fixed"
-          top={4}
-          left={16}
-          zIndex={1000}
-        >
+      {/* Home Button - only visible when prop is true */}
+      {showHomeButton && (
+        <Button asChild size="sm" variant="ghost" colorPalette="teal" rounded="full">
           <NextLink href="/">
             <LuHouse size={20} />
           </NextLink>

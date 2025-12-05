@@ -8,6 +8,8 @@ import { ArticleSubmissionForm } from '@/components/forms/ArticleSubmissionForm'
 import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
 import { QuestionList } from '@/components/quiz/QuestionList'
 import { QuizHeader } from '@/components/quiz/QuizHeader'
+import { SettingsMenu } from '@/components/ui/SettingsMenu'
+import { Toolbar } from '@/components/ui/Toolbar'
 import { toaster } from '@/components/ui/toaster'
 import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
@@ -120,55 +122,65 @@ function OnboardingSection({
     useQuizAnswers(PRESET_QUIZZES)
 
   return (
-    <Box
-      as="section"
-      w="100%"
-      maxW="960px"
-      display="flex"
-      flexDirection="column"
-      gap={{ base: 4, md: 6 }}
-    >
-      <QuizHeader
-        title={t('title')}
-        subtitle={t('subtitle')}
-        articleUrl="https://alpha.diffread.app/manifest"
+    <>
+      <Toolbar
         progressText={t('progressChecking', {
           answered: answeredCount,
           total: PRESET_QUIZZES.length,
         })}
-      />
+      >
+        <SettingsMenu showHomeButton={false} />
+      </Toolbar>
 
-      <Box as="section" display="flex" flexDirection="column" gap={{ base: 4, md: 6 }}>
-        <QuestionList
-          questions={PRESET_QUIZZES}
-          answers={answers}
+      <Box
+        as="section"
+        w="100%"
+        maxW="960px"
+        mx="auto"
+        px={4}
+        py={1}
+        display="flex"
+        flexDirection="column"
+        gap={6}
+      >
+        <QuizHeader
+          title={t('title')}
+          subtitle={t('subtitle')}
           articleUrl="https://alpha.diffread.app/manifest"
-          onSelect={handleSelect}
         />
 
-        {/* Show intuition summary after all questions are answered */}
-        {allAnswered && (
-          <IntuitionSummaryCard
-            totalQuestions={PRESET_QUIZZES.length}
-            correctCount={correctCount}
-            onDeepDive={() => onUnlock()}
+        <Box as="section" display="flex" flexDirection="column" gap={{ base: 4, md: 6 }}>
+          <QuestionList
+            questions={PRESET_QUIZZES}
+            answers={answers}
+            articleUrl="https://alpha.diffread.app/manifest"
+            onSelect={handleSelect}
           />
-        )}
-      </Box>
 
-      <Button
-        type="button"
-        colorPalette="teal"
-        size="lg"
-        onClick={onUnlock}
-        disabled={!allAnswered || isUnlocking}
-        loading={isUnlocking}
-        loadingText={t('unlockButtonLoading')}
-        width="100%"
-      >
-        {t('unlockButton')}
-      </Button>
-    </Box>
+          {/* Show intuition summary after all questions are answered */}
+          {allAnswered && (
+            <IntuitionSummaryCard
+              totalQuestions={PRESET_QUIZZES.length}
+              correctCount={correctCount}
+              onDeepDive={() => onUnlock()}
+            />
+          )}
+        </Box>
+
+        <Button
+          type="button"
+          colorPalette="teal"
+          size="lg"
+          onClick={onUnlock}
+          disabled={!allAnswered || isUnlocking}
+          loading={isUnlocking}
+          loadingText={t('unlockButtonLoading')}
+          width="100%"
+        >
+          {t('unlockButton')}
+        </Button>
+      </Box>
+    </>
   )
 }
 
@@ -182,37 +194,40 @@ function UrlRegistrationSection({ guestId }: { guestId: string }) {
   }
 
   return (
-    <Box
-      as="section"
-      w="100%"
-      maxW="960px"
-      display="flex"
-      flexDirection="column"
-      gap={{ base: 6, md: 8 }}
-    >
-      <QuizHeader title={t('readyTitle')} subtitle={t('submitSubtitle')} progressText="" />
-
-      {/* Achievement Card */}
-      <AchievementCard stats={stats} />
+    <>
+      <Toolbar>
+        <SettingsMenu showHomeButton={false} />
+      </Toolbar>
 
       <Box
-        bg="white"
-        borderRadius="2xl"
-        borderWidth="1px"
-        borderColor="gray.200"
-        p={{ base: 4, md: 6 }}
+        as="section"
+        w="100%"
+        maxW="960px"
+        mx="auto"
+        px={4}
+        py={1}
+        display="flex"
+        flexDirection="column"
+        gap={6}
       >
-        <Text color="gray.600" fontSize="sm" mb={4}>
-          {t('submitDescription')}
-        </Text>
-        <ArticleSubmissionForm
-          onSubmit={handleSubmit}
-          onCancel={() => {}}
-          isLoading={isSubmitting}
-          error={error}
-        />
+        <QuizHeader title={t('readyTitle')} subtitle={t('submitSubtitle')} />
+
+        {/* Achievement Card */}
+        <AchievementCard stats={stats} />
+
+        <Box bg="white" borderRadius="lg" borderWidth="1px" borderColor="gray.200" p={4}>
+          <Text color="gray.600" fontSize="sm" mb={4}>
+            {t('submitDescription')}
+          </Text>
+          <ArticleSubmissionForm
+            onSubmit={handleSubmit}
+            onCancel={() => {}}
+            isLoading={isSubmitting}
+            error={error}
+          />
+        </Box>
       </Box>
-    </Box>
+    </>
   )
 }
 
@@ -278,10 +293,6 @@ export default function HomePage() {
       as="main"
       minH="100vh"
       bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)"
-      py={8}
-      px={4}
-      display="flex"
-      justifyContent="center"
       color="gray.900"
     >
       {content}
