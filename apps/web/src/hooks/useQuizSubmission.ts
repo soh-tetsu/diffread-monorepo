@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 import { toaster } from '@/components/ui/toaster'
 
@@ -29,6 +30,7 @@ export type UseQuizSubmissionReturn = {
  * @returns Submission state and submit handler
  */
 export function useQuizSubmission(): UseQuizSubmissionReturn {
+  const t = useTranslations('quizSubmission')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,7 +38,7 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
     setTimeout(() => {
       const toastElements = document.querySelectorAll('[role="status"]')
       const toastEl = Array.from(toastElements).find((el) =>
-        el.textContent?.includes('Quiz ready!')
+        el.textContent?.includes(t('quizReady'))
       )
 
       if (toastEl) {
@@ -70,8 +72,8 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
     const toastId = `quiz-submit-${Date.now()}`
     toaster.loading({
       id: toastId,
-      title: 'Analyzing quizzes…',
-      description: 'This usually takes a few seconds.',
+      title: t('analyzing'),
+      description: t('analyzingDescription'),
     })
 
     try {
@@ -125,10 +127,8 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
             const quizUrl = `/quiz?q=${encodeURIComponent(newSessionToken)}`
 
             toaster.update(toastId, {
-              title: 'Quiz ready!',
-              description: openInNewTab
-                ? 'Click anywhere to open in new tab.'
-                : 'Click anywhere to open now.',
+              title: t('quizReady'),
+              description: openInNewTab ? t('clickToOpenNewTab') : t('clickToOpen'),
               type: 'success',
               duration: Infinity,
               closable: true,
@@ -140,7 +140,7 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
           }
 
           if (payload.status === 'failed' || payload.status === 'skip_by_failure') {
-            throw new Error(payload.errorMessage || 'Quiz generation failed.')
+            throw new Error(payload.errorMessage || t('generationFailed'))
           }
         }
 
@@ -148,13 +148,13 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
         await new Promise((resolve) => setTimeout(resolve, 3000))
       }
 
-      throw new Error('Quiz is taking longer than expected. Please check back shortly.')
+      throw new Error(t('takingLonger'))
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       setError(message)
 
       toaster.update(toastId, {
-        title: 'Quiz generation failed',
+        title: t('generationFailed'),
         description: message,
         type: 'error',
         duration: Infinity,

@@ -121,54 +121,102 @@ function renderAnalysisPrompt({ text }: AnalysisPromptContext): string {
   ---
   ### 2. Output Structure (TypeScript Interface)
 
-  You must output a single JSON object that matches this interface exactly:
+  You must output a single JSON object that matches this interface exactly.
+
+  \`\`\`typescript
+  // --- 1. Enums & Types ---
+
+  type ArticleArchetype =
+    | "CONCEPTUAL"
+    | "ARGUMENTATIVE"
+    | "EMPIRICAL"
+    | "PROCEDURAL"
+    | "NARRATIVE";
+
+  type ReasoningPattern =
+    | "SEQUENTIAL_PROCESS"
+    | "DIAGNOSTIC_FLOW"
+    | "PROBLEM_SOLUTION"
+    | "COMPARATIVE_ANALYSIS"
+    | "THESIS_PROOF"
+    | "HYPOTHESIS_EVIDENCE"
+    | "INVERTED_PYRAMID"
+    | "CHRONOLOGICAL"
+    | "TOPICAL_GROUPING"
+    | "INTERVIEW_Q_A";
+
+  type FocalPoint = "CAUSALITY" | "OUTCOME" | "METHOD" | "ENTITY";
+  type DynamicType = "DISRUPTION" | "VINDICATION" | "SALIENCE" | "VOID";
+
+  // --- 2. Sub-Interfaces ---
+
+  interface DomainMetadata {
+    primary: string;       // IPTC Level 1 (e.g. "Education")
+    secondary: string;     // IPTC Level 2 (e.g. "Teaching Methods")
+    specific_topic: string; // 2-5 words
+  }
+
+  interface CuriosityHook {
+    focal_point: FocalPoint;
+    dynamic_type: DynamicType;
+
+    /** The common assumption or prediction the reader likely holds. */
+    reader_prediction: string;
+
+    /** The specific insight from the text that challenges/confirms the prediction. */
+    text_reality: string;
+
+    /**
+     * The full Semantic Block (approx 3-5 sentences).
+     * MUST include: Setup -> Pivot -> Reveal.
+     */
+    relevant_context: string;
+
+    source_location: {
+      section_index: number;
+      anchor_text: string;
+    };
+
+    /** Calculated via Rule F.5 (Consensus + Emotion + Topic) */
+    cognitive_impact_score: number;
+  }
+
+  // --- 3. Main Interface ---
 
   interface CognitiveProfile {
     metadata: {
       archetype: {
-        label: "CONCEPTUAL" | "ARGUMENTATIVE" | "EMPIRICAL" | "PROCEDURAL" | "NARRATIVE";
+        /** Dominant intent. MUST NOT be a Logical Schema value. */
+        label: ArticleArchetype;
       };
       logical_schema: {
-        label: "SEQUENTIAL_PROCESS" | "DIAGNOSTIC_FLOW" | "PROBLEM_SOLUTION" | "COMPARATIVE_ANALYSIS" | "THESIS_PROOF" | "HYPOTHESIS_EVIDENCE" | "INVERTED_PYRAMID" | "CHRONOLOGICAL" | "TOPICAL_GROUPING" | "INTERVIEW_Q_A";
+        /** Reasoning structure. MUST NOT be an Archetype value. */
+        label: ReasoningPattern;
       };
       structural_skeleton: {
-        outline: string[]; // Follow Rule C (Extraction Rules)
+        outline: string[];
       };
-      domain: {
-        primary: string;       // IPTC Level 1
-        secondary: string;     // IPTC Level 2
-        specific_topic: string;
-      };
+      domain: DomainMetadata;
       core_thesis: {
-        content: string; // within 30 words
+        content: string; // Absolute summary, max 30 words.
       };
       pedagogy: {
-        hooks: Array<{
-          focal_point: "CAUSALITY" | "OUTCOME" | "METHOD" | "ENTITY"; // See Rule F.1
-          dynamic_type: "DISRUPTION" | "VINDICATION" | "SALIENCE" | "VOID"; // See Rule F.3
-          reader_prediction: string; // The assumption being challenged/confirmed
-          text_reality: string;      // The insight from the text
-          relevant_context: string;  // The full Semantic Block (See Rule G)
-          source_location: {
-            section_index: number;
-            anchor_text: string;
-          };
-          cognitive_impact_score: number; // See Rule F.5
-        }>;
+        hooks: CuriosityHook[];
       };
-      // The detected language of the article
-      language: string; // ISO 639-1 Code (e.g., "en", "ja")
+      /** ISO 639-1 Code (e.g., "en", "ja") */
+      language: string;
     }
   }
-
+  \`\`\`
   ---
 
   ### 3. Execution Instructions (Two-Part Output)
 
   1. **Part 1: The Reasoning Trace (<rationale>)**
      - Start your response with a \`<rationale>\` block.
+     - **Classification Step:** Explicitly state the selected Article Archetype and Logical Schema to ensure they do not conflict.
      - **Thesis Definition:** Write the Core Thesis.
-     - Perform the "Pedagogical Extraction Algorithm" defined in Section F step by step.
+     - **Hook Extraction:** Perform the "Pedagogical Extraction Algorithm" defined in Section F step by step.
      - Close the block with \`</rationale>\`.
      **Constraint:** Keep the Reasoning Trace **extremely concise**. Use bullet points. No paragraphs.
 
@@ -200,7 +248,7 @@ function renderAnalysisPrompt({ text }: AnalysisPromptContext): string {
 
 export const analysisPromptV2: PromptDefinitionV2<AnalysisPromptContext> = {
   id: 'analysis-v2',
-  version: 'v2.0.0',
+  version: 'v2.0.1',
   objective: 'Extract article metadata and hook context for curiosity question generation',
   systemInstruction:
     'You are an expert content analyst. Extract structured metadata AND specific content elements (claims, facts, counter-intuitive points) for generating curiosity-driven hook questions.',

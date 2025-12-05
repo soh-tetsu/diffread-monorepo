@@ -1,6 +1,7 @@
 'use client'
 
 import { Box, Flex, Heading, Link, Stack, Tabs, Text } from '@chakra-ui/react'
+import { useTranslations } from 'next-intl'
 import { useArticleHistory } from '@/hooks/useArticleHistory'
 import type { UserStats } from '@/hooks/useUserStats'
 
@@ -9,19 +10,20 @@ type Props = {
 }
 
 function AchievementTab({ stats }: { stats: UserStats }) {
+  const t = useTranslations('stats')
   const { highScoreSkips, deepDives, totalTimeSavedMinutes, averageIntuitionScore } = stats
 
   return (
     <Flex direction="column" gap={2} align="center" textAlign="center">
       <Box>
         <Text fontSize="xs" color="gray.600">
-          You've saved
+          {t('saved')}
         </Text>
         <Heading size="2xl" color="purple.700">
-          ~{totalTimeSavedMinutes} min
+          {t('savedTime', { minutes: totalTimeSavedMinutes })}
         </Heading>
         <Text fontSize="sm" color="gray.700">
-          by trusting your intuition
+          {t('byTrustingIntuition')}
         </Text>
       </Box>
 
@@ -31,7 +33,7 @@ function AchievementTab({ stats }: { stats: UserStats }) {
             ✓ {highScoreSkips}
           </Text>
           <Text fontSize="xs" color="gray.600" textAlign="center">
-            skipped
+            {t('skipped')}
           </Text>
         </Flex>
 
@@ -40,7 +42,7 @@ function AchievementTab({ stats }: { stats: UserStats }) {
             🎯 {deepDives}
           </Text>
           <Text fontSize="xs" color="gray.600" textAlign="center">
-            deep dives
+            {t('deepDives')}
           </Text>
         </Flex>
 
@@ -49,7 +51,7 @@ function AchievementTab({ stats }: { stats: UserStats }) {
             📈 {averageIntuitionScore}%
           </Text>
           <Text fontSize="xs" color="gray.600" textAlign="center">
-            accuracy
+            {t('accuracy')}
           </Text>
         </Flex>
       </Stack>
@@ -58,6 +60,7 @@ function AchievementTab({ stats }: { stats: UserStats }) {
 }
 
 function ProgressTab({ stats }: { stats: UserStats }) {
+  const t = useTranslations('stats')
   const {
     totalArticlesEvaluated,
     highScoreSkips,
@@ -74,13 +77,13 @@ function ProgressTab({ stats }: { stats: UserStats }) {
     <Flex direction="column" gap={2}>
       <Box textAlign="center">
         <Text fontSize="xs" color="gray.600">
-          Reading Mastery
+          {t('readingMastery')}
         </Text>
         <Heading size="xl" color="purple.700">
-          Level {level}
+          {t('level', { level })}
         </Heading>
         <Text fontSize="xs" color="gray.600">
-          {5 - (totalArticlesEvaluated % 5)} articles to next level
+          {t('articlesToNextLevel', { count: 5 - (totalArticlesEvaluated % 5) })}
         </Text>
       </Box>
 
@@ -98,7 +101,7 @@ function ProgressTab({ stats }: { stats: UserStats }) {
           />
         </Flex>
         <Text fontSize="xs" color="gray.600" textAlign="center" mt={0.5}>
-          {Math.round(progressToNextLevel)}% to level {level + 1}
+          {t('progressToLevel', { percentage: Math.round(progressToNextLevel), level: level + 1 })}
         </Text>
       </Box>
 
@@ -109,7 +112,7 @@ function ProgressTab({ stats }: { stats: UserStats }) {
             🎯 {highScoreSkips}
           </Text>
           <Text fontSize="xs" color="gray.600">
-            Skipped
+            {t('skipped')}
           </Text>
         </Box>
         <Box textAlign="center">
@@ -117,7 +120,7 @@ function ProgressTab({ stats }: { stats: UserStats }) {
             📚 {deepDives}
           </Text>
           <Text fontSize="xs" color="gray.600">
-            Deep Dives
+            {t('deepDives')}
           </Text>
         </Box>
         <Box textAlign="center">
@@ -125,7 +128,7 @@ function ProgressTab({ stats }: { stats: UserStats }) {
             ⏱️ {totalTimeSavedMinutes}min
           </Text>
           <Text fontSize="xs" color="gray.600">
-            Saved
+            {t('timeSaved')}
           </Text>
         </Box>
         <Box textAlign="center">
@@ -133,7 +136,7 @@ function ProgressTab({ stats }: { stats: UserStats }) {
             💡 {averageIntuitionScore}%
           </Text>
           <Text fontSize="xs" color="gray.600">
-            Accuracy
+            {t('accuracy')}
           </Text>
         </Box>
       </Stack>
@@ -142,13 +145,14 @@ function ProgressTab({ stats }: { stats: UserStats }) {
 }
 
 function HistoryTab({ stats }: { stats: UserStats }) {
+  const t = useTranslations('stats')
   const { history, isLoading } = useArticleHistory(stats.articleHistory)
 
   if (isLoading) {
     return (
       <Box textAlign="center" py={3}>
         <Text fontSize="sm" color="gray.500">
-          Loading your history...
+          {t('loadingHistory')}
         </Text>
       </Box>
     )
@@ -158,7 +162,7 @@ function HistoryTab({ stats }: { stats: UserStats }) {
     return (
       <Box textAlign="center" py={3}>
         <Text fontSize="sm" color="gray.500">
-          No articles yet. Start evaluating to build your history!
+          {t('noHistory')}
         </Text>
       </Box>
     )
@@ -208,7 +212,7 @@ function HistoryTab({ stats }: { stats: UserStats }) {
                     display="block"
                     css={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                   >
-                    {record.title || 'Untitled Article'}
+                    {record.title || t('untitledArticle')}
                   </Link>
                 ) : (
                   <Text
@@ -217,7 +221,7 @@ function HistoryTab({ stats }: { stats: UserStats }) {
                     color="gray.900"
                     css={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                   >
-                    {record.title || 'Untitled Article'}
+                    {record.title || t('untitledArticle')}
                   </Text>
                 )}
                 <Text fontSize="xs" color="gray.500">
@@ -237,7 +241,7 @@ function HistoryTab({ stats }: { stats: UserStats }) {
                     borderRadius="sm"
                     fontWeight="medium"
                   >
-                    Skip
+                    {t('actionSkip')}
                   </Text>
                 ) : (
                   <Text
@@ -249,7 +253,7 @@ function HistoryTab({ stats }: { stats: UserStats }) {
                     borderRadius="sm"
                     fontWeight="medium"
                   >
-                    Dive
+                    {t('actionDive')}
                   </Text>
                 )}
               </Box>
@@ -262,6 +266,8 @@ function HistoryTab({ stats }: { stats: UserStats }) {
 }
 
 export function AchievementCard({ stats }: Props) {
+  const t = useTranslations('stats')
+
   if (stats.totalArticlesEvaluated === 0) {
     return null
   }
@@ -282,17 +288,17 @@ export function AchievementCard({ stats }: Props) {
         <Tabs.List mb={2}>
           <Tabs.Trigger value="achievement">
             <Text fontSize="xs" color={'blackAlpha.800'}>
-              💪 Stats
+              💪 {t('title')}
             </Text>
           </Tabs.Trigger>
           <Tabs.Trigger value="progress">
             <Text fontSize="xs" color={'blackAlpha.800'}>
-              🌱 Progress
+              🌱 {t('progressTitle')}
             </Text>
           </Tabs.Trigger>
           <Tabs.Trigger value="history">
             <Text fontSize="xs" color={'blackAlpha.800'}>
-              📚 History
+              📚 {t('historyTitle')}
             </Text>
           </Tabs.Trigger>
         </Tabs.List>

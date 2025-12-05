@@ -1,6 +1,7 @@
 'use client'
 
 import { Box, Button, Flex, Heading, Stack, Text } from '@chakra-ui/react'
+import { useTranslations } from 'next-intl'
 
 type Props = {
   totalQuestions: number
@@ -17,23 +18,20 @@ export function IntuitionSummaryCard({
   onSkip,
   onRecordSkip,
 }: Props) {
+  const t = useTranslations('intuitionSummary')
   const percentage = totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0
   const isHighScore = correctCount >= Math.ceil(totalQuestions * 0.67)
 
   const icon = isHighScore ? '✓' : '🎯'
   const title = isHighScore
-    ? `Your Intuition: ${correctCount}/${totalQuestions} Match`
-    : `Knowledge Gaps: ${totalQuestions - correctCount}/${totalQuestions} Missed`
+    ? t('matchTitle', { correct: correctCount, total: totalQuestions })
+    : t('gapTitle', { missed: totalQuestions - correctCount, total: totalQuestions })
 
-  const message = isHighScore
-    ? 'Your intuition aligns with the article! You already grasp the core concepts.'
-    : 'Your intuition differs from the article. There are valuable insights to discover here.'
+  const message = isHighScore ? t('highScoreMessage') : t('lowScoreMessage')
 
-  const recommendation = isHighScore
-    ? 'You can safely skip this article unless you want to explore the details.'
-    : 'A deeper read could reveal knowledge gaps and new perspectives.'
+  const recommendation = isHighScore ? t('highScoreRecommendation') : t('lowScoreRecommendation')
 
-  const deepDiveButtonText = isHighScore ? 'Deep Dive' : 'Read with Scaffold'
+  const deepDiveButtonText = isHighScore ? t('deepDiveButton') : t('readWithScaffoldButton')
 
   return (
     <Box
@@ -77,7 +75,7 @@ export function IntuitionSummaryCard({
             ))}
           </Flex>
           <Text fontSize="xs" color="gray.600" textAlign="center">
-            {Math.round(percentage)}% alignment
+            {t('alignmentPercentage', { percentage: Math.round(percentage) })}
           </Text>
         </Box>
 
@@ -110,7 +108,7 @@ export function IntuitionSummaryCard({
               }}
               w={{ base: '100%', sm: 'auto' }}
             >
-              {isHighScore ? 'Skip Article' : 'Skip Anyway'}
+              {isHighScore ? t('skipButton') : t('skipAnywayButton')}
             </Button>
           )}
         </Stack>

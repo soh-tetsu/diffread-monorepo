@@ -1,7 +1,8 @@
 'use client'
 
 import { Box, Button, Flex, Spinner, Stack, Text } from '@chakra-ui/react'
-import { useCallback, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AchievementCard } from '@/components/achievement/AchievementCard'
 import { ArticleSubmissionForm } from '@/components/forms/ArticleSubmissionForm'
 import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
@@ -14,54 +15,56 @@ import { useUserStats } from '@/hooks/useUserStats'
 import { readGuestId, writeGuestId } from '@/lib/guest/storage'
 import type { QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
 
-const PRESET_QUIZZES: QuizQuestion[] = [
-  {
-    id: -1,
-    category: 'Scenario · Strategy: The Simulation',
-    prompt:
-      'You are about to tackle a dense 5,000-word essay on a new subject. According to cognitive science, which approach will help you retain the most information?',
-    options: [
-      {
-        text: "Attempt to guess the author's conclusions before reading a single word.",
-        rationale:
-          'Correct. This triggers the "Pre-test Effect," opening a knowledge gap your brain wants to fill.',
-      },
-      {
-        text: "Read the text carefully from start to finish to ensure you don't miss context.",
-        rationale: 'Incorrect. Passive reading often leads to brain rot and low retention.',
-      },
-    ],
-    answerIndex: 0,
-    remediationPointer:
-      "Don't Read. Start Guessing.\n\nActually, the best way to start reading is to predict the answers first. This isn't cheating; it's priming. By guessing, you turn passive consumption into an active hunt for answers.",
-    sourceLocation: {
-      anchorText: 'The Science: Why "Guessing" Makes You a Better Reader',
-    },
-  },
-  {
-    id: -2,
-    category: 'Confirmative · Strategy: The Validation Check',
-    prompt:
-      'True or False: The primary reason your "Read Later" list keeps growing is a lack of personal discipline.',
-    options: [
-      {
-        text: 'True',
-        rationale: 'Not quite. The text argues this is a structural problem, not a character flaw.',
-      },
-      {
-        text: 'False',
-        rationale:
-          "Correct. You aren't lazy; you just lack the right leverage for high-friction tasks.",
-      },
-    ],
-    answerIndex: 1,
-    remediationPointer:
-      "It's Not Laziness. It's Friction.\n\nYour list is a graveyard of good intentions because reading to learn requires high energy in a low-energy world. The problem isn't your work ethic; it's that you are trying to work without leverage.",
-    sourceLocation: {
-      anchorText: 'The Reality: The "Read Later" Graveyard',
-    },
-  },
-] satisfies QuizQuestion[]
+function usePresetQuizzes(): QuizQuestion[] {
+  const t = useTranslations('home.presetQuiz')
+
+  return useMemo(
+    () =>
+      [
+        {
+          id: -1,
+          category: t('question1.category'),
+          prompt: t('question1.prompt'),
+          options: [
+            {
+              text: t('question1.option1'),
+              rationale: t('question1.option1Rationale'),
+            },
+            {
+              text: t('question1.option2'),
+              rationale: t('question1.option2Rationale'),
+            },
+          ],
+          answerIndex: 0,
+          remediationBody: t('question1.remediationBody'),
+          sourceLocation: {
+            anchorText: t('question1.sourceAnchor'),
+          },
+        },
+        {
+          id: -2,
+          category: t('question2.category'),
+          prompt: t('question2.prompt'),
+          options: [
+            {
+              text: t('question2.option1'),
+              rationale: t('question2.option1Rationale'),
+            },
+            {
+              text: t('question2.option2'),
+              rationale: t('question2.option2Rationale'),
+            },
+          ],
+          answerIndex: 1,
+          remediationBody: t('question2.remediationBody'),
+          sourceLocation: {
+            anchorText: t('question2.sourceAnchor'),
+          },
+        },
+      ] satisfies QuizQuestion[],
+    [t]
+  )
+}
 
 type GuestProfileState = {
   guestId: string | null
@@ -90,12 +93,14 @@ function useGuestProfile(): GuestProfileState {
 }
 
 function LoadingScreen() {
+  const t = useTranslations('home')
+
   return (
     <Flex minH="100vh" align="center" justify="center" bg="gray.50">
       <Stack gap={10} align="center">
         <Spinner color="blue.500" size="lg" />
         <Text fontSize="sm" color="gray.600">
-          Warming up Diffread…
+          {t('loadingMessage')}
         </Text>
       </Stack>
     </Flex>
@@ -109,6 +114,8 @@ function OnboardingSection({
   onUnlock: () => void
   isUnlocking: boolean
 }) {
+  const t = useTranslations('home')
+  const PRESET_QUIZZES = usePresetQuizzes()
   const { answers, answeredCount, correctCount, allAnswered, handleSelect } =
     useQuizAnswers(PRESET_QUIZZES)
 
@@ -122,10 +129,13 @@ function OnboardingSection({
       gap={{ base: 4, md: 6 }}
     >
       <QuizHeader
-        title="Read Less. Understand Better."
-        subtitle="Intuition Check"
+        title={t('title')}
+        subtitle={t('subtitle')}
         articleUrl="https://alpha.diffread.app/manifest"
-        progressText={`Checking intuition: ${answeredCount}/${PRESET_QUIZZES.length}`}
+        progressText={t('progressChecking', {
+          answered: answeredCount,
+          total: PRESET_QUIZZES.length,
+        })}
       />
 
       <Box as="section" display="flex" flexDirection="column" gap={{ base: 4, md: 6 }}>
@@ -153,16 +163,17 @@ function OnboardingSection({
         onClick={onUnlock}
         disabled={!allAnswered || isUnlocking}
         loading={isUnlocking}
-        loadingText="Creating guest profile"
+        loadingText={t('unlockButtonLoading')}
         width="100%"
       >
-        I'm interested — unlock URL submissions
+        {t('unlockButton')}
       </Button>
     </Box>
   )
 }
 
 function UrlRegistrationSection({ guestId }: { guestId: string }) {
+  const t = useTranslations('home')
   const { isSubmitting, error, submit } = useQuizSubmission()
   const { stats } = useUserStats()
 
@@ -179,7 +190,7 @@ function UrlRegistrationSection({ guestId }: { guestId: string }) {
       flexDirection="column"
       gap={{ base: 6, md: 8 }}
     >
-      <QuizHeader title="Ready to clear your tabs." subtitle="Submit new article" progressText="" />
+      <QuizHeader title={t('readyTitle')} subtitle={t('submitSubtitle')} progressText="" />
 
       {/* Achievement Card */}
       <AchievementCard stats={stats} />
@@ -192,7 +203,7 @@ function UrlRegistrationSection({ guestId }: { guestId: string }) {
         p={{ base: 4, md: 6 }}
       >
         <Text color="gray.600" fontSize="sm" mb={4}>
-          Drop any URL to check your intuition. We'll generate a magic link in minutes.
+          {t('submitDescription')}
         </Text>
         <ArticleSubmissionForm
           onSubmit={handleSubmit}
@@ -206,6 +217,7 @@ function UrlRegistrationSection({ guestId }: { guestId: string }) {
 }
 
 export default function HomePage() {
+  const t = useTranslations('toaster')
   const { guestId, isReady, persistGuestId } = useGuestProfile()
   const [mode, setMode] = useState<'loading' | 'onboarding' | 'register'>('loading')
   const [isUnlocking, setIsUnlocking] = useState(false)
@@ -234,14 +246,14 @@ export default function HomePage() {
       const payload = (await response.json()) as { userId: string }
       persistGuestId(payload.userId)
       toaster.create({
-        title: 'Guest profile ready',
-        description: 'URL submissions unlocked.',
+        title: t('guestProfileReady'),
+        description: t('urlSubmissionsUnlocked'),
         type: 'success',
       })
       setMode('register')
     } catch (error) {
       toaster.create({
-        title: 'Unable to unlock submissions',
+        title: t('unableToUnlock'),
         description: error instanceof Error ? error.message : 'Unknown error',
         type: 'error',
       })

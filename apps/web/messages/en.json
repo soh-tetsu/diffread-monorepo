@@ -1,0 +1,114 @@
+{
+  "quiz": {
+    "feedback": {
+      "correct": "Nice! Your intuition matches the source.",
+      "incorrect": "Not quite right."
+    },
+    "sourceReference": {
+      "label": "Source Reference",
+      "viewInArticle": "View in article",
+      "locatedNear": "Located near paragraph"
+    },
+    "fromArticle": "From the article",
+    "tryAnotherArticle": "Try another article"
+  },
+  "form": {
+    "urlLabel": "URL to read",
+    "urlPlaceholder": "https://example.com/article",
+    "submit": "Validate Intuition",
+    "submitLoading": "Queuing…",
+    "cancel": "Cancel"
+  },
+  "header": {
+    "originalArticle": "Original Article"
+  },
+  "intuitionSummary": {
+    "matchTitle": "Your Intuition: {correct}/{total} Match",
+    "gapTitle": "Knowledge Gaps: {missed}/{total} Missed",
+    "highScoreMessage": "Your intuition aligns with the article! You already grasp the core concepts.",
+    "lowScoreMessage": "Your intuition differs from the article. There are valuable insights to discover here.",
+    "highScoreRecommendation": "You can safely skip this article unless you want to explore the details.",
+    "lowScoreRecommendation": "A deeper read could reveal knowledge gaps and new perspectives.",
+    "deepDiveButton": "Deep Dive",
+    "readWithScaffoldButton": "Read with Scaffold",
+    "skipButton": "Skip Article",
+    "skipAnywayButton": "Skip Anyway",
+    "alignmentPercentage": "{percentage}% alignment"
+  },
+  "stats": {
+    "title": "Stats",
+    "progressTitle": "Progress",
+    "historyTitle": "History",
+    "saved": "You've saved",
+    "savedTime": "~{minutes} min",
+    "byTrustingIntuition": "by trusting your intuition",
+    "skipped": "skipped",
+    "deepDives": "deep dives",
+    "accuracy": "accuracy",
+    "readingMastery": "Reading Mastery",
+    "level": "Level {level}",
+    "articlesToNextLevel": "{count} articles to next level",
+    "progressToLevel": "{percentage}% to level {level}",
+    "timeSaved": "Saved",
+    "noHistory": "No articles yet. Start evaluating to build your history!",
+    "loadingHistory": "Loading your history...",
+    "untitledArticle": "Untitled Article",
+    "actionSkip": "Skip",
+    "actionDive": "Dive"
+  },
+  "home": {
+    "title": "Read Less. Understand Better.",
+    "subtitle": "Intuition Check",
+    "progressChecking": "Checking intuition: {answered}/{total}",
+    "unlockButton": "I'm interested — unlock URL submissions",
+    "unlockButtonLoading": "Creating guest profile",
+    "readyTitle": "Ready to clear your tabs.",
+    "submitSubtitle": "Submit new article",
+    "submitDescription": "Drop any URL to check your intuition. We'll generate a magic link in minutes.",
+    "loadingMessage": "Warming up Diffread…",
+    "presetQuiz": {
+      "question1": {
+        "category": "Scenario · Strategy: The Simulation",
+        "prompt": "You are about to tackle a dense 5,000-word essay on a new subject. According to cognitive science, which approach will help you retain the most information?",
+        "option1": "Attempt to guess the author's conclusions before reading a single word.",
+        "option1Rationale": "Correct. This triggers the \"Pre-test Effect,\" opening a knowledge gap your brain wants to fill.",
+        "option2": "Read the text carefully from start to finish to ensure you don't miss context.",
+        "option2Rationale": "Incorrect. Passive reading often leads to brain rot and low retention.",
+        "remediationBody": "Don't Read. Start Guessing.\n\nActually, the best way to start reading is to predict the answers first. This isn't cheating; it's priming. By guessing, you turn passive consumption into an active hunt for answers.",
+        "sourceAnchor": "The Science: Why \"Guessing\" Makes You a Better Reader"
+      },
+      "question2": {
+        "category": "Confirmative · Strategy: The Validation Check",
+        "prompt": "True or False: The primary reason your \"Read Later\" list keeps growing is a lack of personal discipline.",
+        "option1": "True",
+        "option1Rationale": "Not quite. The text argues this is a structural problem, not a character flaw.",
+        "option2": "False",
+        "option2Rationale": "Correct. You aren't lazy; you just lack the right leverage for high-friction tasks.",
+        "remediationBody": "It's Not Laziness. It's Friction.\n\nYour list is a graveyard of good intentions because reading to learn requires high energy in a low-energy world. The problem isn't your work ethic; it's that you are trying to work without leverage.",
+        "sourceAnchor": "The Reality: The \"Read Later\" Graveyard"
+      }
+    }
+  },
+  "toaster": {
+    "guestProfileReady": "Guest profile ready",
+    "urlSubmissionsUnlocked": "URL submissions unlocked.",
+    "unableToUnlock": "Unable to unlock submissions"
+  },
+  "quizPage": {
+    "sessionSecured": "Session secured",
+    "wrongGuestProfile": "This quiz belongs to another guest profile. Head back to the homepage to create your own session or paste a new URL.",
+    "goToHomepage": "Go to homepage"
+  },
+  "quizSubmission": {
+    "analyzing": "Analyzing quizzes...",
+    "analyzingDescription": "We're preparing your quiz. This may take a moment.",
+    "quizReady": "Quiz ready!",
+    "clickToOpen": "Click anywhere to open now.",
+    "clickToOpenNewTab": "Click anywhere to open in new tab.",
+    "generationFailed": "Quiz generation failed",
+    "takingLonger": "Quiz is taking longer than expected. Please check back shortly."
+  },
+  "settings": {
+    "language": "Language"
+  }
+}

@@ -2,6 +2,7 @@
 
 import { Box, Button, Popover } from '@chakra-ui/react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useEffect, useMemo, useState } from 'react'
 import { ArticleSubmissionForm } from '@/components/forms/ArticleSubmissionForm'
 import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
@@ -37,6 +38,7 @@ export function QuizView({
   initialInstructionsVisible = false,
   questions,
 }: Props) {
+  const t = useTranslations('quiz')
   const router = useRouter()
   const guestId = readGuestId()
   const [showForm, setShowForm] = useState(false)
@@ -307,7 +309,7 @@ export function QuizView({
       {!showForm && (
         <Box mt={{ base: 6, md: 8 }}>
           <Button type="button" colorPalette="teal" onClick={() => setShowForm(true)}>
-            Try another article
+            {t('tryAnotherArticle')}
           </Button>
         </Box>
       )}

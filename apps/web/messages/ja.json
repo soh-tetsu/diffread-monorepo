@@ -1,0 +1,114 @@
+{
+  "quiz": {
+    "feedback": {
+      "correct": "いいですね！あなたの直感は記事と一致しています。",
+      "incorrect": "惜しい。"
+    },
+    "sourceReference": {
+      "label": "出典",
+      "viewInArticle": "記事で見る",
+      "locatedNear": "段落付近"
+    },
+    "fromArticle": "記事から",
+    "tryAnotherArticle": "別の記事を試す"
+  },
+  "form": {
+    "urlLabel": "読みたいURL",
+    "urlPlaceholder": "https://example.com/article",
+    "submit": "直感を検証",
+    "submitLoading": "キュー中…",
+    "cancel": "キャンセル"
+  },
+  "header": {
+    "originalArticle": "元の記事"
+  },
+  "intuitionSummary": {
+    "matchTitle": "あなたの直感：{correct}/{total}一致",
+    "gapTitle": "知識のギャップ：{missed}/{total}不一致",
+    "highScoreMessage": "あなたの直感は記事と一致しています！核心的な概念をすでに理解しています。",
+    "lowScoreMessage": "あなたの直感は記事と異なります。ここには貴重な洞察があります。",
+    "highScoreRecommendation": "詳細を探求したい場合を除き、この記事を安全にスキップできます。",
+    "lowScoreRecommendation": "より深く読むことで、知識のギャップと新しい視点を明らかにできるかもしれません。",
+    "deepDiveButton": "詳しく読む",
+    "readWithScaffoldButton": "足場付きで読む",
+    "skipButton": "記事をスキップ",
+    "skipAnywayButton": "とにかくスキップ",
+    "alignmentPercentage": "{percentage}%一致"
+  },
+  "stats": {
+    "title": "統計",
+    "progressTitle": "進捗",
+    "historyTitle": "履歴",
+    "saved": "節約した時間",
+    "savedTime": "約{minutes}分",
+    "byTrustingIntuition": "直感を信じることで",
+    "skipped": "スキップ",
+    "deepDives": "精読",
+    "accuracy": "正確性",
+    "readingMastery": "読解力",
+    "level": "レベル{level}",
+    "articlesToNextLevel": "次のレベルまであと{count}記事",
+    "progressToLevel": "レベル{level}まで{percentage}%",
+    "timeSaved": "節約",
+    "noHistory": "まだ記事がありません。評価を開始して履歴を作成しましょう！",
+    "loadingHistory": "履歴を読み込み中...",
+    "untitledArticle": "無題の記事",
+    "actionSkip": "スキップ",
+    "actionDive": "精読"
+  },
+  "home": {
+    "title": "少なく読む。より深く理解する。",
+    "subtitle": "直感チェック",
+    "progressChecking": "直感をチェック中：{answered}/{total}",
+    "unlockButton": "興味があります — URL投稿をアンロック",
+    "unlockButtonLoading": "ゲストプロフィールを作成中",
+    "readyTitle": "タブをクリアする準備ができました。",
+    "submitSubtitle": "新しい記事を投稿",
+    "submitDescription": "URLを入力して直感をチェックしてください。数分でマジックリンクを生成します。",
+    "loadingMessage": "Diffreadを準備中…",
+    "presetQuiz": {
+      "question1": {
+        "category": "シナリオ・戦略：シミュレーション",
+        "prompt": "あなたは新しい主題について5,000語の濃密なエッセイに取り組もうとしています。認知科学によると、最も多くの情報を保持するのに役立つアプローチはどれですか？",
+        "option1": "一語も読まずに著者の結論を推測しようとする。",
+        "option1Rationale": "正解。これは「事前テスト効果」を引き起こし、脳が埋めたい知識のギャップを開きます。",
+        "option2": "文脈を見逃さないように、最初から最後まで注意深く読む。",
+        "option2Rationale": "不正解。受動的な読書は、しばしば脳の腐敗と低い保持につながります。",
+        "remediationBody": "読まないでください。推測を始めてください。\n\n実際、読書を始める最良の方法は、まず答えを予測することです。これは不正行為ではありません。プライミングです。推測することで、受動的な消費を答えを探す積極的な狩りに変えることができます。",
+        "sourceAnchor": "科学：なぜ「推測」があなたをより良い読者にするのか"
+      },
+      "question2": {
+        "category": "確認・戦略：検証チェック",
+        "prompt": "真か偽か：「後で読む」リストが増え続ける主な理由は、個人的な規律の欠如です。",
+        "option1": "真",
+        "option1Rationale": "惜しい。テキストは、これは性格的な欠陥ではなく構造的な問題だと主張しています。",
+        "option2": "偽",
+        "option2Rationale": "正解。あなたは怠け者ではありません。高摩擦タスクに対する適切なレバレッジが不足しているだけです。",
+        "remediationBody": "怠惰ではありません。摩擦です。\n\nあなたのリストは良い意図の墓場です。なぜなら、学ぶために読むことは、低エネルギーの世界で高いエネルギーを必要とするからです。問題はあなたの労働倫理ではありません。レバレッジなしで働こうとしていることです。",
+        "sourceAnchor": "現実：「後で読む」墓地"
+      }
+    }
+  },
+  "toaster": {
+    "guestProfileReady": "ゲストプロフィール準備完了",
+    "urlSubmissionsUnlocked": "URL投稿がアンロックされました。",
+    "unableToUnlock": "投稿をアンロックできません"
+  },
+  "quizPage": {
+    "sessionSecured": "セッション確保済み",
+    "wrongGuestProfile": "このクイズは別のゲストプロフィールに属しています。ホームページに戻って自分のセッションを作成するか、新しいURLを貼り付けてください。",
+    "goToHomepage": "ホームページへ"
+  },
+  "quizSubmission": {
+    "analyzing": "クイズを分析中...",
+    "analyzingDescription": "クイズを準備しています。少々お待ちください。",
+    "quizReady": "クイズ準備完了！",
+    "clickToOpen": "どこでもクリックして開く。",
+    "clickToOpenNewTab": "どこでもクリックして新しいタブで開く。",
+    "generationFailed": "クイズ生成失敗",
+    "takingLonger": "クイズの生成に時間がかかっています。しばらくしてからもう一度確認してください。"
+  },
+  "settings": {
+    "language": "言語"
+  }
+}

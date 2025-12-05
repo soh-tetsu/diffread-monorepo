@@ -2,7 +2,8 @@
 
 import { Box, Button, Heading, Text } from '@chakra-ui/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense } from 'react'
+import { useTranslations } from 'next-intl'
+import { Suspense, useEffect } from 'react'
 import useSWR from 'swr'
 import { QuizView } from '@/components/quiz/QuizView'
 import { readGuestId } from '@/lib/guest/storage'
@@ -55,6 +56,7 @@ const swrConfig = {
 }
 
 function QuizPageContent() {
+  const t = useTranslations('quizPage')
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams?.get('q') ?? null
@@ -83,44 +85,21 @@ function QuizPageContent() {
     swrConfig
   )
 
+  // Redirect to homepage if no token is provided
+  useEffect(() => {
+    if (!token) {
+      router.push('/')
+    }
+  }, [token, router])
+
+  // Don't render anything while redirecting
+  if (!token) {
+    return null
+  }
+
   const guestMismatch =
     metaError?.message === GUEST_BINDING_ERROR ||
     curiosityQuizError?.message === GUEST_BINDING_ERROR
-
-  if (!token) {
-    return (
-      <Box
-        minH="100vh"
-        bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)"
-        py={8}
-        px={4}
-        display="flex"
-        justifyContent="center"
-        color="gray.900"
-      >
-        <Box
-          maxW="720px"
-          w="full"
-          p={8}
-          bg="white"
-          borderWidth="1px"
-          borderColor="gray.200"
-          borderRadius="2xl"
-          textAlign="center"
-          shadow="lg"
-          alignSelf="flex-start"
-          mt={8}
-        >
-          <Heading as="h1" size="xl" mb={3} color="gray.900">
-            Missing session token
-          </Heading>
-          <Text color="gray.700">
-            Use a link shared from Diffread that includes the <code>?q=token</code> parameter.
-          </Text>
-        </Box>
-      </Box>
-    )
-  }
 
   if (guestMismatch) {
     return (
@@ -147,14 +126,13 @@ function QuizPageContent() {
           mt={8}
         >
           <Heading as="h1" size="xl" mb={3} color="gray.900">
-            Session secured
+            {t('sessionSecured')}
           </Heading>
           <Text color="gray.700" mb={6}>
-            This quiz belongs to another guest profile. Head back to the homepage to create your own
-            session or paste a new URL.
+            {t('wrongGuestProfile')}
           </Text>
           <Button colorPalette="teal" onClick={() => router.push('/')}>
-            Go to homepage
+            {t('goToHomepage')}
           </Button>
         </Box>
       </Box>

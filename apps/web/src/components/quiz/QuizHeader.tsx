@@ -1,6 +1,7 @@
 'use client'
 
 import { Badge, Box, Flex, Heading, Link, Text } from '@chakra-ui/react'
+import { useTranslations } from 'next-intl'
 
 type Props = {
   title: string
@@ -10,13 +11,9 @@ type Props = {
   linkText?: string
 }
 
-export function QuizHeader({
-  title,
-  subtitle,
-  articleUrl,
-  progressText,
-  linkText = 'Original Article',
-}: Props) {
+export function QuizHeader({ title, subtitle, articleUrl, progressText, linkText }: Props) {
+  const t = useTranslations('header')
+  const finalLinkText = linkText || t('originalArticle')
   return (
     <Flex
       as="header"
@@ -54,7 +51,7 @@ export function QuizHeader({
             target="_blank"
             rel="noreferrer"
           >
-            {linkText}
+            {finalLinkText}
           </Link>
         )}
       </Box>

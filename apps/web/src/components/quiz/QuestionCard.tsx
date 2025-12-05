@@ -1,6 +1,7 @@
 'use client'
 
 import { Box, Button, Flex, Float, Link, Stack, Text, VStack } from '@chakra-ui/react'
+import { useTranslations } from 'next-intl'
 import { Blockquote, BlockquoteIcon } from '@/components/ui/blockquote'
 import type { QuizOption, QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
 
@@ -82,6 +83,7 @@ function OptionButton({
 }
 
 export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: Props) {
+  const t = useTranslations('quiz')
   const showFeedback = selectedIndex !== null
   const isCorrect = selectedIndex === question.answerIndex
 
@@ -137,7 +139,7 @@ export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: 
             bg={isCorrect ? 'blue.50' : 'red.50'}
           >
             <Text fontWeight="semibold" color="gray.900" mb={2}>
-              {isCorrect ? 'Nice! Your intuition matches the source.' : 'Not quite right.'}
+              {isCorrect ? t('feedback.correct') : t('feedback.incorrect')}
             </Text>
 
             {selectedIndex !== null && question.options[selectedIndex]?.rationale && (
@@ -163,7 +165,7 @@ export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: 
                   mb={1}
                   fontWeight="semibold"
                 >
-                  Source Reference
+                  {t('sourceReference.label')}
                 </Text>
                 <Link
                   href={`${articleUrl}#:~:text=${encodeURIComponent(
@@ -182,7 +184,7 @@ export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: 
                   }}
                 >
                   <Text as="span">
-                    View in article: &quot;
+                    {t('sourceReference.viewInArticle')}: &quot;
                     {question.sourceLocation.anchorText.length > 60
                       ? `${question.sourceLocation.anchorText.slice(0, 60)}...`
                       : question.sourceLocation.anchorText}
@@ -194,7 +196,7 @@ export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: 
                 </Link>
                 {question.sourceLocation.estimatedParagraph && (
                   <Text fontSize="xs" color="gray.600" mt={1}>
-                    Located near paragraph {question.sourceLocation.estimatedParagraph}
+                    {t('sourceReference.locatedNear')} {question.sourceLocation.estimatedParagraph}
                   </Text>
                 )}
               </Box>
@@ -219,7 +221,7 @@ export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: 
                     color="teal.600"
                     mb={2}
                   >
-                    From the article
+                    {t('fromArticle')}
                   </Text>
                   <Text color="gray.700" fontStyle="italic">
                     {question.relevantContext}
@@ -253,7 +255,7 @@ export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: 
                       color="teal.600"
                       mb={2}
                     >
-                      From the article
+                      {t('fromArticle')}
                     </Text>
                     <Text color="gray.700" fontStyle="italic">
                       {question.remediationKeyQuote}

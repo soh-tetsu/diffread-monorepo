@@ -1,6 +1,7 @@
 'use client'
 
 import { Button, chakra, Field, Input, Stack, Text, VStack } from '@chakra-ui/react'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 
 type Props = {
@@ -17,10 +18,14 @@ export function ArticleSubmissionForm({
   onCancel,
   isLoading = false,
   error = null,
-  submitButtonText = 'Validate Intuition',
-  cancelButtonText = 'Cancel',
+  submitButtonText,
+  cancelButtonText,
 }: Props) {
+  const t = useTranslations('form')
   const [url, setUrl] = useState('')
+
+  const finalSubmitText = submitButtonText || t('submit')
+  const finalCancelText = cancelButtonText || t('cancel')
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -33,11 +38,11 @@ export function ArticleSubmissionForm({
     <chakra.form onSubmit={handleSubmit}>
       <VStack gap={3} align="stretch">
         <Field.Root>
-          <Field.Label>URL to read</Field.Label>
+          <Field.Label>{t('urlLabel')}</Field.Label>
           <Input
             type="url"
             required
-            placeholder="https://example.com/article"
+            placeholder={t('urlPlaceholder')}
             value={url}
             onChange={(event) => setUrl(event.target.value)}
             borderRadius="xl"
@@ -52,7 +57,7 @@ export function ArticleSubmissionForm({
             loading={isLoading}
             w={{ base: '100%', sm: 'auto' }}
           >
-            {isLoading ? 'Queuing…' : submitButtonText}
+            {isLoading ? t('submitLoading') : finalSubmitText}
           </Button>
           <Button
             type="button"
@@ -64,7 +69,7 @@ export function ArticleSubmissionForm({
             }}
             w={{ base: '100%', sm: 'auto' }}
           >
-            {cancelButtonText}
+            {finalCancelText}
           </Button>
         </Stack>
         {error && (
