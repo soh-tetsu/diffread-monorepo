@@ -5,11 +5,14 @@ import NextLink from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
-import { LuHouse, LuMenu } from 'react-icons/lu'
+import { LuChevronLeft, LuHouse, LuMenu } from 'react-icons/lu'
+import { CloseButton } from '@/components/ui/close-button'
 import {
   DrawerBackdrop,
   DrawerBody,
+  DrawerCloseTrigger,
   DrawerContent,
+  DrawerHeader,
   DrawerRoot,
   DrawerTrigger,
 } from '@/components/ui/drawer'
@@ -49,14 +52,19 @@ export function SettingsMenu() {
   return (
     <>
       {/* Menu Drawer */}
-      <DrawerRoot open={open} onOpenChange={(e) => setOpen(e.open)} placement="start" size="sm">
+      <DrawerRoot
+        open={open}
+        onOpenChange={(e) => setOpen(e.open)}
+        placement="start"
+        size={{ base: 'xs', md: 'sm' }}
+      >
         <DrawerTrigger asChild>
           <Button
             size="sm"
             variant="ghost"
             colorPalette="teal"
             position="fixed"
-            top={4}
+            top={0}
             left={4}
             zIndex={1000}
           >
@@ -65,6 +73,18 @@ export function SettingsMenu() {
         </DrawerTrigger>
         <DrawerBackdrop />
         <DrawerContent>
+          <DrawerHeader>
+            <CloseButton
+              size="sm"
+              position="absolute"
+              colorPalette="teal"
+              top={2}
+              right={2}
+              onClick={() => setOpen(false)}
+            >
+              <LuChevronLeft />
+            </CloseButton>
+          </DrawerHeader>
           <DrawerBody>
             <VStack align="stretch" gap={6} h="full" py={4}>
               {/* Language Switcher */}
