@@ -39,7 +39,7 @@ export function SettingsMenu() {
           size="sm"
           variant="ghost"
           colorPalette="gray"
-          position="fixed"
+          position="absolute"
           top={4}
           left={4}
           zIndex={1000}
