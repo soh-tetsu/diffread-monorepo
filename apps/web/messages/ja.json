@@ -107,6 +107,10 @@
   "quizSubmission": {
     "analyzing": "クイズを分析中...",
     "analyzingDescription": "クイズを準備しています。少々お待ちください。",
+    "scrapingUrl": "URLをスクレイピング中...",
+    "extractingMetadata": "メタデータを抽出中...",
+    "analyzingArticle": "記事を分析中...",
+    "generatingQuizzes": "クイズを生成中...",
     "quizReady": "クイズ準備完了！",
     "clickToOpen": "どこでもクリックして開く。",
     "clickToOpenNewTab": "どこでもクリックして新しいタブで開く。",
@@ -114,6 +118,7 @@
     "takingLonger": "クイズの生成に時間がかかっています。しばらくしてからもう一度確認してください。"
   },
   "settings": {
-    "language": "言語"
+    "language": "言語",
+    "manifest": "マニフェスト"
   }
 }

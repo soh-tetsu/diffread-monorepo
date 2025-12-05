@@ -107,6 +107,10 @@
   "quizSubmission": {
     "analyzing": "Analyzing quizzes...",
     "analyzingDescription": "We're preparing your quiz. This may take a moment.",
+    "scrapingUrl": "Scraping URL...",
+    "extractingMetadata": "Extracting metadata...",
+    "analyzingArticle": "Analyzing article...",
+    "generatingQuizzes": "Generating quizzes...",
     "quizReady": "Quiz ready!",
     "clickToOpen": "Click anywhere to open now.",
     "clickToOpenNewTab": "Click anywhere to open in new tab.",
@@ -114,6 +118,7 @@
     "takingLonger": "Quiz is taking longer than expected. Please check back shortly."
   },
   "settings": {
-    "language": "Language"
+    "language": "Language",
+    "manifest": "Manifest"
   }
 }

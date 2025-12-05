@@ -70,14 +70,22 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
     setError(null)
 
     const toastId = `quiz-submit-${Date.now()}`
+
+    // Progressive status updates
+    const updateStatus = (title: string) => {
+      toaster.update(toastId, {
+        title,
+        type: 'loading',
+      })
+    }
+
     toaster.loading({
       id: toastId,
-      title: t('analyzing'),
-      description: t('analyzingDescription'),
+      title: t('scrapingUrl'),
     })
 
     try {
-      // Step 1: Submit URL to create session
+      // Step 1: Submit URL to create session (run in parallel with fake delay)
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (guestId) {
         headers['X-Diffread-Guest-Id'] = guestId
@@ -86,11 +94,17 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
       const endpoint = currentToken ? '/api/curiosity' : '/api/sessions'
       const body = currentToken ? { currentToken, url } : { userId: guestId, url }
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      })
+      const [response] = await Promise.all([
+        fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        }),
+        // Simulate: Scraping URL (min 5 seconds)
+        new Promise((resolve) => setTimeout(resolve, 5000)),
+      ])
+
+      updateStatus(t('extractingMetadata'))
 
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}))
@@ -112,9 +126,24 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
       const data = (await response.json()) as { sessionToken: string }
       const newSessionToken = data.sessionToken
 
+      // Wait 10 seconds for "extracting metadata" phase, then move to analyzing
+      await new Promise((resolve) => setTimeout(resolve, 10000))
+      updateStatus(t('analyzingArticle'))
+
       // Step 2: Poll quiz status until ready or failed
       const maxAttempts = 20
+      let hasShownGenerating = false
+      const startTime = Date.now()
+
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const elapsedSeconds = (Date.now() - startTime) / 1000
+
+        // Show "Generating quizzes" after 30 seconds total elapsed time
+        if (elapsedSeconds >= 30 && !hasShownGenerating) {
+          updateStatus(t('generatingQuizzes'))
+          hasShownGenerating = true
+        }
+
         const statusHeaders: HeadersInit = guestId ? { 'X-Diffread-Guest-Id': guestId } : {}
         const statusResponse = await fetch(`/api/curiosity?q=${newSessionToken}`, {
           headers: statusHeaders,
@@ -123,7 +152,7 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
         if (statusResponse.ok) {
           const payload = await statusResponse.json()
           if (payload.status === 'ready') {
-            // Success!
+            // Success! Quiz is ready
             const quizUrl = `/quiz?q=${encodeURIComponent(newSessionToken)}`
 
             toaster.update(toastId, {
