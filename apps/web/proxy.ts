@@ -24,10 +24,6 @@ export function proxy(request: NextRequest) {
     locale = defaultLocale
   }
 
-  // Create response with locale header
-  const response = NextResponse.next()
-  response.headers.set('x-next-intl-locale', locale)
-
   // Apply Nosecone security headers with custom configuration
   // Note: Using 'as any' to work around overly strict TypeScript types
   const securityHeaders = nosecone({
@@ -51,9 +47,19 @@ export function proxy(request: NextRequest) {
     },
   })
 
+  // Create response with all headers (security + locale)
+  const response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  // Add locale header
+  response.headers.set('x-next-intl-locale', locale)
+
   // Merge security headers into response
-  Object.entries(securityHeaders).forEach(([key, value]) => {
-    response.headers.set(key, value as string)
+  securityHeaders.forEach((value, key) => {
+    response.headers.set(key, value)
   })
 
   return response
