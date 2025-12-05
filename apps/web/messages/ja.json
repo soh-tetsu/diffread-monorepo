@@ -10,7 +10,12 @@
       "locatedNear": "段落付近"
     },
     "fromArticle": "記事から",
-    "tryAnotherArticle": "別の記事を試す"
+    "tryAnotherArticle": "別の記事を試す",
+    "intuitionCheck": "直感チェック",
+    "originalArticle": "元の記事",
+    "checkingIntuition": "直感をチェック中：{answered}/{total}",
+    "deepDive": "詳しく読む：{answered}/{total}",
+    "noQuestions": "質問がありません"
   },
   "form": {
     "urlLabel": "読みたいURL",

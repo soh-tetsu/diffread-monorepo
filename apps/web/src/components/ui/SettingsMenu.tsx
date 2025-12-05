@@ -1,7 +1,7 @@
 'use client'
 
 import { Button, Flex, Text } from '@chakra-ui/react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { LuSettings } from 'react-icons/lu'
 import { MenuContent, MenuItem, MenuRoot, MenuSeparator, MenuTrigger } from '@/components/ui/menu'
@@ -16,20 +16,20 @@ export function SettingsMenu() {
   const t = useTranslations('settings')
   const locale = useLocale()
   const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
 
-  const switchLocale = (newLocale: string) => {
-    // Replace current locale in pathname with new locale
-    const segments = pathname.split('/')
-    segments[1] = newLocale
-    const newPath = segments.join('/')
+  const switchLocale = async (newLocale: string) => {
+    // Store in localStorage
+    localStorage.setItem('NEXT_LOCALE', newLocale)
 
-    // Preserve query parameters
-    const queryString = searchParams.toString()
-    const fullUrl = queryString ? `${newPath}?${queryString}` : newPath
+    // Set cookie via API route
+    await fetch('/api/locale', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locale: newLocale }),
+    })
 
-    router.push(fullUrl)
+    // Refresh to apply new locale
+    router.refresh()
   }
 
   return (

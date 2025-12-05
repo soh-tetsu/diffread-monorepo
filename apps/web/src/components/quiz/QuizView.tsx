@@ -80,18 +80,22 @@ export function QuizView({
   // Progress text calculation
   const progressText = useMemo(() => {
     if (scaffoldVisible && questions.length > 0) {
-      return `Deep dive: ${scaffoldQuiz.answeredCount}/${questions.length}`
+      return t('deepDive', { answered: scaffoldQuiz.answeredCount, total: questions.length })
     }
     if (hookQuestions.length > 0) {
-      return `Checking intuition: ${curiosityQuiz.answeredCount}/${hookQuestions.length}`
+      return t('checkingIntuition', {
+        answered: curiosityQuiz.answeredCount,
+        total: hookQuestions.length,
+      })
     }
-    return 'No questions'
+    return t('noQuestions')
   }, [
     curiosityQuiz.answeredCount,
     hookQuestions.length,
     scaffoldQuiz.answeredCount,
     questions.length,
     scaffoldVisible,
+    t,
   ])
 
   // Track analytics when answers change
@@ -223,10 +227,10 @@ export function QuizView({
     >
       <QuizHeader
         title={articleTitle || 'Verify your intuition'}
-        subtitle="Intuition Check"
+        subtitle={t('intuitionCheck')}
         articleUrl={articleUrl}
         progressText={progressText}
-        linkText="Original Article"
+        linkText={t('originalArticle')}
       />
 
       <Box as="section">

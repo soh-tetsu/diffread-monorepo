@@ -1,21 +1,36 @@
-import createMiddleware from 'next-intl/middleware'
-import { defaultLocale, locales } from './src/i18n/config'
+import { type NextRequest, NextResponse } from 'next/server'
+import { defaultLocale, type Locale, locales } from './src/i18n/config'
 
-export default createMiddleware({
-  // A list of all locales that are supported
-  locales,
+export function proxy(request: NextRequest) {
+  // Check for locale in cookie
+  let locale = request.cookies.get('NEXT_LOCALE')?.value as Locale | undefined
 
-  // Used when no locale matches
-  defaultLocale,
+  // Fall back to Accept-Language header
+  if (!locale) {
+    const acceptLanguage = request.headers.get('Accept-Language')
+    if (acceptLanguage) {
+      const preferredLocale = acceptLanguage.split(',')[0].split('-')[0].toLowerCase()
+      locale = locales.includes(preferredLocale as Locale)
+        ? (preferredLocale as Locale)
+        : defaultLocale
+    } else {
+      locale = defaultLocale
+    }
+  }
 
-  // Locale detection strategy
-  localeDetection: true,
+  // Validate locale
+  if (!locales.includes(locale as Locale)) {
+    locale = defaultLocale
+  }
 
-  // Always include locale prefix in URL
-  localePrefix: 'always',
-})
+  // Set x-next-intl-locale header for next-intl
+  const response = NextResponse.next()
+  response.headers.set('x-next-intl-locale', locale)
+
+  return response
+}
 
 export const config = {
-  // Match only internationalized pathnames
-  matcher: ['/', '/(ja|en)/:path*', '/((?!api|_next|_vercel|.*\\..*).*)'],
+  // Match all pathnames except API routes and static files
+  matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
 }

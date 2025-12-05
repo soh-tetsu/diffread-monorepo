@@ -1,6 +1,10 @@
 import type { Metadata } from 'next'
-import { headers } from 'next/headers'
+import { cookies } from 'next/headers'
+import { NextIntlClientProvider } from 'next-intl'
+import { getMessages } from 'next-intl/server'
 import './globals.css'
+import { SettingsMenu } from '@/components/ui/SettingsMenu'
+import { defaultLocale, type Locale } from '@/i18n/config'
 import { Providers } from './providers'
 
 export const metadata: Metadata = {
@@ -10,16 +14,21 @@ export const metadata: Metadata = {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const headersList = await headers()
-  const pathname = headersList.get('x-pathname') || ''
+  const cookieStore = await cookies()
+  const locale = (cookieStore.get('NEXT_LOCALE')?.value as Locale) || defaultLocale
 
-  // Extract locale from pathname (e.g., /ja/... -> ja)
-  const locale = pathname.split('/')[1] || 'en'
+  // Fetch messages for the current locale
+  const messages = await getMessages({ locale })
 
   return (
     <html lang={locale}>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <NextIntlClientProvider messages={messages} locale={locale}>
+            <SettingsMenu />
+            {children}
+          </NextIntlClientProvider>
+        </Providers>
       </body>
     </html>
   )

@@ -10,7 +10,12 @@
       "locatedNear": "Located near paragraph"
     },
     "fromArticle": "From the article",
-    "tryAnotherArticle": "Try another article"
+    "tryAnotherArticle": "Try another article",
+    "intuitionCheck": "Intuition Check",
+    "originalArticle": "Original Article",
+    "checkingIntuition": "Checking intuition: {answered}/{total}",
+    "deepDive": "Deep dive: {answered}/{total}",
+    "noQuestions": "No questions"
   },
   "form": {
     "urlLabel": "URL to read",
