@@ -86,11 +86,29 @@ function renderHookGeneratorPrompt(context: HookGeneratorPromptContext): string 
 
   ---
 
-  #### Step 4: Remediation Rules (The Bridge)
-  This is the most critical part. You must bridge the user's curiosity to the text.
-  *   **Formula:** "Actually..." + [The Pivot] + "Read [Anchor Text] to learn more."
-  *   **The Pivot:** Acknowledge the trap ("While [Option B] is common...") then deliver the insight ("...the author argues [Option A] is necessary because [Rationale]").
-  *   **The Link:** You **MUST** use the \`anchor_text\` from the JSON input.
+  #### Step 4: RULES for \`remediation\` (The Bridge)
+  *   This appears AFTER the feedback to bridge the gap between the user's guess and the article's thesis.
+  * **Tone:** Friendly, clear, and authoritative.
+  * The structure is as follows:
+    * **body** (The Synthesis):
+      * This is the "Coach" speaking. Explain the *concept* clearly, in 1-2 sentences.
+      * **Do NOT** say "The text says..." or "The author mentions..."
+      * **DO** synthesize the insight. Explain the concept directly or *why* the correct answer is the truth, citing the article's logic.
+      * Example: "Discipline fails because the friction is structural. You can't willpower your way through bad architecture."
+    * **key_quote** (The Evidence):
+      - Extract the most powerful sentence fragment that supports the body.
+      - It MUST be verbatim from the source text.
+      - Keep it short (under 20 words).
+    * **go_read_anchor** (The Map):
+        - Use the \`anchor_text\` from \`source_location\` as the pointer back to the article.
+
+ #### Step 5: RULES FOR \`feedback\` (The Referee):
+  * This appears IMMEDIATELY when the user clicks an option.
+  * **Constraint:** Maximum 15 words.
+  * **Tone:** Sharp, direct, and specific to the *option selected*.
+  * **If Correct:** Validate the user's intuition (e.g., "Spot on. You grasped the core conflict.").
+  * **If Incorrect:** debunk the specific misconception represented by *that* wrong answer (e.g., "That's the common myth, but the data says otherwise.").
+  * **Do NOT** explain the full concept here. Just react to the click.
 
   ---
 
@@ -128,7 +146,7 @@ function renderHookGeneratorPrompt(context: HookGeneratorPromptContext): string 
   }
 
   interface Remediation {
-    headline: string; // Short, punchy title in ${language_code}
+    key_quote: string; // Verbatim quote from source text
     body: string; // Explanation in ${language_code}
     // MUST match the source text verbatim (no translation)
     go_read_anchor: string;
@@ -166,7 +184,7 @@ function renderHookGeneratorPrompt(context: HookGeneratorPromptContext): string 
 
 export const hookGeneratorPromptV2: PromptDefinitionV2<HookGeneratorPromptContext> = {
   id: 'hook-generator-v2',
-  version: 'v2.0.0',
+  version: 'v2.0.1',
   objective: 'Generate 3 curiosity-driven hook questions from extracted hook context',
   systemInstruction:
     "You are an expert educator. Generate hook questions that challenge assumptions and create curiosity by testing reader intuition against the article's counter-intuitive claims.",

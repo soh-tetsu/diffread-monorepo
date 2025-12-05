@@ -101,7 +101,8 @@ export type QuizOption = {
 }
 
 export type Remediation = {
-  headline: string
+  // headline: string
+  key_quote: string
   body: string
   go_read_anchor: string
 }
@@ -216,7 +217,7 @@ export const QuizOptionSchema: z.ZodType<QuizOption> = z.object({
 })
 
 export const RemediationSchema: z.ZodType<Remediation> = z.object({
-  headline: z.string(),
+  key_quote: z.string(),
   body: z.string(),
   go_read_anchor: z.string(),
 })

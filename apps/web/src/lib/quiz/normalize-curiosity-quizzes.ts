@@ -21,7 +21,8 @@ export type QuizQuestion = {
   options: QuizOption[]
   answerIndex: number
   sourceLocation?: QuizSourceLocation
-  remediationPointer?: string
+  remediationBody?: string
+  remediationKeyQuote?: string
   relevantContext?: string
 }
 
@@ -78,20 +79,22 @@ function buildSourceLocation(
   }
 }
 
-function buildRemediationPointer(remediation: RawRemediation | undefined): string | undefined {
+function buildRemediationBody(remediation: RawRemediation | undefined): string | undefined {
   if (!remediation || typeof remediation !== 'object') {
     return undefined
   }
 
-  const headline = typeof remediation.headline === 'string' ? remediation.headline.trim() : ''
   const body = typeof remediation.body === 'string' ? remediation.body.trim() : ''
-  const parts = [headline, body].filter(Boolean)
+  return body || undefined
+}
 
-  if (parts.length === 0) {
+function buildRemediationKeyQuote(remediation: RawRemediation | undefined): string | undefined {
+  if (!remediation || typeof remediation !== 'object') {
     return undefined
   }
 
-  return parts.join('\n\n')
+  const keyQuote = typeof remediation.key_quote === 'string' ? remediation.key_quote.trim() : ''
+  return keyQuote || undefined
 }
 
 export function normalizeHookQuestions(hooks: unknown): QuizQuestion[] {
@@ -111,7 +114,8 @@ export function normalizeHookQuestions(hooks: unknown): QuizQuestion[] {
       options,
       answerIndex,
       sourceLocation: buildSourceLocation(card.remediation),
-      remediationPointer: buildRemediationPointer(card.remediation),
+      remediationBody: buildRemediationBody(card.remediation),
+      remediationKeyQuote: buildRemediationKeyQuote(card.remediation),
     }
   })
 }

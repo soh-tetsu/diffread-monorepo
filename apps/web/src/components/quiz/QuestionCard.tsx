@@ -228,31 +228,38 @@ export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: 
               </Box>
             )}
 
-            {question.remediationPointer && (
+            {(question.remediationBody || question.remediationKeyQuote) && (
               <Box mt={4}>
-                <Blockquote
-                  variant="plain"
-                  colorPalette="teal"
-                  showDash
-                  icon={
-                    <Float placement="top-start" offsetY="2">
-                      <BlockquoteIcon />
-                    </Float>
-                  }
-                >
-                  <Text
-                    textTransform="uppercase"
-                    fontSize="xs"
-                    letterSpacing="0.2em"
-                    color="teal.600"
-                    mb={2}
+                {question.remediationBody && (
+                  <Text color="gray.700" lineHeight="1.6" mb={question.remediationKeyQuote ? 3 : 0}>
+                    {question.remediationBody}
+                  </Text>
+                )}
+                {question.remediationKeyQuote && (
+                  <Blockquote
+                    variant="plain"
+                    colorPalette="teal"
+                    showDash
+                    icon={
+                      <Float placement="top-start" offsetY="2">
+                        <BlockquoteIcon />
+                      </Float>
+                    }
                   >
-                    From the article
-                  </Text>
-                  <Text color="gray.700" fontStyle="italic">
-                    {question.remediationPointer}
-                  </Text>
-                </Blockquote>
+                    <Text
+                      textTransform="uppercase"
+                      fontSize="xs"
+                      letterSpacing="0.2em"
+                      color="teal.600"
+                      mb={2}
+                    >
+                      From the article
+                    </Text>
+                    <Text color="gray.700" fontStyle="italic">
+                      {question.remediationKeyQuote}
+                    </Text>
+                  </Blockquote>
+                )}
               </Box>
             )}
           </Box>
