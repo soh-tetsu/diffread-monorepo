@@ -1,29 +1,23 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { Box, Container, Heading, Link, Text, VStack } from '@chakra-ui/react'
-import { cookies } from 'next/headers'
 import type { Components } from 'react-markdown'
 import ReactMarkdown from 'react-markdown'
 import { SettingsMenu } from '@/components/ui/SettingsMenu'
 import { Toolbar } from '@/components/ui/Toolbar'
-import { defaultLocale, type Locale } from '@/i18n/config'
+import type { Locale } from '@/i18n/config'
 
-export const dynamic = 'force-dynamic' // Change to dynamic to read cookies
+// Load both manifesto versions at build time
+async function getAllManifestos() {
+  const enPath = join(process.cwd(), '../../Manifesto.md')
+  const jaPath = join(process.cwd(), '../../Manifesto.ja.md')
 
-async function getManifestoContent(locale: Locale) {
-  // Try to read locale-specific manifesto first, fallback to default
-  const manifestoFileName = locale === 'ja' ? 'Manifesto.ja.md' : 'Manifesto.md'
-  const manifestoPath = join(process.cwd(), '../../', manifestoFileName)
+  const [enContent, jaContent] = await Promise.all([
+    readFile(enPath, 'utf-8').catch(() => '# Manifesto\n\nContent not available.'),
+    readFile(jaPath, 'utf-8').catch(() => readFile(enPath, 'utf-8')), // Fallback to EN
+  ])
 
-  try {
-    const content = await readFile(manifestoPath, 'utf-8')
-    return content
-  } catch {
-    // Fallback to default Manifesto.md if locale-specific doesn't exist
-    const fallbackPath = join(process.cwd(), '../../Manifesto.md')
-    const content = await readFile(fallbackPath, 'utf-8')
-    return content
-  }
+  return { en: enContent, ja: jaContent }
 }
 
 const markdownComponents: Components = {
@@ -104,10 +98,19 @@ const markdownComponents: Components = {
 }
 
 export default async function ManifestPage() {
-  const cookieStore = await cookies()
-  const locale = (cookieStore.get('NEXT_LOCALE')?.value as Locale) || defaultLocale
+  // Load both manifesto versions at build time (static generation)
+  const manifestos = await getAllManifestos()
 
-  const markdown = await getManifestoContent(locale)
+  return <ManifestPageClient manifestos={manifestos} />
+}
+
+// Client component to handle locale-specific rendering
+function ManifestPageClient({ manifestos }: { manifestos: { en: string; ja: string } }) {
+  'use client'
+
+  const { useLocale } = require('next-intl')
+  const locale = useLocale() as Locale
+  const markdown = manifestos[locale] || manifestos.en
 
   return (
     <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)">

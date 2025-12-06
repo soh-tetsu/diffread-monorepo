@@ -24,14 +24,16 @@ export function proxy(request: NextRequest) {
     locale = defaultLocale
   }
 
-  // Apply Nosecone security headers with custom configuration
-  // Note: Using 'as any' to work around overly strict TypeScript types
+  // Apply Nosecone security headers with STATIC configuration (no nonces)
+  // By explicitly setting directives without using defaults, we avoid nonce generation
+  // This allows Next.js to use static generation instead of dynamic rendering
   const securityHeaders = nosecone({
     contentSecurityPolicy: {
+      // CRITICAL: Do not spread defaults here - it would include nonce()
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"], // Required for PWA, nosecone adds nonce + unsafe-eval in dev
-        styleSrc: ["'self'", "'unsafe-inline'"], // Required for Chakra UI
+        scriptSrc: ["'self'", "'unsafe-inline'"], // PWA requires unsafe-inline
+        styleSrc: ["'self'", "'unsafe-inline'"], // Chakra UI requires unsafe-inline
         imgSrc: ["'self'", 'blob:', 'data:', 'https:'], // Allow external images
         fontSrc: ["'self'", 'data:'],
         objectSrc: ["'none'"],
@@ -42,7 +44,7 @@ export function proxy(request: NextRequest) {
           "'self'",
           process.env.SUPABASE_URL || 'https://*.supabase.co',
           'https://generativelanguage.googleapis.com',
-        ] as any,
+        ] as any, // Type assertion for strict types
       },
     },
   })

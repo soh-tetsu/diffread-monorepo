@@ -1,9 +1,6 @@
 import type { Metadata } from 'next'
-import { cookies } from 'next/headers'
-import { NextIntlClientProvider } from 'next-intl'
-import { getMessages } from 'next-intl/server'
 import './globals.css'
-import { defaultLocale, type Locale } from '@/i18n/config'
+import { LocaleProvider } from '@/components/providers/LocaleProvider'
 import { Providers } from './providers'
 
 export const metadata: Metadata = {
@@ -24,20 +21,14 @@ export const viewport = {
   themeColor: '#0d9488',
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies()
-  const locale = (cookieStore.get('NEXT_LOCALE')?.value as Locale) || defaultLocale
-
-  // Fetch messages for the current locale
-  const messages = await getMessages({ locale })
-
+// IMPORTANT: No async/await here = enables static generation
+// Locale detection happens client-side in LocaleProvider
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang={locale}>
+    <html lang="en">
       <body>
         <Providers>
-          <NextIntlClientProvider messages={messages} locale={locale}>
-            {children}
-          </NextIntlClientProvider>
+          <LocaleProvider>{children}</LocaleProvider>
         </Providers>
       </body>
     </html>

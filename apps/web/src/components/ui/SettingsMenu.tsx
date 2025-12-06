@@ -35,18 +35,22 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
   const [open, setOpen] = useState(false)
 
   const switchLocale = async (newLocale: string) => {
-    // Store in localStorage
+    // Store in localStorage (primary source for client-side i18n)
     localStorage.setItem('NEXT_LOCALE', newLocale)
 
-    // Set cookie via API route
+    // Set cookie via API route (for backwards compatibility)
     await fetch('/api/locale', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ locale: newLocale }),
     })
 
-    // Refresh to apply new locale
-    router.refresh()
+    // Dispatch custom event to notify LocaleProvider
+    window.dispatchEvent(
+      new CustomEvent('localeChange', {
+        detail: { locale: newLocale },
+      })
+    )
   }
 
   return (
