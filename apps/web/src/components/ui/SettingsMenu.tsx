@@ -16,7 +16,8 @@ import NextLink from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
-import { LuChevronLeft, LuCircleAlert, LuHouse, LuMenu } from 'react-icons/lu'
+import { LuBookmark, LuChevronLeft, LuCircleAlert, LuHouse, LuMenu } from 'react-icons/lu'
+import useSWR from 'swr'
 import { CloseButton } from '@/components/ui/close-button'
 import {
   DrawerBackdrop,
@@ -39,12 +40,33 @@ type SettingsMenuProps = {
   showHomeButton?: boolean
 }
 
+const queueCountFetcher = async (url: string) => {
+  const res = await fetch(url, { credentials: 'same-origin' })
+  if (!res.ok) return { count: 0 }
+  return res.json()
+}
+
 export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
   const t = useTranslations('settings')
   const locale = useLocale()
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const { hasCompletedOnboarding, profile } = useUserProfile()
+
+  // Use SWR for queue count - shares cache with AppToolbar and homepage
+  const { data: queueData } = useSWR<{ count: number }>(
+    profile?.userId ? '/api/queue-count' : null,
+    queueCountFetcher,
+    {
+      refreshInterval: 30000,
+      refreshWhenHidden: false,
+      refreshWhenOffline: false,
+      revalidateOnFocus: true,
+      dedupingInterval: 5000,
+    }
+  )
+
+  const queueCount = queueData?.count ?? 0
 
   const switchLocale = async (newLocale: string) => {
     // Store in localStorage (primary source for client-side i18n)
@@ -68,12 +90,7 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
   return (
     <>
       {/* Menu Drawer */}
-      <DrawerRoot
-        open={open}
-        onOpenChange={(e) => setOpen(e.open)}
-        placement="start"
-        size={{ base: 'xs', md: 'sm' }}
-      >
+      <DrawerRoot open={open} onOpenChange={(e) => setOpen(e.open)} placement="start" size="xs">
         <DrawerTrigger asChild>
           <Button size="sm" variant="ghost" colorPalette="teal" position="relative">
             <LuMenu size={20} />
@@ -86,8 +103,6 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
                 h="8px"
                 bg="red.600"
                 rounded="full"
-                // borderWidth="1.5px"
-                // borderColor="white"
               />
             )}
           </Button>
@@ -108,7 +123,7 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
             </CloseButton>
           </DrawerHeader>
           <DrawerBody>
-            <VStack align="stretch" gap={6} h="full" py={4}>
+            <VStack align="stretch" gap={4} h="full" py={2}>
               {/* User ID Display or Onboarding Task */}
               {profile?.userId ? (
                 <Card.Root size="sm" variant="elevated">
@@ -159,33 +174,70 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
                 )
               )}
 
+              {/* Navigation Links */}
+              {profile?.userId && (
+                <VStack align="stretch" gap={1}>
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="md"
+                    justifyContent="flex-start"
+                    onClick={() => setOpen(false)}
+                  >
+                    <NextLink href="/">
+                      <HStack gap={3}>
+                        <LuHouse size={18} />
+                        <Text color={'blackAlpha.900'}>{t('home')}</Text>
+                      </HStack>
+                    </NextLink>
+                  </Button>
+
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="md"
+                    justifyContent="space-between"
+                    onClick={() => setOpen(false)}
+                  >
+                    <NextLink href="/bookmarks">
+                      <HStack gap={3}>
+                        <LuBookmark size={18} />
+                        <Text color={'blackAlpha.900'}>{t('bookmarks')}</Text>
+                      </HStack>
+                      {queueCount > 0 && (
+                        <Badge colorPalette="teal" size="sm" variant="solid">
+                          {queueCount}
+                        </Badge>
+                      )}
+                    </NextLink>
+                  </Button>
+                </VStack>
+              )}
+
               {/* Language Switcher */}
-              <VStack align="stretch" gap={3}>
-                <Text fontSize="sm" fontWeight="semibold" color="gray.600" px={2}>
+              <VStack align="stretch" gap={2} pt={2} borderTopWidth="1px" borderColor="gray.100">
+                <Text fontSize="xs" fontWeight="medium" color={'blackAlpha.900'} px={1}>
                   {t('language')}
                 </Text>
-                <Flex justify="center">
-                  <SegmentGroup.Root
-                    value={locale}
-                    onValueChange={(e) => switchLocale(e.value || 'en')}
-                    css={{
-                      '--segment-indicator-bg': 'colors.teal.500',
-                      '--segment-indicator-shadow': 'shadows.md',
-                    }}
-                  >
-                    <SegmentGroup.Indicator />
-                    <SegmentGroup.Items
-                      items={locales.map((loc) => ({
-                        value: loc,
-                        label: (
-                          <HStack>
-                            {localeConfig[loc].flag} {localeConfig[loc].label}
-                          </HStack>
-                        ),
-                      }))}
-                    />
-                  </SegmentGroup.Root>
-                </Flex>
+                <HStack gap={1}>
+                  {locales.map((loc) => (
+                    <Button
+                      key={loc}
+                      size="sm"
+                      variant={locale === loc ? 'solid' : 'ghost'}
+                      colorPalette="teal"
+                      onClick={() => switchLocale(loc)}
+                      flex={1}
+                    >
+                      <HStack gap={1.5}>
+                        <Text fontSize="sm">{localeConfig[loc].flag}</Text>
+                        <Text fontSize="sm" color={'blackAlpha.950'}>
+                          {localeConfig[loc].label}
+                        </Text>
+                      </HStack>
+                    </Button>
+                  ))}
+                </HStack>
               </VStack>
 
               {/* Spacer */}

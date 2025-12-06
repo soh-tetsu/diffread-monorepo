@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
     const { user } = await ensureGuestUser({ userId })
 
-    const { session, workerInvoked } = await enqueueAndProcessSession(
+    const { session, workerInvoked, queueFull } = await enqueueAndProcessSession(
       { userId: user.id, email: user.email ?? undefined },
       url,
       { sync: false }
@@ -37,6 +37,7 @@ export async function POST(request: Request) {
       sessionToken: session.session_token,
       status: session.status,
       workerInvoked,
+      queueFull,
     })
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))

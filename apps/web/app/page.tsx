@@ -1,15 +1,17 @@
 'use client'
 
-import { Box, Button, Flex, Spinner, Stack, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, HStack, Spinner, Stack, Text } from '@chakra-ui/react'
+import NextLink from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { LuArrowRight } from 'react-icons/lu'
+import useSWR from 'swr'
 import { AchievementCard } from '@/components/achievement/AchievementCard'
 import { ArticleSubmissionForm } from '@/components/forms/ArticleSubmissionForm'
 import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
 import { QuestionList } from '@/components/quiz/QuestionList'
 import { QuizHeader } from '@/components/quiz/QuizHeader'
-import { SettingsMenu } from '@/components/ui/SettingsMenu'
-import { Toolbar } from '@/components/ui/Toolbar'
+import { AppToolbar } from '@/components/ui/AppToolbar'
 import { toaster } from '@/components/ui/toaster'
 import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
@@ -124,14 +126,12 @@ function OnboardingSection({
 
   return (
     <>
-      <Toolbar
+      <AppToolbar
         progressText={t('progressChecking', {
           answered: answeredCount,
           total: PRESET_QUIZZES.length,
         })}
-      >
-        <SettingsMenu showHomeButton={false} />
-      </Toolbar>
+      />
 
       <Box
         as="section"
@@ -184,10 +184,32 @@ function OnboardingSection({
   )
 }
 
+const queueCountFetcher = async (url: string) => {
+  const res = await fetch(url, { credentials: 'same-origin' })
+  if (!res.ok) return { count: 0, firstSessionToken: null }
+  return res.json()
+}
+
 function UrlRegistrationSection({ guestId }: { guestId: string }) {
   const t = useTranslations('home')
   const { isSubmitting, error, submit } = useQuizSubmission()
   const { stats } = useUserStats()
+
+  // Use SWR for queue count - shares cache with AppToolbar
+  const { data: queueData } = useSWR<{ count: number; firstSessionToken: string | null }>(
+    '/api/queue-count',
+    queueCountFetcher,
+    {
+      refreshInterval: 30000,
+      refreshWhenHidden: false,
+      refreshWhenOffline: false,
+      revalidateOnFocus: true,
+      dedupingInterval: 5000,
+    }
+  )
+
+  const queueCount = queueData?.count ?? 0
+  const firstSessionToken = queueData?.firstSessionToken
 
   const handleSubmit = async (url: string) => {
     await submit(url, { guestId })
@@ -195,9 +217,7 @@ function UrlRegistrationSection({ guestId }: { guestId: string }) {
 
   return (
     <>
-      <Toolbar>
-        <SettingsMenu showHomeButton={false} />
-      </Toolbar>
+      <AppToolbar />
 
       <Box
         as="section"
@@ -211,6 +231,27 @@ function UrlRegistrationSection({ guestId }: { guestId: string }) {
         gap={6}
       >
         <QuizHeader title={t('readyTitle')} subtitle={t('submitSubtitle')} />
+
+        {/* Queue Banner */}
+        {queueCount > 0 && firstSessionToken && (
+          <Box bg="teal.50" borderWidth="2px" borderColor="teal.300" borderRadius="lg" p={4}>
+            <Flex
+              direction={{ base: 'column', sm: 'row' }}
+              align={{ base: 'stretch', sm: 'center' }}
+              justify="space-between"
+              gap={3}
+            >
+              <Text fontSize="md" fontWeight="semibold" color="teal.900">
+                {t('queueBanner', { count: queueCount })}
+              </Text>
+              <Button asChild size="sm" colorPalette="teal" variant="solid" flexShrink={0}>
+                <NextLink href={`/quiz?q=${firstSessionToken}`}>
+                  <Text>{t('queueBannerAction')}</Text>
+                </NextLink>
+              </Button>
+            </Flex>
+          </Box>
+        )}
 
         {/* Achievement Card */}
         <AchievementCard stats={stats} />

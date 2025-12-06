@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 type Props = {
   totalQuestions: number
   correctCount: number
+  token?: string // Session token for archiving
   onDeepDive?: () => void
   onSkip?: () => void
   onRecordSkip?: () => void // Callback to record stats before navigating
@@ -14,6 +15,7 @@ type Props = {
 export function IntuitionSummaryCard({
   totalQuestions,
   correctCount,
+  token,
   onDeepDive,
   onSkip,
   onRecordSkip,
@@ -102,13 +104,29 @@ export function IntuitionSummaryCard({
             <Button
               colorPalette="gray"
               variant="outline"
-              onClick={() => {
+              onClick={async () => {
+                // Archive the session
+                if (token) {
+                  try {
+                    await fetch('/api/study-status', {
+                      method: 'POST',
+                      credentials: 'same-origin',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        sessionToken: token,
+                        studyStatus: 'archived',
+                      }),
+                    })
+                  } catch (err) {
+                    console.error('Failed to archive session:', err)
+                  }
+                }
                 onRecordSkip?.()
                 onSkip()
               }}
               w={{ base: '100%', sm: 'auto' }}
             >
-              {isHighScore ? t('skipButton') : t('skipAnywayButton')}
+              {t('archiveButton')}
             </Button>
           )}
         </Stack>

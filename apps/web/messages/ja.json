@@ -36,8 +36,7 @@
     "lowScoreRecommendation": "より深く読むことで、知識のギャップと新しい視点を明らかにできるかもしれません。",
     "deepDiveButton": "詳しく読む",
     "readWithScaffoldButton": "足場付きで読む",
-    "skipButton": "記事をスキップ",
-    "skipAnywayButton": "とにかくスキップ",
+    "archiveButton": "アーカイブ",
     "alignmentPercentage": "{percentage}%一致"
   },
   "stats": {
@@ -71,6 +70,8 @@
     "submitSubtitle": "新しい記事を投稿",
     "submitDescription": "URLを入力して直感をチェックしてください。数分でマジックリンクを生成します。",
     "loadingMessage": "Diffreadを準備中…",
+    "queueBanner": "キューに{count}個のクイズが準備できています！",
+    "queueBannerAction": "受け取る",
     "presetQuiz": {
       "question1": {
         "category": "シナリオ・戦略：シミュレーション",
@@ -120,15 +121,38 @@
     "clickToOpen": "どこでもクリックして開く。",
     "clickToOpenNewTab": "どこでもクリックして新しいタブで開く。",
     "generationFailed": "クイズ生成失敗",
-    "takingLonger": "クイズの生成に時間がかかっています。しばらくしてからもう一度確認してください。"
+    "takingLonger": "クイズの生成に時間がかかっています。しばらくしてからもう一度確認してください。",
+    "queueFull": "記事をブックマークしました！",
+    "queueFullDescription": "キューが満杯です（2/2）。この記事を処理するには、現在のクイズを完了してください。"
   },
   "settings": {
     "language": "言語",
     "manifest": "マニフェスト",
     "guest": "ゲスト",
+    "home": "ホーム",
+    "bookmarks": "ブックマーク",
     "onboardingPending": "ウェルカムクイズ",
     "todo": "未完了",
     "onboardingDescription": "ウェルカムクイズを完了してすべての機能を解除してください。",
     "startOnboarding": "クイズを開始"
+  },
+  "bookmarks": {
+    "title": "ブックマーク",
+    "errorLoading": "ブックマークの読み込みに失敗しました",
+    "queueTitle": "クイズキュー",
+    "queueCount": "{current}/{max} スロット",
+    "queueEmpty": "キューにクイズがありません。記事を共有またはブックマークして始めましょう！",
+    "waitingTitle": "待機リスト",
+    "waitingCount": "{count} 記事",
+    "archiveTitle": "アーカイブ",
+    "archiveCount": "{count} 完了",
+    "untitled": "タイトルなし",
+    "ready": "準備完了",
+    "inProgress": "進行中",
+    "startQuiz": "直感をチェック",
+    "continue": "続ける",
+    "processing": "処理中...",
+    "bookmarked": "待機中",
+    "review": "レビュー"
   }
 }

@@ -36,8 +36,7 @@
     "lowScoreRecommendation": "A deeper read could reveal knowledge gaps and new perspectives.",
     "deepDiveButton": "Deep Dive",
     "readWithScaffoldButton": "Read with Scaffold",
-    "skipButton": "Skip Article",
-    "skipAnywayButton": "Skip Anyway",
+    "archiveButton": "Archive",
     "alignmentPercentage": "{percentage}% alignment"
   },
   "stats": {
@@ -71,6 +70,8 @@
     "submitSubtitle": "Submit new article",
     "submitDescription": "Drop any URL to check your intuition. We'll generate a magic link in minutes.",
     "loadingMessage": "Warming up Diffread…",
+    "queueBanner": "You have {count} {count, plural, one {quiz} other {quizzes}} ready in your queue!",
+    "queueBannerAction": "Take it",
     "presetQuiz": {
       "question1": {
         "category": "Scenario · Strategy: The Simulation",
@@ -120,15 +121,38 @@
     "clickToOpen": "Click anywhere to open now.",
     "clickToOpenNewTab": "Click anywhere to open in new tab.",
     "generationFailed": "Quiz generation failed",
-    "takingLonger": "Quiz is taking longer than expected. Please check back shortly."
+    "takingLonger": "Quiz is taking longer than expected. Please check back shortly.",
+    "queueFull": "Article bookmarked!",
+    "queueFullDescription": "Your queue is full (2/2). Complete your current quizzes to process this article."
   },
   "settings": {
     "language": "Language",
     "manifest": "Manifest",
     "guest": "Guest",
+    "home": "Home",
+    "bookmarks": "Bookmarks",
     "onboardingPending": "Welcome Quiz",
     "todo": "TODO",
     "onboardingDescription": "Complete the welcome quiz to unlock all features.",
     "startOnboarding": "Start Quiz"
+  },
+  "bookmarks": {
+    "title": "Bookmarks",
+    "errorLoading": "Failed to load bookmarks",
+    "queueTitle": "Quiz Queue",
+    "queueCount": "{current}/{max} slots",
+    "queueEmpty": "No quizzes in queue. Share or bookmark articles to get started!",
+    "waitingTitle": "Waiting List",
+    "waitingCount": "{count} articles",
+    "archiveTitle": "Archive",
+    "archiveCount": "{count} completed",
+    "untitled": "Untitled Article",
+    "ready": "Ready",
+    "inProgress": "In Progress",
+    "startQuiz": "Check Intuition",
+    "continue": "Continue",
+    "processing": "Processing...",
+    "bookmarked": "Waiting",
+    "review": "Review"
   }
 }

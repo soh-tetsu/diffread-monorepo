@@ -114,8 +114,25 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
         throw new Error(errorMessage)
       }
 
-      const data = (await response.json()) as { sessionToken: string }
+      const data = (await response.json()) as {
+        sessionToken: string
+        queueFull?: boolean
+        workerInvoked?: boolean
+      }
       const newSessionToken = data.sessionToken
+
+      // Handle queue full case - article is bookmarked but not processing yet
+      if (data.queueFull) {
+        toaster.update(toastId, {
+          title: t('queueFull'),
+          description: t('queueFullDescription'),
+          type: 'info',
+          duration: 10000,
+          closable: true,
+        })
+
+        return { sessionToken: newSessionToken }
+      }
 
       // Step 2: Start fake progress messages in background (non-blocking)
       const startTime = Date.now()

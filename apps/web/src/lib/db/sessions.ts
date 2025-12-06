@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid'
 import { execute, queryMaybeSingle, querySingle } from '@/lib/db/supabase-helpers'
 import { synthesizeGuestEmail } from '@/lib/db/users'
 import { supabase } from '@/lib/supabase'
-import type { SessionRow, SessionStatus } from '@/types/db'
+import type { SessionRow, SessionStatus, StudyStatus } from '@/types/db'
 
 const SESSION_TOKEN_LENGTH = Number(process.env.SESSION_TOKEN_LENGTH ?? '16')
 
@@ -32,12 +32,14 @@ type CreateSessionInput = {
   userId: string
   articleUrl: string
   email?: string
+  status?: SessionStatus
 }
 
 export async function createSession({
   userId,
   articleUrl,
   email,
+  status = 'bookmarked',
 }: CreateSessionInput): Promise<SessionRow> {
   return querySingle<SessionRow>(
     await supabase
@@ -48,7 +50,7 @@ export async function createSession({
         user_email: email ?? synthesizeGuestEmail(userId),
         article_url: articleUrl,
         quiz_id: null,
-        status: 'pending' as SessionStatus,
+        status,
         metadata: {},
       })
       .select('*')
@@ -68,11 +70,26 @@ export async function getOrCreateSession(params: CreateSessionInput): Promise<Se
 
 export async function updateSession(
   sessionId: number,
-  updates: Partial<Pick<SessionRow, 'quiz_id' | 'status' | 'metadata'>>
+  updates: Partial<Pick<SessionRow, 'quiz_id' | 'status' | 'study_status' | 'metadata'>>
 ): Promise<SessionRow> {
   return querySingle<SessionRow>(
     await supabase.from('sessions').update(updates).eq('id', sessionId).select('*').single(),
     { context: `update session ${sessionId}` }
+  )
+}
+
+export async function updateSessionByToken(
+  sessionToken: string,
+  updates: Partial<Pick<SessionRow, 'quiz_id' | 'status' | 'study_status' | 'metadata'>>
+): Promise<SessionRow> {
+  return querySingle<SessionRow>(
+    await supabase
+      .from('sessions')
+      .update(updates)
+      .eq('session_token', sessionToken)
+      .select('*')
+      .single(),
+    { context: `update session by token ${sessionToken}` }
   )
 }
 

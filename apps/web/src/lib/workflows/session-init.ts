@@ -22,13 +22,8 @@ export async function initSession({
   // Step 1: Get/create session (quiz_id can be NULL)
   let session = await getOrCreateSession({ userId, articleUrl: originalUrl, email })
 
-  // Step 2: Early return if ready
-  if (session.status === 'ready') {
-    return session
-  }
-
   // Step 2: Always ensure complete chain exists: article → quiz → curiosity quiz
-  // Cannot early return until we confirm curiosity quiz exists
+  // Even if session exists, we need to ensure quiz chain is complete and respect queue logic
 
   // 2a. Create/get article
   const article = await getOrCreateArticle(normalizedUrl, originalUrl)
@@ -47,40 +42,17 @@ export async function initSession({
     },
     'fetch existing curiosity quiz'
   )
-  if (existingCuriosityQuiz) {
-    // Curiosity quiz exists - link session (if not linked) and sync status
-    const sessionStatus = mapCuriosityQuizStatusToSessionStatus(existingCuriosityQuiz.status)
-
-    session = await updateSession(session.id, { quiz_id: quiz.id, status: sessionStatus })
-  } else {
-    // New quiz - create curiosity quiz and link session (worker will update status)
+  // Ensure curiosity quiz exists
+  if (!existingCuriosityQuiz) {
+    // New quiz - create it
     await createCuriosityQuiz(quiz.id)
+  }
+
+  // Link quiz to session if not already linked
+  // Never propagate status - session status is user-driven (via queue logic and worker updates)
+  if (!session.quiz_id || session.quiz_id !== quiz.id) {
     session = await updateSession(session.id, { quiz_id: quiz.id })
   }
 
   return session
-}
-
-/**
- * Maps curiosity quiz status to session status
- * - failed -> errored
- * - processing -> pending
- * - others stay the same
- */
-function mapCuriosityQuizStatusToSessionStatus(
-  curiosityQuizStatus:
-    | 'pending'
-    | 'ready'
-    | 'failed'
-    | 'skip_by_admin'
-    | 'skip_by_failure'
-    | 'processing'
-): 'ready' | 'errored' | 'pending' | 'skip_by_failure' | 'skip_by_admin' {
-  if (curiosityQuizStatus === 'failed') {
-    return 'errored'
-  } else if (curiosityQuizStatus === 'processing') {
-    return 'pending'
-  } else {
-    return curiosityQuizStatus
-  }
 }

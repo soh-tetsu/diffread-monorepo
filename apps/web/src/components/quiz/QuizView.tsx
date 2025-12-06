@@ -8,8 +8,7 @@ import { ArticleSubmissionForm } from '@/components/forms/ArticleSubmissionForm'
 import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
 import { QuestionList } from '@/components/quiz/QuestionList'
 import { QuizHeader } from '@/components/quiz/QuizHeader'
-import { SettingsMenu } from '@/components/ui/SettingsMenu'
-import { Toolbar } from '@/components/ui/Toolbar'
+import { AppToolbar } from '@/components/ui/AppToolbar'
 import { toaster } from '@/components/ui/toaster'
 import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
@@ -220,9 +219,7 @@ export function QuizView({
 
   return (
     <>
-      <Toolbar progressText={progressText}>
-        <SettingsMenu showHomeButton />
-      </Toolbar>
+      <AppToolbar progressText={progressText} />
 
       <Box
         as="section"
@@ -276,6 +273,7 @@ export function QuizView({
                 <IntuitionSummaryCard
                   totalQuestions={hookQuestions.length}
                   correctCount={curiosityQuiz.correctCount}
+                  token={sessionToken}
                   onDeepDive={() => {
                     recordDeepDive(
                       hookQuestions.length,

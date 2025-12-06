@@ -8,7 +8,21 @@ export type ArticleStatus =
   | 'skip_by_admin'
   | 'skip_by_failure'
 
-export type SessionStatus = 'pending' | 'ready' | 'errored' | 'skip_by_admin' | 'skip_by_failure'
+export type SessionStatus =
+  | 'bookmarked'
+  | 'pending'
+  | 'ready'
+  | 'errored'
+  | 'skip_by_admin'
+  | 'skip_by_failure'
+
+export type StudyStatus =
+  | 'not_started'
+  | 'curiosity_in_progress'
+  | 'curiosity_completed'
+  | 'scaffold_in_progress'
+  | 'scaffold_completed'
+  | 'archived'
 
 export type CuriosityQuizStatus =
   | 'pending'
@@ -103,6 +117,7 @@ export interface SessionRow {
 
   quiz_id: number | null
   status: SessionStatus
+  study_status: StudyStatus
   metadata: Record<string, unknown>
 
   created_at: string

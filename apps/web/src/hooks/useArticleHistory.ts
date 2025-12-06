@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
+import useSWR from 'swr'
 import { readGuestIdFromCookie } from '@/lib/guest/cookie'
 import type { ArticleRecord } from './useUserStats'
 
@@ -12,99 +13,87 @@ type HistoryItem = {
   sessionStatus: string
 }
 
+type HistoryResponse = {
+  history: HistoryItem[]
+}
+
+const fetcher = async (url: string) => {
+  const res = await fetch(url, { credentials: 'same-origin' })
+  if (!res.ok) throw new Error('Failed to fetch history')
+  return res.json()
+}
+
 /**
  * Hook to fetch and merge article history from both API and localStorage
  * - API provides session/article metadata from database
  * - localStorage provides user actions (skip/deep-dive) and scores
  */
 export function useArticleHistory(localHistory: ArticleRecord[]) {
-  const [mergedHistory, setMergedHistory] = useState<ArticleRecord[]>(localHistory)
-  const [isLoading, setIsLoading] = useState(false)
+  const guestId = readGuestIdFromCookie()
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      const guestId = readGuestIdFromCookie()
-      if (!guestId) {
-        // No guest ID, only use localStorage
-        setMergedHistory(localHistory)
-        return
-      }
+  // Use SWR for shared cache and deduplication
+  const { data, isLoading } = useSWR<HistoryResponse>(guestId ? '/api/history' : null, fetcher, {
+    refreshInterval: 30000,
+    refreshWhenHidden: false,
+    refreshWhenOffline: false,
+    revalidateOnFocus: true,
+    dedupingInterval: 5000,
+  })
 
-      setIsLoading(true)
-      try {
-        // Cookie is automatically sent by browser
-        const response = await fetch('/api/history', {
-          credentials: 'same-origin',
-        })
+  const mergedHistory = useMemo(() => {
+    if (!guestId || !data) {
+      return localHistory
+    }
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch history')
-        }
+    const apiHistory = data.history || []
 
-        const data = await response.json()
-        const apiHistory: HistoryItem[] = data.history || []
-
-        // Create a map of localStorage records by session token (article URL as fallback)
-        const localMap = new Map<string, ArticleRecord>()
-        for (const record of localHistory) {
-          // Use article URL as key since we don't store session tokens in localStorage
-          if (record.url) {
-            localMap.set(record.url, record)
-          }
-        }
-
-        // Merge API data with localStorage data
-        const merged: ArticleRecord[] = apiHistory.map((item) => {
-          const localRecord = localMap.get(item.articleUrl)
-
-          // If we have localStorage data for this URL, use it (has user action)
-          if (localRecord) {
-            // Remove from map so we can add remaining localStorage items later
-            localMap.delete(item.articleUrl)
-
-            return {
-              ...localRecord,
-              // Enrich with API data if title is missing
-              title: localRecord.title || item.articleTitle,
-            }
-          }
-
-          // Otherwise, create record from API data
-          // We don't have action or score data for items not in localStorage
-          // So we mark them as viewed but with no score
-          return {
-            id: item.sessionToken,
-            title: item.articleTitle,
-            url: item.articleUrl,
-            timestamp: item.timestamp,
-            totalQuestions: 0,
-            correctCount: 0,
-            action: 'skip', // Default to skip for historical data
-            isHighScore: false,
-          }
-        })
-
-        // Add any localStorage items that weren't in the API response
-        // (these might be very recent or from different guest IDs)
-        for (const localRecord of localMap.values()) {
-          merged.push(localRecord)
-        }
-
-        // Sort by timestamp descending (most recent first)
-        merged.sort((a, b) => b.timestamp - a.timestamp)
-
-        setMergedHistory(merged)
-      } catch (error) {
-        console.error('Failed to fetch article history:', error)
-        // Fall back to localStorage only
-        setMergedHistory(localHistory)
-      } finally {
-        setIsLoading(false)
+    // Create a map of localStorage records by article URL
+    const localMap = new Map<string, ArticleRecord>()
+    for (const record of localHistory) {
+      if (record.url) {
+        localMap.set(record.url, record)
       }
     }
 
-    fetchHistory()
-  }, [localHistory])
+    // Merge API data with localStorage data
+    const merged: ArticleRecord[] = apiHistory.map((item) => {
+      const localRecord = localMap.get(item.articleUrl)
+
+      // If we have localStorage data for this URL, use it (has user action)
+      if (localRecord) {
+        // Remove from map so we can add remaining localStorage items later
+        localMap.delete(item.articleUrl)
+
+        return {
+          ...localRecord,
+          // Enrich with API data if title is missing
+          title: localRecord.title || item.articleTitle,
+        }
+      }
+
+      // Otherwise, create record from API data
+      return {
+        id: item.sessionToken,
+        title: item.articleTitle,
+        url: item.articleUrl,
+        timestamp: item.timestamp,
+        totalQuestions: 0,
+        correctCount: 0,
+        action: 'skip', // Default to skip for historical data
+        isHighScore: false,
+      }
+    })
+
+    // Add any localStorage items that weren't in the API response
+    for (const localRecord of localMap.values()) {
+      merged.push(localRecord)
+    }
+
+    // Sort by timestamp descending (most recent first)
+    merged.sort((a, b) => b.timestamp - a.timestamp)
+
+    return merged
+  }, [guestId, data, localHistory])
 
   return { history: mergedHistory, isLoading }
 }

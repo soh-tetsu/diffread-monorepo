@@ -2,6 +2,8 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { extractGuestId } from '@/lib/api/guest-session'
 import { getOrCreateArticle, updateArticleContent, updateArticleStatus } from '@/lib/db/articles'
+import { countQueueItems } from '@/lib/db/queue'
+import { createSession, getOrCreateSession, updateSession } from '@/lib/db/sessions'
 import { logger } from '@/lib/logger'
 import { uploadArticlePdf } from '@/lib/storage'
 import { normalizeUrl } from '@/lib/utils/normalize-url'
@@ -101,22 +103,47 @@ export async function POST(request: Request) {
         // Mark article as ready
         await updateArticleStatus(article.id, 'ready')
 
-        // Create session and trigger quiz generation (same as URL path)
-        const { session } = await enqueueAndProcessSession(userIdentity, syntheticUrl, {
-          sync: false, // Process asynchronously
+        // Create session with bookmarked status (same as URL path)
+        const session = await getOrCreateSession({
+          userId: userIdentity.userId,
+          articleUrl: syntheticUrl,
         })
+
+        // Check queue size and move to pending if slots available
+        const queueCount = await countQueueItems(userIdentity.userId)
+
+        if (queueCount < 2 && session.status === 'bookmarked') {
+          await updateSession(session.id, { status: 'pending' })
+          logger.info(
+            { sessionToken: session.session_token, queueCount },
+            'PDF share target session moved to pending (queue has space)'
+          )
+        } else if (session.status !== 'bookmarked') {
+          logger.info(
+            { sessionToken: session.session_token, status: session.status },
+            'PDF share target reusing existing session'
+          )
+        } else {
+          logger.info(
+            { sessionToken: session.session_token, queueCount },
+            'PDF share target session bookmarked (queue full)'
+          )
+        }
+
+        // Trigger async processing if status is pending
+        if (session.status === 'pending' || queueCount < 2) {
+          await enqueueAndProcessSession(userIdentity, syntheticUrl, { sync: false })
+        }
 
         logger.info(
           { sessionToken: session.session_token, articleId: article.id, pdfPath: path },
           'PDF share target session created'
         )
 
-        // Redirect to quiz page with session token
-        // Use the host from the request to handle tunnels (ngrok, cloudflared)
+        // Redirect to bookmarks page
         const host = request.headers.get('host') || new URL(request.url).host
         const protocol = request.headers.get('x-forwarded-proto') || 'https'
-        const redirectUrl = new URL('/quiz', `${protocol}://${host}`)
-        redirectUrl.searchParams.set('q', session.session_token)
+        const redirectUrl = new URL('/bookmarks', `${protocol}://${host}`)
 
         return NextResponse.redirect(redirectUrl)
       } catch (error) {
@@ -144,22 +171,51 @@ export async function POST(request: Request) {
       return NextResponse.redirect(new URL('/?error=invalid-url', request.url))
     }
 
-    // Create session for the shared URL
-    const { session } = await enqueueAndProcessSession(userIdentity, validatedUrl, {
-      sync: false, // Process asynchronously
+    // Create session with bookmarked status
+    const session = await getOrCreateSession({
+      userId: userIdentity.userId,
+      articleUrl: validatedUrl,
     })
+
+    // Check queue size and move to pending if slots available
+    const queueCount = await countQueueItems(userIdentity.userId)
+
+    if (queueCount < 2 && session.status === 'bookmarked') {
+      // Queue has space - start processing immediately
+      await updateSession(session.id, { status: 'pending' })
+      logger.info(
+        { sessionToken: session.session_token, queueCount },
+        'Share target session moved to pending (queue has space)'
+      )
+    } else if (session.status !== 'bookmarked') {
+      // Session already exists with different status - keep it as is
+      logger.info(
+        { sessionToken: session.session_token, status: session.status },
+        'Share target reusing existing session'
+      )
+    } else {
+      // Queue is full - stays as bookmarked
+      logger.info(
+        { sessionToken: session.session_token, queueCount },
+        'Share target session bookmarked (queue full)'
+      )
+    }
+
+    // Trigger async processing if status is pending
+    if (session.status === 'pending' || queueCount < 2) {
+      // Use existing enqueue logic for async processing
+      await enqueueAndProcessSession(userIdentity, validatedUrl, { sync: false })
+    }
 
     logger.info(
       { sessionToken: session.session_token, url: validatedUrl },
       'URL share target session created'
     )
 
-    // Redirect to quiz page with session token
-    // Use the host from the request to handle tunnels (ngrok, cloudflared)
+    // Redirect to bookmarks page
     const host = request.headers.get('host') || new URL(request.url).host
     const protocol = request.headers.get('x-forwarded-proto') || 'https'
-    const redirectUrl = new URL('/quiz', `${protocol}://${host}`)
-    redirectUrl.searchParams.set('q', session.session_token)
+    const redirectUrl = new URL('/bookmarks', `${protocol}://${host}`)
 
     return NextResponse.redirect(redirectUrl)
   } catch (error) {

@@ -8,12 +8,18 @@ import useSWR from 'swr'
 import { QuizView } from '@/components/quiz/QuizView'
 import type { QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
 import { normalizeHookQuestions } from '@/lib/quiz/normalize-curiosity-quizzes'
-import type { CuriosityQuizStatus, ScaffoldQuizStatus, SessionStatus } from '@/types/db'
+import type {
+  CuriosityQuizStatus,
+  ScaffoldQuizStatus,
+  SessionStatus,
+  StudyStatus,
+} from '@/types/db'
 
 type QuizMetaResponse = {
   session: {
     session_token: string
     status: SessionStatus
+    study_status: StudyStatus
     article_url: string | null
     user_id: string
   }
@@ -93,6 +99,25 @@ function QuizPageContent() {
 
   // Guest ID is now managed via cookie (auto-renewed in root layout)
   // No need to manually sync here
+
+  // Mark quiz as in progress when first loaded
+  useEffect(() => {
+    if (!token || !quizMeta) return
+
+    // Only update if curiosity quiz is ready and study hasn't started yet
+    // Don't update if already archived or completed
+    if (curiosityQuizData?.status === 'ready' && quizMeta.session.study_status === 'not_started') {
+      fetch('/api/study-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          sessionToken: token,
+          studyStatus: 'curiosity_in_progress',
+        }),
+      }).catch((err) => console.error('Failed to update study status:', err))
+    }
+  }, [token, quizMeta, curiosityQuizData?.status])
 
   // Don't render anything while redirecting
   if (!token) {
