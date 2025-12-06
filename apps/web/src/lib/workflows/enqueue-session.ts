@@ -12,7 +12,6 @@ import { ensureArticleContent } from '@/lib/workflows/article-content'
 import { initSession } from '@/lib/workflows/session-init'
 import type { SessionRow, UserRow } from '@/types/db'
 
-const sessionWorkerLimit = pLimit(concurrencyConfig.sessionWorkers)
 const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers)
 
 export type EnqueueSessionOptions = {
@@ -82,13 +81,11 @@ export async function enqueueAndProcessSession(
   const user = await resolveSessionUser(identity)
 
   // Step 1: Initialize session
-  let session = await sessionWorkerLimit(() =>
-    initSession({
-      userId: user.id,
-      email: user.email ?? synthesizeGuestEmail(user.id),
-      originalUrl,
-    })
-  )
+  let session = await initSession({
+    userId: user.id,
+    email: user.email ?? synthesizeGuestEmail(user.id),
+    originalUrl,
+  })
 
   logger.info(
     {
@@ -100,7 +97,7 @@ export async function enqueueAndProcessSession(
     'Session initialized'
   )
 
-  // Step 1.5: Always trigger article scraping to get title (even if queue is full)
+  // Step 1.5: Trigger article scraping to get title (even if queue is full)
   // This is lightweight compared to quiz generation and improves UX
   if (session.quiz_id) {
     try {
@@ -114,11 +111,9 @@ export async function enqueueAndProcessSession(
             { articleId: article.id, sessionToken: session.session_token },
             'Triggering article scraping for title'
           )
-          sessionWorkerLimit(() =>
-            ensureArticleContent(article).catch((err) => {
-              logger.error({ err, articleId: article.id }, 'Article scraping failed')
-            })
-          )
+          ensureArticleContent(article).catch((err) => {
+            logger.error({ err, articleId: article.id }, 'Article scraping failed')
+          })
         }
       }
     } catch (err) {

@@ -231,7 +231,9 @@ export async function ensureArticleContent(article: ArticleRow): Promise<Prepare
     case 'skip':
       throw new Error(`Article is skipped (${workingArticle.status}), cannot scrape`)
     case 'scraping':
-      throw new Error('Article is currently being scraped by another process')
+      // Another process is already scraping - return article as-is without throwing
+      // The caller has .catch() handler and doesn't need the content immediately
+      return { article: workingArticle, content: '' }
     default:
       throw new Error(`Unexpected article status: ${workingArticle.status}`)
   }
