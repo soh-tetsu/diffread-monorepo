@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge, Box, Flex, Heading, Link, Text } from '@chakra-ui/react'
+import { Flex, Heading, Link, Text } from '@chakra-ui/react'
 import { useTranslations } from 'next-intl'
 
 type Props = {

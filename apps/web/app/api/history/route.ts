@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { extractGuestId } from '@/lib/api/guest-session'
 import { getArticleById } from '@/lib/db/articles'
 import { getQuizById } from '@/lib/db/quizzes'
 import { getSessionsByUserId } from '@/lib/db/sessions'
@@ -19,8 +20,8 @@ type HistoryItem = {
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // Get guest ID from header
-    const guestId = request.headers.get('X-Diffread-Guest-Id')
+    // Get guest ID from cookie (automatically sent by browser)
+    const guestId = extractGuestId(request)
 
     if (!guestId) {
       return NextResponse.json({ error: 'Guest ID required' }, { status: 400 })

@@ -1,5 +1,6 @@
 'use server'
 
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { ensureGuestUser, updateUserMetadata } from '@/lib/db/users'
 import { logger } from '@/lib/logger'
@@ -23,6 +24,16 @@ export async function POST(request: Request) {
         onboardingCompleted: true,
       })
     }
+
+    // Set guest ID cookie for share-target API (browser can't send custom headers)
+    const cookieStore = await cookies()
+    cookieStore.set('diffread_guest_id', user.id, {
+      httpOnly: false, // Client can read and renew
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 365 * 24 * 60 * 60, // 1 year
+      path: '/',
+    })
 
     return NextResponse.json({
       userId: user.id,

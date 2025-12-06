@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { readGuestId } from '@/lib/guest/storage'
+import { readGuestIdFromCookie } from '@/lib/guest/cookie'
 import type { ArticleRecord } from './useUserStats'
 
 type HistoryItem = {
@@ -23,7 +23,7 @@ export function useArticleHistory(localHistory: ArticleRecord[]) {
 
   useEffect(() => {
     const fetchHistory = async () => {
-      const guestId = readGuestId()
+      const guestId = readGuestIdFromCookie()
       if (!guestId) {
         // No guest ID, only use localStorage
         setMergedHistory(localHistory)
@@ -32,10 +32,9 @@ export function useArticleHistory(localHistory: ArticleRecord[]) {
 
       setIsLoading(true)
       try {
+        // Cookie is automatically sent by browser
         const response = await fetch('/api/history', {
-          headers: {
-            'X-Diffread-Guest-Id': guestId,
-          },
+          credentials: 'same-origin',
         })
 
         if (!response.ok) {

@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl'
 import { Suspense, useEffect } from 'react'
 import useSWR from 'swr'
 import { QuizView } from '@/components/quiz/QuizView'
-import { readGuestId } from '@/lib/guest/storage'
 import type { QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
 import { normalizeHookQuestions } from '@/lib/quiz/normalize-curiosity-quizzes'
 import type { CuriosityQuizStatus, ScaffoldQuizStatus, SessionStatus } from '@/types/db'
@@ -16,6 +15,7 @@ type QuizMetaResponse = {
     session_token: string
     status: SessionStatus
     article_url: string | null
+    user_id: string
   }
   article: {
     id: number
@@ -41,9 +41,8 @@ type ScaffoldQuizResponse = {
 const GUEST_BINDING_ERROR = 'guest-binding-mismatch'
 
 const fetcher = async (url: string) => {
-  const guestId = readGuestId()
-  const headers: HeadersInit = guestId ? { 'X-Diffread-Guest-Id': guestId } : {}
-  const res = await fetch(url, { headers })
+  // Cookie is automatically sent by browser
+  const res = await fetch(url, { credentials: 'same-origin' })
   if (res.status === 403) throw new Error(GUEST_BINDING_ERROR)
   if (!res.ok) throw new Error('Failed to fetch')
   return res.json()
@@ -91,6 +90,9 @@ function QuizPageContent() {
       router.push('/')
     }
   }, [token, router])
+
+  // Guest ID is now managed via cookie (auto-renewed in root layout)
+  // No need to manually sync here
 
   // Don't render anything while redirecting
   if (!token) {

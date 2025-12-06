@@ -46,6 +46,7 @@ export async function GET(request: Request) {
         session_token: session.session_token,
         status: session.status,
         article_url: session.article_url,
+        user_id: session.user_id, // Return user_id so client can save to localStorage
       },
       article,
     })

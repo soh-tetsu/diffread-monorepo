@@ -1,13 +1,3 @@
-import { getArticleById } from '@/lib/db/articles'
-import {
-  claimNextScaffoldQuiz,
-  getScaffoldQuizById,
-  updateScaffoldQuiz,
-} from '@/lib/db/scaffold-quizzes'
-
-import { logger } from '@/lib/logger'
-import { ensureArticleContent } from '@/lib/workflows/article-content'
-
 /**
  * Process the next pending scaffold quiz from the queue.
  *

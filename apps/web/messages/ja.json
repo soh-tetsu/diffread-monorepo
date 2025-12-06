@@ -97,7 +97,12 @@
   "toaster": {
     "guestProfileReady": "ゲストプロフィール準備完了",
     "urlSubmissionsUnlocked": "URL投稿がアンロックされました。",
-    "unableToUnlock": "投稿をアンロックできません"
+    "unableToUnlock": "投稿をアンロックできません",
+    "shareErrorTitle": "共有に失敗しました",
+    "shareMissingUrl": "URLが共有されませんでした。有効なWebページを共有してください。",
+    "shareInvalidUrl": "共有されたコンテンツは有効なURLではありません。",
+    "shareFailedError": "共有コンテンツの処理に失敗しました。もう一度お試しください。",
+    "pdfUploadFailed": "PDFファイルのアップロードに失敗しました。ファイルが大きすぎるか破損している可能性があります。"
   },
   "quizPage": {
     "sessionSecured": "セッション確保済み",
@@ -119,6 +124,11 @@
   },
   "settings": {
     "language": "言語",
-    "manifest": "マニフェスト"
+    "manifest": "マニフェスト",
+    "guest": "ゲスト",
+    "onboardingPending": "ウェルカムクイズ",
+    "todo": "未完了",
+    "onboardingDescription": "ウェルカムクイズを完了してすべての機能を解除してください。",
+    "startOnboarding": "クイズを開始"
   }
 }

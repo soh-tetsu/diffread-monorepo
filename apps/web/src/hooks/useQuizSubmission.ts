@@ -86,17 +86,14 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
 
     try {
       // Step 1: Submit URL to create session
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (guestId) {
-        headers['X-Diffread-Guest-Id'] = guestId
-      }
-
+      // Cookie is automatically sent by browser
       const endpoint = currentToken ? '/api/curiosity' : '/api/sessions'
       const body = currentToken ? { currentToken, url } : { userId: guestId, url }
 
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify(body),
       })
 
@@ -136,12 +133,12 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
 
       // Step 3: Poll quiz status immediately and continuously
       const maxAttempts = 40 // Increase attempts since we're polling faster
-      const statusHeaders: HeadersInit = guestId ? { 'X-Diffread-Guest-Id': guestId } : {}
 
       try {
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          // Cookie is automatically sent by browser
           const statusResponse = await fetch(`/api/curiosity?q=${newSessionToken}`, {
-            headers: statusHeaders,
+            credentials: 'same-origin',
           })
 
           if (statusResponse.ok) {

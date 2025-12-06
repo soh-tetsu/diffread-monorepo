@@ -15,12 +15,24 @@ export class GuestSessionError extends Error {
 }
 
 export function extractGuestId(request: Request): string | null {
-  const guestId = request.headers.get('x-diffread-guest-id')
-  if (!guestId) {
-    return null
+  // Try custom header first (for API calls from our JavaScript)
+  const headerGuestId = request.headers.get('x-diffread-guest-id')
+  if (headerGuestId) {
+    const trimmed = headerGuestId.trim()
+    if (trimmed.length > 0) return trimmed
   }
-  const trimmed = guestId.trim()
-  return trimmed.length > 0 ? trimmed : null
+
+  // Fallback to cookie (for share-target where browser doesn't send custom headers)
+  const cookieHeader = request.headers.get('cookie')
+  if (cookieHeader) {
+    const match = cookieHeader.match(/diffread_guest_id=([^;]+)/)
+    if (match) {
+      const trimmed = match[1].trim()
+      if (trimmed.length > 0) return trimmed
+    }
+  }
+
+  return null
 }
 
 type EnsureSessionOptions = {

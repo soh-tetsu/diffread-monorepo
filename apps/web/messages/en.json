@@ -97,7 +97,12 @@
   "toaster": {
     "guestProfileReady": "Guest profile ready",
     "urlSubmissionsUnlocked": "URL submissions unlocked.",
-    "unableToUnlock": "Unable to unlock submissions"
+    "unableToUnlock": "Unable to unlock submissions",
+    "shareErrorTitle": "Share failed",
+    "shareMissingUrl": "No URL was shared. Please share a valid web page.",
+    "shareInvalidUrl": "The shared content is not a valid URL.",
+    "shareFailedError": "Failed to process shared content. Please try again.",
+    "pdfUploadFailed": "Failed to upload PDF file. The file may be too large or corrupted."
   },
   "quizPage": {
     "sessionSecured": "Session secured",
@@ -119,6 +124,11 @@
   },
   "settings": {
     "language": "Language",
-    "manifest": "Manifest"
+    "manifest": "Manifest",
+    "guest": "Guest",
+    "onboardingPending": "Welcome Quiz",
+    "todo": "TODO",
+    "onboardingDescription": "Complete the welcome quiz to unlock all features.",
+    "startOnboarding": "Start Quiz"
   }
 }

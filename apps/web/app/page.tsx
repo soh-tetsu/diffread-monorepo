@@ -13,8 +13,9 @@ import { Toolbar } from '@/components/ui/Toolbar'
 import { toaster } from '@/components/ui/toaster'
 import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
+import { useUserProfile } from '@/hooks/useUserProfile'
 import { useUserStats } from '@/hooks/useUserStats'
-import { readGuestId, writeGuestId } from '@/lib/guest/storage'
+import { readGuestIdFromCookie, renewGuestIdCookie } from '@/lib/guest/cookie'
 import type { QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
 
 function usePresetQuizzes(): QuizQuestion[] {
@@ -79,7 +80,7 @@ function useGuestProfile(): GuestProfileState {
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    const stored = readGuestId()
+    const stored = readGuestIdFromCookie()
     if (stored) {
       setGuestId(stored)
     }
@@ -87,7 +88,7 @@ function useGuestProfile(): GuestProfileState {
   }, [])
 
   const persistGuestId = useCallback((value: string) => {
-    writeGuestId(value)
+    renewGuestIdCookie(value)
     setGuestId(value)
   }, [])
 
@@ -162,7 +163,6 @@ function OnboardingSection({
             <IntuitionSummaryCard
               totalQuestions={PRESET_QUIZZES.length}
               correctCount={correctCount}
-              onDeepDive={() => onUnlock()}
             />
           )}
         </Box>
@@ -234,13 +234,51 @@ function UrlRegistrationSection({ guestId }: { guestId: string }) {
 export default function HomePage() {
   const t = useTranslations('toaster')
   const { guestId, isReady, persistGuestId } = useGuestProfile()
+  const { hasCompletedOnboarding, isLoading: isLoadingProfile, refetch } = useUserProfile()
   const [mode, setMode] = useState<'loading' | 'onboarding' | 'register'>('loading')
   const [isUnlocking, setIsUnlocking] = useState(false)
 
   useEffect(() => {
     if (!isReady) return
-    setMode(guestId ? 'register' : 'onboarding')
-  }, [guestId, isReady])
+    // Show onboarding if: no guest ID OR guest exists but hasn't completed onboarding
+    if (!guestId) {
+      setMode('onboarding')
+    } else if (isLoadingProfile) {
+      setMode('loading')
+    } else {
+      setMode(hasCompletedOnboarding ? 'register' : 'onboarding')
+    }
+  }, [guestId, isReady, hasCompletedOnboarding, isLoadingProfile])
+
+  // Handle error messages from share target redirects
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const params = new URLSearchParams(window.location.search)
+    const error = params.get('error')
+
+    if (error) {
+      let errorMessage = 'Unknown error'
+      if (error === 'missing-url') {
+        errorMessage = t('shareMissingUrl')
+      } else if (error === 'invalid-url') {
+        errorMessage = t('shareInvalidUrl')
+      } else if (error === 'share-failed') {
+        errorMessage = t('shareFailedError')
+      } else if (error === 'pdf-upload-failed') {
+        errorMessage = t('pdfUploadFailed')
+      }
+
+      toaster.create({
+        title: t('shareErrorTitle'),
+        description: errorMessage,
+        type: 'error',
+      })
+
+      // Clean up URL
+      window.history.replaceState({}, '', '/')
+    }
+  }, [t])
 
   const handleUnlock = async () => {
     setIsUnlocking(true)
@@ -260,12 +298,16 @@ export default function HomePage() {
 
       const payload = (await response.json()) as { userId: string }
       persistGuestId(payload.userId)
+
+      // Force refresh user profile to update hasCompletedOnboarding across all instances
+      await refetch()
+
       toaster.create({
         title: t('guestProfileReady'),
         description: t('urlSubmissionsUnlocked'),
         type: 'success',
       })
-      setMode('register')
+      // Mode will be updated automatically by the useEffect watching hasCompletedOnboarding
     } catch (error) {
       toaster.create({
         title: t('unableToUnlock'),

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { GuestIdRenewal } from '@/components/providers/GuestIdRenewal'
 import { LocaleProvider } from '@/components/providers/LocaleProvider'
 import { Providers } from './providers'
 
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Providers>
+          <GuestIdRenewal />
           <LocaleProvider>{children}</LocaleProvider>
         </Providers>
       </body>

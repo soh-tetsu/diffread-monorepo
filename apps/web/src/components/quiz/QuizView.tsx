@@ -15,7 +15,7 @@ import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
 import { useUserStats } from '@/hooks/useUserStats'
 import { trackQuizSelection } from '@/lib/analytics/client'
-import { readGuestId } from '@/lib/guest/storage'
+import { readGuestIdFromCookie } from '@/lib/guest/cookie'
 import type { QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
 import type { CuriosityQuizStatus } from '@/types/db'
 
@@ -42,7 +42,7 @@ export function QuizView({
 }: Props) {
   const t = useTranslations('quiz')
   const router = useRouter()
-  const guestId = readGuestId()
+  const guestId = readGuestIdFromCookie()
   const [showForm, setShowForm] = useState(false)
   const [scaffoldVisible, setScaffoldVisible] = useState(false)
   const [visibleCuriosityCount, setVisibleCuriosityCount] = useState(CHUNK_SIZE)

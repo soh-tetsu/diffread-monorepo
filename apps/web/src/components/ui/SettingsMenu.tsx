@@ -1,21 +1,32 @@
 'use client'
 
-import { Button, Card, Flex, HStack, Link, SegmentGroup, Text, VStack } from '@chakra-ui/react'
+import {
+  Badge,
+  Box,
+  Button,
+  Card,
+  Flex,
+  HStack,
+  Link,
+  SegmentGroup,
+  Text,
+  VStack,
+} from '@chakra-ui/react'
 import NextLink from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
-import { LuChevronLeft, LuHouse, LuMenu } from 'react-icons/lu'
+import { LuChevronLeft, LuCircleAlert, LuHouse, LuMenu } from 'react-icons/lu'
 import { CloseButton } from '@/components/ui/close-button'
 import {
   DrawerBackdrop,
   DrawerBody,
-  DrawerCloseTrigger,
   DrawerContent,
   DrawerHeader,
   DrawerRoot,
   DrawerTrigger,
 } from '@/components/ui/drawer'
+import { useUserProfile } from '@/hooks/useUserProfile'
 import { locales } from '@/i18n/config'
 import { APP_VERSION } from '@/lib/version'
 
@@ -33,6 +44,7 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
   const locale = useLocale()
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const { hasCompletedOnboarding, profile } = useUserProfile()
 
   const switchLocale = async (newLocale: string) => {
     // Store in localStorage (primary source for client-side i18n)
@@ -63,8 +75,21 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
         size={{ base: 'xs', md: 'sm' }}
       >
         <DrawerTrigger asChild>
-          <Button size="sm" variant="ghost" colorPalette="teal">
+          <Button size="sm" variant="ghost" colorPalette="teal" position="relative">
             <LuMenu size={20} />
+            {!hasCompletedOnboarding && (
+              <Box
+                position="absolute"
+                top="2px"
+                right="2px"
+                w="8px"
+                h="8px"
+                bg="red.600"
+                rounded="full"
+                // borderWidth="1.5px"
+                // borderColor="white"
+              />
+            )}
           </Button>
         </DrawerTrigger>
         <DrawerBackdrop />
@@ -84,6 +109,56 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
           </DrawerHeader>
           <DrawerBody>
             <VStack align="stretch" gap={6} h="full" py={4}>
+              {/* User ID Display or Onboarding Task */}
+              {profile?.userId ? (
+                <Card.Root size="sm" variant="elevated">
+                  <Card.Body>
+                    <HStack justify="space-between" gap={2}>
+                      <Text fontSize="xs" color="gray.600" fontFamily="mono">
+                        {profile.userId.split('-').slice(0, 2).join('-')}...
+                      </Text>
+                      <Badge colorPalette="gray" size="sm" flexShrink={0}>
+                        {t('guest')}
+                      </Badge>
+                    </HStack>
+                  </Card.Body>
+                </Card.Root>
+              ) : (
+                !hasCompletedOnboarding && (
+                  <Card.Root size="sm" variant="outline" borderColor="orange.200" bg="orange.50">
+                    <Card.Body>
+                      <VStack align="stretch" gap={2}>
+                        <HStack justify="space-between">
+                          <HStack gap={2}>
+                            <LuCircleAlert size={16} color="var(--orange-600)" />
+                            <Text fontSize="sm" fontWeight="semibold" color="orange.700">
+                              {t('onboardingPending')}
+                            </Text>
+                          </HStack>
+                          <Badge colorPalette="orange" size="sm">
+                            {t('todo')}
+                          </Badge>
+                        </HStack>
+                        <Text fontSize="xs" color="gray.600">
+                          {t('onboardingDescription')}
+                        </Text>
+                        <Button
+                          size="xs"
+                          colorPalette="orange"
+                          variant="solid"
+                          onClick={() => {
+                            setOpen(false)
+                            router.push('/')
+                          }}
+                        >
+                          {t('startOnboarding')}
+                        </Button>
+                      </VStack>
+                    </Card.Body>
+                  </Card.Root>
+                )
+              )}
+
               {/* Language Switcher */}
               <VStack align="stretch" gap={3}>
                 <Text fontSize="sm" fontWeight="semibold" color="gray.600" px={2}>
