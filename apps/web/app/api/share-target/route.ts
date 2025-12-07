@@ -125,7 +125,7 @@ export async function POST(request: Request) {
 
           // Trigger worker (fire-and-forget)
           const { triggerQuizWorker } = await import('@/lib/workflows/enqueue-session')
-          triggerQuizWorker(updatedSession, pdfArticle, { sync: false }).catch((err) => {
+          triggerQuizWorker(updatedSession, { sync: false }).catch((err) => {
             logger.error(
               { err, sessionToken: pdfSession.session_token },
               'Worker invocation failed'
@@ -207,7 +207,7 @@ export async function POST(request: Request) {
 
       // Trigger worker (fire-and-forget)
       const { triggerQuizWorker } = await import('@/lib/workflows/enqueue-session')
-      triggerQuizWorker(updatedSession, article, { sync: false }).catch((err) => {
+      triggerQuizWorker(updatedSession, { sync: false }).catch((err) => {
         logger.error({ err, sessionToken: session.session_token }, 'Worker invocation failed')
       })
 
