@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { ensureSessionForGuest, extractGuestId, GuestSessionError } from '@/lib/api/guest-session'
 import { getCuriosityQuizByQuizId } from '@/lib/db/curiosity-quizzes'
 import { logger } from '@/lib/logger'
-import { enqueueAndProcessSession } from '@/lib/workflows/enqueue-session'
 
 export async function GET(request: Request) {
   try {
@@ -70,17 +69,35 @@ export async function POST(request: Request) {
       },
     })
 
-    // Enqueue session and invoke worker asynchronously
-    const { session, workerInvoked } = await enqueueAndProcessSession(
-      {
-        userId: currentSession.user_id,
-        email: currentSession.user_email,
-      },
-      url,
-      {
-        sync: false, // API returns immediately
-      }
-    )
+    // Always initialize the full chain: session → article → quiz → curiosity_quiz
+    const { initializeSessionChain } = await import('@/lib/workflows/session-init')
+    const { ensureGuestUser, synthesizeGuestEmail } = await import('@/lib/db/users')
+    const { countQueueItems } = await import('@/lib/db/queue')
+    const { updateSession } = await import('@/lib/db/sessions')
+
+    const { user } = await ensureGuestUser({ userId: currentSession.user_id })
+    const { session, article } = await initializeSessionChain({
+      userId: user.id,
+      email: user.email ?? synthesizeGuestEmail(user.id),
+      originalUrl: url,
+    })
+
+    // Check queue size - determines if we trigger worker or just bookmark
+    const queueCount = await countQueueItems(user.id)
+    let workerInvoked = false
+
+    if (queueCount < 2 && session.status === 'bookmarked') {
+      // Queue has space - move to pending and trigger worker
+      const updatedSession = await updateSession(session.id, { status: 'pending' })
+
+      // Trigger worker (fire-and-forget)
+      const { triggerQuizWorker } = await import('@/lib/workflows/enqueue-session')
+      triggerQuizWorker(updatedSession, article, { sync: false }).catch((err) => {
+        logger.error({ err, sessionToken: session.session_token }, 'Worker invocation failed')
+      })
+
+      workerInvoked = true
+    }
 
     return NextResponse.json({
       sessionToken: session.session_token,

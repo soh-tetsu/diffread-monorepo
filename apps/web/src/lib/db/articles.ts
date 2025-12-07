@@ -42,17 +42,61 @@ export async function getOrCreateArticle(
   normalizedUrl: string,
   originalUrl: string
 ): Promise<ArticleRow> {
-  const existing = await getArticleByNormalizedUrl(normalizedUrl)
-  if (existing) {
-    return existing
-  }
+  // Use upsert with onConflict to handle concurrent inserts
+  // If another process inserts the same normalized_url, we'll get the existing one
+  const result = await supabase
+    .from('articles')
+    .upsert(
+      {
+        normalized_url: normalizedUrl,
+        original_url: originalUrl,
+        status: 'pending' as ArticleStatus,
+        metadata: {},
+        storage_metadata: {},
+      },
+      {
+        onConflict: 'normalized_url',
+        ignoreDuplicates: false, // Return the existing row on conflict
+      }
+    )
+    .select('*')
+    .single()
 
-  return createArticle(normalizedUrl, originalUrl)
+  return querySingle<ArticleRow>(result, { context: 'get or create article' })
 }
 
 export async function updateArticleStatus(articleId: number, status: ArticleStatus): Promise<void> {
   const result = await supabase.from('articles').update({ status }).eq('id', articleId)
   execute(result, { context: `update article ${articleId} status` })
+}
+
+/**
+ * Atomically claim an article for scraping with database lock
+ * Returns null if article is already being scraped or in terminal state
+ */
+export async function claimArticleForScraping(
+  articleId: number
+): Promise<{ claimed: boolean; article: ArticleRow } | null> {
+  const result = await supabase.rpc('claim_article_for_scraping', { p_article_id: articleId })
+
+  if (result.error) {
+    throw new Error(`Failed to claim article ${articleId} for scraping: ${result.error.message}`)
+  }
+
+  if (!result.data || result.data.length === 0) {
+    return null
+  }
+
+  const row = result.data[0]
+  return {
+    claimed: row.claimed,
+    article: {
+      id: row.article_id,
+      normalized_url: row.normalized_url,
+      original_url: row.original_url,
+      // Note: We don't have full article data from RPC, caller should refetch if needed
+    } as ArticleRow,
+  }
 }
 
 export async function updateArticleContent(

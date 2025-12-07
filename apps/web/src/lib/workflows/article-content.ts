@@ -1,5 +1,6 @@
 import { type ArticleMetadata, analyzeArticleMetadata } from '@diffread/question-engine'
 import {
+  claimArticleForScraping,
   getArticleById,
   isArticleFresh,
   updateArticleContent,
@@ -161,7 +162,13 @@ async function scrapeAndPersistArticle(
   article: ArticleRow,
   options: ScrapeOptions
 ): Promise<PreparedArticle> {
-  await updateArticleStatus(article.id, 'scraping')
+  // Atomically claim article for scraping with database lock
+  const claimed = await claimArticleForScraping(article.id)
+
+  if (!claimed || !claimed.claimed) {
+    // Article is already being scraped by another process or in terminal state
+    throw new Error('Article is currently being scraped by another process')
+  }
 
   try {
     const scraped = await scrapeArticle(article)
@@ -231,9 +238,8 @@ export async function ensureArticleContent(article: ArticleRow): Promise<Prepare
     case 'skip':
       throw new Error(`Article is skipped (${workingArticle.status}), cannot scrape`)
     case 'scraping':
-      // Another process is already scraping - return article as-is without throwing
-      // The caller has .catch() handler and doesn't need the content immediately
-      return { article: workingArticle, content: '' }
+      // Another process is already scraping - this is a race condition
+      throw new Error('Article is currently being scraped by another process')
     default:
       throw new Error(`Unexpected article status: ${workingArticle.status}`)
   }

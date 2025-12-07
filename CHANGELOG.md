@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] - 2025-12-05
+- Fix: race condition on URL scraping
+- Improve: add App installation button in menu panel
+- Improve: Share URL with app is much lightweight now
+- Improve: show version badge in menu panel
+
 ## [0.2.1] - 2025-12-05
 - Bookmark feature
 

@@ -23,7 +23,15 @@ async function extractPedagogy(
   articleId: number,
   content: string
 ): Promise<AnalysisResponse['metadata']> {
-  logger.info({ curiosityQuizId }, 'Running V2 analysis prompt')
+  logger.info(
+    {
+      curiosityQuizId,
+      articleId,
+      contentLength: content?.length ?? 0,
+      contentPreview: content?.substring(0, 200) ?? '(empty)',
+    },
+    'Running V2 analysis prompt'
+  )
 
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
@@ -180,7 +188,49 @@ export async function processNextPendingCuriosityQuiz(): Promise<void> {
   try {
     // Step 2: Load article content
     const article = await getArticleById(article_id)
-    const { content } = await ensureArticleContent(article)
+    logger.info(
+      { curiosityQuizId: curiosity_quiz_id, articleId: article_id, articleStatus: article.status },
+      'Loading article content'
+    )
+
+    // If article is being scraped, wait and retry
+    let content: string
+    let retries = 0
+    const MAX_SCRAPING_RETRIES = 3
+    const RETRY_DELAY_MS = 2000
+
+    while (retries < MAX_SCRAPING_RETRIES) {
+      try {
+        const result = await ensureArticleContent(article)
+        content = result.content
+        break
+      } catch (err) {
+        const isScrapingError =
+          err instanceof Error && err.message?.includes('currently being scraped')
+        if (isScrapingError && retries < MAX_SCRAPING_RETRIES - 1) {
+          retries++
+          logger.info(
+            { curiosityQuizId: curiosity_quiz_id, articleId: article_id, retries },
+            'Article being scraped, waiting before retry'
+          )
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+          // Re-fetch article to get updated status
+          const updatedArticle = await getArticleById(article_id)
+          Object.assign(article, updatedArticle)
+        } else {
+          throw err
+        }
+      }
+    }
+
+    logger.info(
+      {
+        curiosityQuizId: curiosity_quiz_id,
+        articleId: article_id,
+        contentLength: content?.length ?? 0,
+      },
+      'Article content loaded'
+    )
 
     // Step 3: Check if pedagogy already extracted (idempotency)
     const curiosityQuiz = await getCuriosityQuizById(curiosity_quiz_id)

@@ -3,11 +3,10 @@ import { NextResponse } from 'next/server'
 import { extractGuestId } from '@/lib/api/guest-session'
 import { getOrCreateArticle, updateArticleContent, updateArticleStatus } from '@/lib/db/articles'
 import { countQueueItems } from '@/lib/db/queue'
-import { createSession, getOrCreateSession, updateSession } from '@/lib/db/sessions'
+import { updateSession } from '@/lib/db/sessions'
 import { logger } from '@/lib/logger'
 import { uploadArticlePdf } from '@/lib/storage'
 import { normalizeUrl } from '@/lib/utils/normalize-url'
-import { enqueueAndProcessSession } from '@/lib/workflows/enqueue-session'
 
 /**
  * Web Share Target API
@@ -103,37 +102,53 @@ export async function POST(request: Request) {
         // Mark article as ready
         await updateArticleStatus(article.id, 'ready')
 
-        // Create session with bookmarked status (same as URL path)
-        const session = await getOrCreateSession({
-          userId: userIdentity.userId,
-          articleUrl: syntheticUrl,
+        // Always initialize the full chain: session → article → quiz → curiosity_quiz
+        const { initializeSessionChain } = await import('@/lib/workflows/session-init')
+        const {
+          ensureGuestUser: ensureGuestUserPdf,
+          synthesizeGuestEmail: synthesizeGuestEmailPdf,
+        } = await import('@/lib/db/users')
+
+        const { user: pdfUser } = await ensureGuestUserPdf({ userId: userIdentity.userId })
+        const { session: pdfSession, article: pdfArticle } = await initializeSessionChain({
+          userId: pdfUser.id,
+          email: pdfUser.email ?? synthesizeGuestEmailPdf(pdfUser.id),
+          originalUrl: syntheticUrl,
         })
 
-        // Check queue size and move to pending if slots available
+        // Check queue size - determines if we trigger worker or just bookmark
         const queueCount = await countQueueItems(userIdentity.userId)
 
-        if (queueCount < 2 && session.status === 'bookmarked') {
-          await updateSession(session.id, { status: 'pending' })
+        if (queueCount < 2 && pdfSession.status === 'bookmarked') {
+          // Queue has space - move to pending and trigger worker
+          const updatedSession = await updateSession(pdfSession.id, { status: 'pending' })
+
+          // Trigger worker (fire-and-forget)
+          const { triggerQuizWorker } = await import('@/lib/workflows/enqueue-session')
+          triggerQuizWorker(updatedSession, pdfArticle, { sync: false }).catch((err) => {
+            logger.error(
+              { err, sessionToken: pdfSession.session_token },
+              'Worker invocation failed'
+            )
+          })
+
           logger.info(
-            { sessionToken: session.session_token, queueCount },
+            { sessionToken: pdfSession.session_token, queueCount },
             'PDF share target session moved to pending (queue has space)'
           )
-        } else if (session.status !== 'bookmarked') {
+        } else if (pdfSession.status !== 'bookmarked') {
           logger.info(
-            { sessionToken: session.session_token, status: session.status },
+            { sessionToken: pdfSession.session_token, status: pdfSession.status },
             'PDF share target reusing existing session'
           )
         } else {
           logger.info(
-            { sessionToken: session.session_token, queueCount },
+            { sessionToken: pdfSession.session_token, queueCount },
             'PDF share target session bookmarked (queue full)'
           )
         }
 
-        // Trigger async processing if status is pending
-        if (session.status === 'pending' || queueCount < 2) {
-          await enqueueAndProcessSession(userIdentity, syntheticUrl, { sync: false })
-        }
+        const session = pdfSession
 
         logger.info(
           { sessionToken: session.session_token, articleId: article.id, pdfPath: path },
@@ -171,18 +186,31 @@ export async function POST(request: Request) {
       return NextResponse.redirect(new URL('/?error=invalid-url', request.url))
     }
 
-    // Create session with bookmarked status
-    const session = await getOrCreateSession({
-      userId: userIdentity.userId,
-      articleUrl: validatedUrl,
+    // Always initialize the full chain: session → article → quiz → curiosity_quiz
+    // This is fast (just DB operations, no scraping/AI work)
+    const { initializeSessionChain } = await import('@/lib/workflows/session-init')
+    const { ensureGuestUser, synthesizeGuestEmail } = await import('@/lib/db/users')
+
+    const { user } = await ensureGuestUser({ userId: userIdentity.userId })
+    const { session, article } = await initializeSessionChain({
+      userId: user.id,
+      email: user.email ?? synthesizeGuestEmail(user.id),
+      originalUrl: validatedUrl,
     })
 
-    // Check queue size and move to pending if slots available
+    // Check queue size - determines if we trigger worker or just bookmark
     const queueCount = await countQueueItems(userIdentity.userId)
 
     if (queueCount < 2 && session.status === 'bookmarked') {
-      // Queue has space - start processing immediately
-      await updateSession(session.id, { status: 'pending' })
+      // Queue has space - move to pending and trigger worker
+      const updatedSession = await updateSession(session.id, { status: 'pending' })
+
+      // Trigger worker (fire-and-forget)
+      const { triggerQuizWorker } = await import('@/lib/workflows/enqueue-session')
+      triggerQuizWorker(updatedSession, article, { sync: false }).catch((err) => {
+        logger.error({ err, sessionToken: session.session_token }, 'Worker invocation failed')
+      })
+
       logger.info(
         { sessionToken: session.session_token, queueCount },
         'Share target session moved to pending (queue has space)'
@@ -199,12 +227,6 @@ export async function POST(request: Request) {
         { sessionToken: session.session_token, queueCount },
         'Share target session bookmarked (queue full)'
       )
-    }
-
-    // Trigger async processing if status is pending
-    if (session.status === 'pending' || queueCount < 2) {
-      // Use existing enqueue logic for async processing
-      await enqueueAndProcessSession(userIdentity, validatedUrl, { sync: false })
     }
 
     logger.info(

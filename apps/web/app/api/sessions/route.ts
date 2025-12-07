@@ -1,9 +1,12 @@
 'use server'
 
 import { NextResponse } from 'next/server'
-import { ensureGuestUser } from '@/lib/db/users'
+import { countQueueItems } from '@/lib/db/queue'
+import { updateSession } from '@/lib/db/sessions'
+import { ensureGuestUser, synthesizeGuestEmail } from '@/lib/db/users'
 import { logger } from '@/lib/logger'
-import { enqueueAndProcessSession } from '@/lib/workflows/enqueue-session'
+import { triggerQuizWorker } from '@/lib/workflows/enqueue-session'
+import { initializeSessionChain } from '@/lib/workflows/session-init'
 
 type SessionRequestBody = {
   userId?: string
@@ -27,11 +30,31 @@ export async function POST(request: Request) {
 
     const { user } = await ensureGuestUser({ userId })
 
-    const { session, workerInvoked, queueFull } = await enqueueAndProcessSession(
-      { userId: user.id, email: user.email ?? undefined },
-      url,
-      { sync: false }
-    )
+    // Always initialize the full chain: session → article → quiz → curiosity_quiz
+    const { session, article } = await initializeSessionChain({
+      userId: user.id,
+      email: user.email ?? synthesizeGuestEmail(user.id),
+      originalUrl: url,
+    })
+
+    // Check queue size - determines if we trigger worker or just bookmark
+    const queueCount = await countQueueItems(user.id)
+    let workerInvoked = false
+    let queueFull = false
+
+    if (queueCount < 2 && session.status === 'bookmarked') {
+      // Queue has space - move to pending and trigger worker
+      const updatedSession = await updateSession(session.id, { status: 'pending' })
+
+      // Trigger worker (fire-and-forget)
+      triggerQuizWorker(updatedSession, article, { sync: false }).catch((err) => {
+        logger.error({ err, sessionToken: session.session_token }, 'Worker invocation failed')
+      })
+
+      workerInvoked = true
+    } else if (queueCount >= 2) {
+      queueFull = true
+    }
 
     return NextResponse.json({
       sessionToken: session.session_token,

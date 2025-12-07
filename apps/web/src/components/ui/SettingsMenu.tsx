@@ -16,7 +16,14 @@ import NextLink from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import { useState } from 'react'
-import { LuBookmark, LuChevronLeft, LuCircleAlert, LuHouse, LuMenu } from 'react-icons/lu'
+import {
+  LuBookmark,
+  LuChevronLeft,
+  LuCircleAlert,
+  LuDownload,
+  LuHouse,
+  LuMenu,
+} from 'react-icons/lu'
 import useSWR from 'swr'
 import { CloseButton } from '@/components/ui/close-button'
 import {
@@ -27,6 +34,7 @@ import {
   DrawerRoot,
   DrawerTrigger,
 } from '@/components/ui/drawer'
+import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 import { useUserProfile } from '@/hooks/useUserProfile'
 import { locales } from '@/i18n/config'
 import { APP_VERSION } from '@/lib/version'
@@ -52,6 +60,7 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const { hasCompletedOnboarding, profile } = useUserProfile()
+  const { isInstallable, promptInstall } = useInstallPrompt()
 
   // Use SWR for queue count - shares cache with AppToolbar and homepage
   const { data: queueData } = useSWR<{ count: number }>(
@@ -243,15 +252,39 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
               {/* Spacer */}
               <Flex flex={1} />
 
+              {/* Install App Button */}
+              {isInstallable && (
+                <Button
+                  size="sm"
+                  colorPalette="teal"
+                  variant="outline"
+                  onClick={async () => {
+                    await promptInstall()
+                  }}
+                >
+                  <HStack gap={2}>
+                    <LuDownload size={16} />
+                    <Text color={'blackAlpha.900'}>Install App</Text>
+                  </HStack>
+                </Button>
+              )}
+
               {/* Manifest Link */}
               <Link asChild color="teal.600" fontSize="sm" textAlign="center">
                 <NextLink href="/manifest">{t('manifest')}</NextLink>
               </Link>
 
               {/* Version */}
-              <Link asChild color="gray.500" fontSize="xs" textAlign="center">
-                <NextLink href="/releases">Version {APP_VERSION}</NextLink>
-              </Link>
+              <HStack justify="center" gap={2}>
+                <Link asChild color="gray.500" fontSize="xs">
+                  <NextLink href="/releases">Version {APP_VERSION}</NextLink>
+                </Link>
+                {process.env.NODE_ENV === 'development' && (
+                  <Badge colorPalette="orange" size="sm" variant="solid">
+                    DEV
+                  </Badge>
+                )}
+              </HStack>
             </VStack>
           </DrawerBody>
         </DrawerContent>

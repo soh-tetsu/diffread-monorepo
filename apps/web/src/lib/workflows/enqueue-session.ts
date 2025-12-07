@@ -1,18 +1,74 @@
 import pLimit from 'p-limit'
 import { concurrencyConfig } from '@/lib/config'
-import { getArticleById } from '@/lib/db/articles'
 import { getCuriosityQuizByQuizId } from '@/lib/db/curiosity-quizzes'
 import { countQueueItems } from '@/lib/db/queue'
-import { getQuizById } from '@/lib/db/quizzes'
 import { updateSessionByToken } from '@/lib/db/sessions'
 import { ensureGuestUser, ensureUserByEmail, synthesizeGuestEmail } from '@/lib/db/users'
 import { logger } from '@/lib/logger'
 import { processNextPendingCuriosityQuiz } from '@/lib/workers/process-curiosity-quiz'
 import { ensureArticleContent } from '@/lib/workflows/article-content'
-import { initSession } from '@/lib/workflows/session-init'
-import type { SessionRow, UserRow } from '@/types/db'
+import { initializeSessionChain } from '@/lib/workflows/session-init'
+import type { ArticleRow, SessionRow, UserRow } from '@/types/db'
 
 const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers)
+
+/**
+ * Trigger quiz worker for an already-initialized session
+ *
+ * Prerequisites:
+ * - Session, article, quiz, and curiosity_quiz must already exist (call initSession first)
+ * - Session should be in 'pending' or 'bookmarked' status
+ *
+ * This function:
+ * 1. Triggers article scraping (for title)
+ * 2. Checks queue slots
+ * 3. Invokes quiz generation worker if slots available
+ */
+export async function triggerQuizWorker(
+  session: SessionRow,
+  article: ArticleRow,
+  options: { sync?: boolean } = {}
+): Promise<void> {
+  const { sync = false } = options
+
+  // Step 1: Trigger article scraping for title (fire-and-forget)
+  if (article.status === 'pending' || article.status === 'stale') {
+    logger.info(
+      { articleId: article.id, sessionToken: session.session_token },
+      'Triggering article scraping for title'
+    )
+    ensureArticleContent(article).catch((err) => {
+      const isScrapingError =
+        err instanceof Error && err.message?.includes('currently being scraped')
+      if (!isScrapingError) {
+        logger.error({ err, articleId: article.id }, 'Article scraping failed')
+      }
+    })
+  }
+
+  // Step 2: Invoke quiz worker
+  const shouldProcess = session.status === 'pending' || session.status === 'errored'
+
+  if (shouldProcess) {
+    if (sync) {
+      logger.info({ sessionToken: session.session_token }, 'Processing curiosity quiz (sync)...')
+      await pendingWorkerLimit(() => processNextPendingCuriosityQuiz())
+      logger.info({ sessionToken: session.session_token }, 'Curiosity quiz processing completed')
+    } else {
+      logger.info({ sessionToken: session.session_token }, 'Quiz worker invoked (async)')
+      pendingWorkerLimit(() =>
+        processNextPendingCuriosityQuiz().catch((err) => {
+          logger.error({ err, sessionToken: session.session_token }, 'Quiz worker failed')
+        })
+      )
+    }
+  } else {
+    logger.info(
+      { sessionToken: session.session_token, status: session.status },
+      'Quiz worker not invoked (session not pending/errored)'
+    )
+  }
+}
 
 export type EnqueueSessionOptions = {
   /**
@@ -80,48 +136,48 @@ export async function enqueueAndProcessSession(
   const { sync = false } = options
   const user = await resolveSessionUser(identity)
 
-  // Step 1: Initialize session
-  let session = await initSession({
+  // Step 1: Initialize session chain (creates session → article → quiz → curiosity_quiz records)
+  const { session: initialSession, article } = await initializeSessionChain({
     userId: user.id,
     email: user.email ?? synthesizeGuestEmail(user.id),
     originalUrl,
   })
+
+  let session = initialSession
 
   logger.info(
     {
       sessionToken: session.session_token,
       quizId: session.quiz_id,
       status: session.status,
+      articleId: article.id,
+      articleStatus: article.status,
       sync,
     },
     'Session initialized'
   )
 
-  // Step 1.5: Trigger article scraping to get title (even if queue is full)
-  // This is lightweight compared to quiz generation and improves UX
-  if (session.quiz_id) {
-    try {
-      const quiz = await getQuizById(session.quiz_id)
-      if (quiz) {
-        const article = await getArticleById(quiz.article_id)
-
-        // Trigger article scraping if needed (fire and forget for async mode)
-        if (article.status === 'pending' || article.status === 'stale') {
-          logger.info(
-            { articleId: article.id, sessionToken: session.session_token },
-            'Triggering article scraping for title'
-          )
-          ensureArticleContent(article).catch((err) => {
-            logger.error({ err, articleId: article.id }, 'Article scraping failed')
-          })
-        }
+  // Step 1.5: Trigger article scraping IMMEDIATELY to get title (even if queue is full)
+  // This happens BEFORE worker is invoked, eliminating race condition
+  // Skip if already scraping (avoid race condition error)
+  if (article.status === 'pending' || article.status === 'stale') {
+    logger.info(
+      { articleId: article.id, sessionToken: session.session_token },
+      'Triggering article scraping for title'
+    )
+    ensureArticleContent(article).catch((err) => {
+      // Ignore "already scraping" errors - another process is handling it
+      if (err.message?.includes('currently being scraped')) {
+        logger.debug({ articleId: article.id }, 'Article already being scraped, skipping')
+      } else {
+        logger.error({ err, articleId: article.id }, 'Article scraping failed')
       }
-    } catch (err) {
-      logger.error(
-        { err, sessionToken: session.session_token },
-        'Failed to trigger article scraping'
-      )
-    }
+    })
+  } else if (article.status === 'scraping') {
+    logger.debug(
+      { articleId: article.id, sessionToken: session.session_token },
+      'Article already being scraped, skipping trigger'
+    )
   }
 
   // Step 2: Check if session is bookmarked and needs queue slot check

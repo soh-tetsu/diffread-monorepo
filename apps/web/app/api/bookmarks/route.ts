@@ -34,6 +34,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     })
 
     // Fetch all sessions with article metadata in a single JOIN query
+    // Use LEFT JOIN (not inner) to include sessions without quiz_id yet
     const { data: sessions, error } = await supabase
       .from('sessions')
       .select(
@@ -44,9 +45,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         study_status,
         created_at,
         quiz_id,
-        quizzes!inner(
+        quizzes(
           article_id,
-          articles!inner(
+          articles(
             metadata
           )
         )
