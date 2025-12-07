@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2025-12-07
+
+### Added
+- Delete button for bookmarks with inline confirmation
+
+### Changed
+- Service worker disabled in development
+- URL display shows domain only
+
+### Fixed
+- Hydration error in settings menu
+
 ## [0.3.0] - 2025-12-07
 
 ### Added
