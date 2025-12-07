@@ -1,8 +1,9 @@
 // Custom Service Worker for Diffread
 // Manually configured to prefetch critical resources for fast share-target loading
 
-const CACHE_VERSION = 'diffread-v1'
-const RUNTIME_CACHE = 'diffread-runtime-v1'
+const APP_VERSION = '0.3.0' // Updated during build
+const CACHE_VERSION = `diffread-v${APP_VERSION}`
+const RUNTIME_CACHE = `diffread-runtime-v${APP_VERSION}`
 
 // Critical resources to prefetch on install
 // These will be available immediately on share-target

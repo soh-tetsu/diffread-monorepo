@@ -87,7 +87,7 @@ export class PromptExecutor {
       )
     }
 
-    console.error('Raw response:', raw)
+    // console.error('Raw response:', raw)
 
     try {
       // Extract rationale from <rationale></rationale> block

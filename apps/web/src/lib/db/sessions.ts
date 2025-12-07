@@ -115,3 +115,13 @@ export async function getSessionsByUserId(userId: string, limit = 50): Promise<S
 
   return result.data || []
 }
+
+export async function deleteSessionByToken(sessionToken: string, userId: string): Promise<void> {
+  const result = await supabase
+    .from('sessions')
+    .delete()
+    .eq('session_token', sessionToken)
+    .eq('user_id', userId)
+
+  execute(result, { context: `delete session by token ${sessionToken}` })
+}

@@ -15,7 +15,7 @@ import {
 import NextLink from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   LuBookmark,
   LuChevronLeft,
@@ -59,8 +59,13 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
   const locale = useLocale()
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [isDev, setIsDev] = useState(false)
   const { hasCompletedOnboarding, profile } = useUserProfile()
   const { isInstallable, promptInstall } = useInstallPrompt()
+
+  useEffect(() => {
+    setIsDev(process.env.NODE_ENV === 'development')
+  }, [])
 
   // Use SWR for queue count - shares cache with AppToolbar and homepage
   const { data: queueData } = useSWR<{ count: number }>(
@@ -279,9 +284,13 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
                 <Link asChild color="gray.500" fontSize="xs">
                   <NextLink href="/releases">Version {APP_VERSION}</NextLink>
                 </Link>
-                {process.env.NODE_ENV === 'development' && (
+                {isDev ? (
                   <Badge colorPalette="orange" size="sm" variant="solid">
                     DEV
+                  </Badge>
+                ) : (
+                  <Badge colorPalette="teal" size="sm" variant="solid">
+                    PROD
                   </Badge>
                 )}
               </HStack>

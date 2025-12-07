@@ -4,9 +4,11 @@ import {
   Badge,
   Box,
   Button,
+  ButtonGroup,
   Card,
   Heading,
   HStack,
+  IconButton,
   Link,
   Spinner,
   Stack,
@@ -15,10 +17,13 @@ import {
 } from '@chakra-ui/react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { LuTrash2, LuX } from 'react-icons/lu'
 import useSWR from 'swr'
 import { AppToolbar } from '@/components/ui/AppToolbar'
+import { toaster } from '@/components/ui/toaster'
 import { readGuestIdFromCookie } from '@/lib/guest/cookie'
+import { formatUrlForDisplay } from '@/lib/utils/format-url'
 import type { SessionStatus, StudyStatus } from '@/types/db'
 
 type BookmarkSession = {
@@ -46,8 +51,10 @@ export default function BookmarksPage() {
   const t = useTranslations('bookmarks')
   const router = useRouter()
   const guestId = readGuestIdFromCookie()
+  const [deletingToken, setDeletingToken] = useState<string | null>(null)
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
 
-  const { data, error, isLoading } = useSWR<BookmarksResponse>(
+  const { data, error, isLoading, mutate } = useSWR<BookmarksResponse>(
     guestId ? '/api/bookmarks' : null,
     fetcher,
     {
@@ -58,6 +65,45 @@ export default function BookmarksPage() {
       dedupingInterval: 5000, // Prevent duplicate requests within 5s
     }
   )
+
+  const handleDeleteClick = (sessionToken: string) => {
+    setConfirmingDelete(sessionToken)
+  }
+
+  const handleDeleteCancel = () => {
+    setConfirmingDelete(null)
+  }
+
+  const handleDeleteConfirm = async (sessionToken: string) => {
+    setDeletingToken(sessionToken)
+    setConfirmingDelete(null)
+
+    try {
+      const res = await fetch(`/api/sessions?token=${sessionToken}`, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to delete session')
+      }
+
+      // Refresh the bookmarks list
+      await mutate()
+
+      toaster.success({
+        title: t('delete'),
+        description: 'Session deleted successfully',
+      })
+    } catch (err) {
+      toaster.error({
+        title: 'Error',
+        description: 'Failed to delete session',
+      })
+    } finally {
+      setDeletingToken(null)
+    }
+  }
 
   // Redirect to home if no guest ID (they need to complete onboarding first)
   useEffect(() => {
@@ -142,10 +188,7 @@ export default function BookmarksPage() {
                       >
                         <VStack align="stretch" gap={1} flex={1} minW={0}>
                           <Text fontWeight="semibold" fontSize="sm" color="blackAlpha.900">
-                            {session.articleTitle ||
-                              (session.articleUrl.length > 40
-                                ? `${session.articleUrl.substring(0, 40)}...`
-                                : session.articleUrl)}
+                            {session.articleTitle || formatUrlForDisplay(session.articleUrl)}
                           </Text>
                           <Link
                             href={session.articleUrl}
@@ -155,9 +198,7 @@ export default function BookmarksPage() {
                             color="blue.600"
                             _hover={{ textDecoration: 'underline' }}
                           >
-                            {session.articleUrl.length > 40
-                              ? `${session.articleUrl.substring(0, 40)}...`
-                              : session.articleUrl}
+                            {formatUrlForDisplay(session.articleUrl)}
                           </Link>
                         </VStack>
                         <Button
@@ -206,37 +247,7 @@ export default function BookmarksPage() {
                 {waiting.map((session, index) => (
                   <Card.Root key={session.sessionToken} bg="white" borderColor="gray.200">
                     <Card.Body py={2}>
-                      <Stack
-                        direction={{ base: 'column', md: 'row' }}
-                        justify="space-between"
-                        align={{ base: 'stretch', md: 'center' }}
-                        gap={3}
-                      >
-                        <VStack align="stretch" gap={0.5} flex={1} minW={0}>
-                          <HStack gap={2}>
-                            <Text fontSize="sm" fontWeight="medium" color="gray.700" flexShrink={0}>
-                              #{index + 1}
-                            </Text>
-                            <Text fontSize="sm" fontWeight="medium" color="blackAlpha.900">
-                              {session.articleTitle ||
-                                (session.articleUrl.length > 40
-                                  ? `${session.articleUrl.substring(0, 40)}...`
-                                  : session.articleUrl)}
-                            </Text>
-                          </HStack>
-                          <Link
-                            href={session.articleUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            fontSize="xs"
-                            color="blue.600"
-                            _hover={{ textDecoration: 'underline' }}
-                          >
-                            {session.articleUrl.length > 40
-                              ? `${session.articleUrl.substring(0, 40)}...`
-                              : session.articleUrl}
-                          </Link>
-                        </VStack>
+                      <HStack align="start" gap={3} w="full">
                         <Badge
                           colorPalette={
                             session.status === 'errored'
@@ -247,14 +258,54 @@ export default function BookmarksPage() {
                           }
                           size="sm"
                           flexShrink={0}
+                          alignSelf="center"
                         >
-                          {session.status === 'errored'
-                            ? t('errorWillRetry')
-                            : session.status.startsWith('skip_by_')
-                              ? t('failedToProcess')
-                              : t('bookmarked')}
+                          #{index + 1}
                         </Badge>
-                      </Stack>
+                        <VStack align="stretch" gap={0.5} flex={1} minW={0}>
+                          <Text fontSize="sm" fontWeight="medium" color="blackAlpha.900">
+                            {session.articleTitle || formatUrlForDisplay(session.articleUrl)}
+                          </Text>
+                          <Link
+                            href={session.articleUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            fontSize="xs"
+                            color="blue.600"
+                            _hover={{ textDecoration: 'underline' }}
+                          >
+                            {formatUrlForDisplay(session.articleUrl)}
+                          </Link>
+                        </VStack>
+                        {confirmingDelete === session.sessionToken ? (
+                          <ButtonGroup size="xs" flexShrink={0} alignSelf="center">
+                            <Button variant="outline" onClick={handleDeleteCancel}>
+                              {t('cancel')}
+                            </Button>
+                            <Button
+                              colorPalette="red"
+                              variant="outline"
+                              loading={deletingToken === session.sessionToken}
+                              onClick={() => handleDeleteConfirm(session.sessionToken)}
+                            >
+                              {t('delete')}
+                            </Button>
+                          </ButtonGroup>
+                        ) : (
+                          <IconButton
+                            aria-label={t('delete')}
+                            size="sm"
+                            variant="ghost"
+                            colorPalette="red"
+                            loading={deletingToken === session.sessionToken}
+                            onClick={() => handleDeleteClick(session.sessionToken)}
+                            flexShrink={0}
+                            alignSelf="center"
+                          >
+                            <LuTrash2 />
+                          </IconButton>
+                        )}
+                      </HStack>
                     </Card.Body>
                   </Card.Root>
                 ))}
@@ -276,18 +327,10 @@ export default function BookmarksPage() {
                 {archived.map((session) => (
                   <Card.Root key={session.sessionToken} bg="gray.50" borderColor="gray.200">
                     <Card.Body py={2}>
-                      <Stack
-                        direction={{ base: 'column', md: 'row' }}
-                        justify="space-between"
-                        align={{ base: 'stretch', md: 'center' }}
-                        gap={3}
-                      >
+                      <HStack align="start" gap={3} w="full">
                         <VStack align="stretch" gap={0.5} flex={1} minW={0}>
                           <Text fontSize="sm" fontWeight="medium" color="blackAlpha.900">
-                            {session.articleTitle ||
-                              (session.articleUrl.length > 40
-                                ? `${session.articleUrl.substring(0, 40)}...`
-                                : session.articleUrl)}
+                            {session.articleTitle || formatUrlForDisplay(session.articleUrl)}
                           </Text>
                           <Link
                             href={session.articleUrl}
@@ -297,22 +340,38 @@ export default function BookmarksPage() {
                             color="blue.600"
                             _hover={{ textDecoration: 'underline' }}
                           >
-                            {session.articleUrl.length > 40
-                              ? `${session.articleUrl.substring(0, 40)}...`
-                              : session.articleUrl}
+                            {formatUrlForDisplay(session.articleUrl)}
                           </Link>
                         </VStack>
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          colorPalette="gray"
-                          flexShrink={{ base: 1, md: 0 }}
-                          w={{ base: 'full', md: 'auto' }}
-                          onClick={() => router.push(`/quiz?q=${session.sessionToken}`)}
-                        >
-                          {t('review')}
-                        </Button>
-                      </Stack>
+                        {confirmingDelete === session.sessionToken ? (
+                          <ButtonGroup size="xs" flexShrink={0} alignSelf="center">
+                            <Button variant="outline" onClick={handleDeleteCancel}>
+                              {t('cancel')}
+                            </Button>
+                            <Button
+                              colorPalette="red"
+                              variant="outline"
+                              loading={deletingToken === session.sessionToken}
+                              onClick={() => handleDeleteConfirm(session.sessionToken)}
+                            >
+                              {t('delete')}
+                            </Button>
+                          </ButtonGroup>
+                        ) : (
+                          <IconButton
+                            aria-label={t('delete')}
+                            size="xs"
+                            variant="ghost"
+                            colorPalette="red"
+                            loading={deletingToken === session.sessionToken}
+                            onClick={() => handleDeleteClick(session.sessionToken)}
+                            flexShrink={0}
+                            alignSelf="center"
+                          >
+                            <LuTrash2 />
+                          </IconButton>
+                        )}
+                      </HStack>
                     </Card.Body>
                   </Card.Root>
                 ))}

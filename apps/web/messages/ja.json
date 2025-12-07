@@ -154,6 +154,13 @@
     "continue": "続ける",
     "processing": "処理中...",
     "bookmarked": "待機中",
-    "review": "レビュー"
+    "review": "レビュー",
+    "delete": "削除",
+    "deleteConfirm": "この記事を削除しますか？",
+    "deleting": "削除中...",
+    "errorWillRetry": "エラー。再試行します",
+    "failedToProcess": "処理に失敗しました",
+    "start": "開始",
+    "cancel": "キャンセル"
   }
 }

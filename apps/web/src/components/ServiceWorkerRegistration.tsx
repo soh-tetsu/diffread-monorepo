@@ -4,6 +4,13 @@ import { useEffect } from 'react'
 
 export function ServiceWorkerRegistration() {
   useEffect(() => {
+    // Skip service worker registration in development
+    const isDev = process.env.NODE_ENV === 'development'
+    if (isDev) {
+      console.log('[SW] Service Worker disabled in development mode')
+      return
+    }
+
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker

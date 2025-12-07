@@ -164,6 +164,10 @@
     "bookmarked": "Waiting",
     "errorWillRetry": "Error. Will retry",
     "failedToProcess": "Failed to process",
-    "review": "Review"
+    "review": "Review",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this article?",
+    "deleting": "Deleting...",
+    "cancel": "Cancel"
   }
 }
