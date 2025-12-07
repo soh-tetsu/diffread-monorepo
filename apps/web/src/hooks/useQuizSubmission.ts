@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { toaster } from '@/components/ui/toaster'
 
 type SubmissionOptions = {
-  guestId?: string | null
   currentToken?: string
   openInNewTab?: boolean
 }
@@ -64,7 +63,7 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
     url: string,
     options: SubmissionOptions = {}
   ): Promise<SubmissionResult | null> => {
-    const { guestId, currentToken, openInNewTab = false } = options
+    const { currentToken, openInNewTab = false } = options
 
     setIsSubmitting(true)
     setError(null)
@@ -86,15 +85,13 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
 
     try {
       // Step 1: Submit URL to create session
-      // Cookie is automatically sent by browser
-      const endpoint = currentToken ? '/api/curiosity' : '/api/sessions'
-      const body = currentToken ? { currentToken, url } : { userId: guestId, url }
-
-      const response = await fetch(endpoint, {
+      // Cookie is automatically sent by browser (contains guestId)
+      // currentToken is optional - if provided, validates it belongs to this guest
+      const response = await fetch('/api/curiosity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
-        body: JSON.stringify(body),
+        body: JSON.stringify({ url, currentToken }),
       })
 
       if (!response.ok) {

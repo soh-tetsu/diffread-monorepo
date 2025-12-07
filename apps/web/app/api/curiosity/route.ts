@@ -61,13 +61,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
     }
 
-    // Look up email from current session token
-    const currentSession = await ensureSessionForGuest(currentToken, guestId, {
-      messages: {
-        MISSING_TOKEN: 'Invalid session token',
-        SESSION_NOT_FOUND: 'Session not found',
-      },
-    })
+    // Resolve userId from either currentToken (warm start) or guestId (cold start)
+    let userId: string
+
+    if (currentToken) {
+      // Warm start: validate currentToken belongs to this guestId
+      const currentSession = await ensureSessionForGuest(currentToken, guestId, {
+        messages: {
+          MISSING_TOKEN: 'Invalid session token',
+          SESSION_NOT_FOUND: 'Session not found',
+        },
+      })
+      userId = currentSession.user_id
+    } else {
+      // Cold start: use guestId directly as userId
+      if (!guestId) {
+        return NextResponse.json({ error: 'Missing guest ID' }, { status: 400 })
+      }
+      userId = guestId
+    }
 
     // Always initialize the full chain: session → article → quiz → curiosity_quiz
     const { initializeSessionChain } = await import('@/lib/workflows/session-init')
@@ -75,7 +87,7 @@ export async function POST(request: Request) {
     const { countQueueItems } = await import('@/lib/db/queue')
     const { updateSession } = await import('@/lib/db/sessions')
 
-    const { user } = await ensureGuestUser({ userId: currentSession.user_id })
+    const { user } = await ensureGuestUser({ userId })
     const { session, article } = await initializeSessionChain({
       userId: user.id,
       email: user.email ?? synthesizeGuestEmail(user.id),

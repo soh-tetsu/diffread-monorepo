@@ -212,7 +212,7 @@ function UrlRegistrationSection({ guestId }: { guestId: string }) {
   const firstSessionToken = queueData?.firstSessionToken
 
   const handleSubmit = async (url: string) => {
-    await submit(url, { guestId })
+    await submit(url)
   }
 
   return (
