@@ -135,7 +135,8 @@
     "onboardingPending": "ウェルカムクイズ",
     "todo": "未完了",
     "onboardingDescription": "ウェルカムクイズを完了してすべての機能を解除してください。",
-    "startOnboarding": "クイズを開始"
+    "startOnboarding": "クイズを開始",
+    "cleanCache": "キャッシュクリア"
   },
   "bookmarks": {
     "title": "ブックマーク",

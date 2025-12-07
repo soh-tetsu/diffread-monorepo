@@ -23,6 +23,7 @@ import {
   LuDownload,
   LuHouse,
   LuMenu,
+  LuTrash2,
 } from 'react-icons/lu'
 import useSWR from 'swr'
 import { CloseButton } from '@/components/ui/close-button'
@@ -37,6 +38,7 @@ import {
 import { useInstallPrompt } from '@/hooks/useInstallPrompt'
 import { useUserProfile } from '@/hooks/useUserProfile'
 import { locales } from '@/i18n/config'
+import { forceUpdateApp } from '@/lib/utils/service-worker'
 import { APP_VERSION } from '@/lib/version'
 
 const localeConfig = {
@@ -60,6 +62,7 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [isDev, setIsDev] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
   const { hasCompletedOnboarding, profile } = useUserProfile()
   const { isInstallable, promptInstall } = useInstallPrompt()
 
@@ -99,6 +102,12 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
         detail: { locale: newLocale },
       })
     )
+  }
+
+  const handleForceUpdate = async () => {
+    setIsUpdating(true)
+    await forceUpdateApp()
+    // Page will reload, so no need to setIsUpdating(false)
   }
 
   return (
@@ -273,6 +282,20 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
                   </HStack>
                 </Button>
               )}
+
+              {/* Clean Cache Button */}
+              <Button
+                variant="ghost"
+                size="md"
+                justifyContent="flex-start"
+                loading={isUpdating}
+                onClick={handleForceUpdate}
+              >
+                <HStack gap={3}>
+                  <LuTrash2 size={18} />
+                  <Text color={'blackAlpha.900'}>{t('cleanCache')}</Text>
+                </HStack>
+              </Button>
 
               {/* Manifest Link */}
               <Link asChild color="teal.600" fontSize="sm" textAlign="center">

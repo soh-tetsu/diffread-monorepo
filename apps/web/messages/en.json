@@ -135,7 +135,8 @@
     "onboardingPending": "Welcome Quiz",
     "todo": "TODO",
     "onboardingDescription": "Complete the welcome quiz to unlock all features.",
-    "startOnboarding": "Start Quiz"
+    "startOnboarding": "Start Quiz",
+    "cleanCache": "Clean Cache"
   },
   "shareConfirm": {
     "title": "Save this article?",

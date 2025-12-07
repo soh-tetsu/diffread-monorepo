@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Delete button for bookmarks with inline confirmation
+- "Clean Cache" button in settings panel to clear service worker cache
 
 ### Changed
 - Service worker disabled in development
