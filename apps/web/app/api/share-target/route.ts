@@ -123,14 +123,35 @@ export async function POST(request: Request) {
           // Queue has space - move to pending and trigger worker
           const updatedSession = await updateSession(pdfSession.id, { status: 'pending' })
 
-          // Trigger worker (fire-and-forget)
-          const { triggerQuizWorker } = await import('@/lib/workflows/enqueue-session')
-          triggerQuizWorker(updatedSession, pdfArticle, { sync: false }).catch((err) => {
+          // Get curiosity quiz for triggering worker
+          if (!pdfSession.quiz_id) {
             logger.error(
-              { err, sessionToken: pdfSession.session_token },
-              'Worker invocation failed'
+              { sessionToken: pdfSession.session_token },
+              'PDF session missing quiz_id - cannot invoke worker'
             )
-          })
+          } else {
+            const { getCuriosityQuizByQuizId } = await import('@/lib/db/curiosity-quizzes')
+            const pdfCuriosityQuiz = await getCuriosityQuizByQuizId(pdfSession.quiz_id)
+
+            if (!pdfCuriosityQuiz) {
+              logger.error(
+                { sessionToken: pdfSession.session_token, quizId: pdfSession.quiz_id },
+                'Curiosity quiz not found for PDF session - cannot invoke worker'
+              )
+            } else {
+              // Trigger worker (fire-and-forget)
+              const { triggerQuizWorker } = await import('@/lib/workflows/enqueue-session')
+              triggerQuizWorker(updatedSession, pdfArticle, {
+                sync: false,
+                curiosityQuizId: pdfCuriosityQuiz.id,
+              }).catch((err) => {
+                logger.error(
+                  { err, sessionToken: pdfSession.session_token },
+                  'Worker invocation failed'
+                )
+              })
+            }
+          }
 
           logger.info(
             { sessionToken: pdfSession.session_token, queueCount },
@@ -201,13 +222,41 @@ export async function POST(request: Request) {
     // Check queue size - determines if we trigger worker or just bookmark
     const queueCount = await countQueueItems(userIdentity.userId)
 
-    if (queueCount < 2 && session.status === 'bookmarked') {
-      // Queue has space - move to pending and trigger worker
-      const updatedSession = await updateSession(session.id, { status: 'pending' })
+    // Session must have quiz_id after initializeSessionChain
+    if (!session.quiz_id) {
+      logger.error({ sessionId: session.id }, 'Session missing quiz_id after initialization')
+      return NextResponse.redirect(new URL('/?error=initialization-failed', request.url))
+    }
+
+    // Get curiosity quiz (guaranteed to exist after initializeSessionChain)
+    const { getCuriosityQuizByQuizId } = await import('@/lib/db/curiosity-quizzes')
+    const curiosityQuiz = await getCuriosityQuizByQuizId(session.quiz_id)
+    if (!curiosityQuiz) {
+      logger.error(
+        { sessionId: session.id, quizId: session.quiz_id },
+        'Curiosity quiz missing after initialization'
+      )
+      return NextResponse.redirect(new URL('/?error=initialization-failed', request.url))
+    }
+
+    if (
+      queueCount < 2 &&
+      (session.status === 'bookmarked' ||
+        session.status === 'pending' ||
+        session.status === 'errored')
+    ) {
+      // Queue has space - move to pending if bookmarked, or retry if already pending/errored
+      const sessionToProcess =
+        session.status === 'bookmarked'
+          ? await updateSession(session.id, { status: 'pending' })
+          : session
 
       // Trigger worker (fire-and-forget)
       const { triggerQuizWorker } = await import('@/lib/workflows/enqueue-session')
-      triggerQuizWorker(updatedSession, article, { sync: false }).catch((err) => {
+      triggerQuizWorker(sessionToProcess, article, {
+        sync: false,
+        curiosityQuizId: curiosityQuiz.id,
+      }).catch((err) => {
         logger.error({ err, sessionToken: session.session_token }, 'Worker invocation failed')
       })
 

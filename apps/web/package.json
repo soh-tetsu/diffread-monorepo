@@ -9,8 +9,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "admin:new-session": "tsx scripts/add-session.ts",
-    "admin:test": "tsx scripts/run-curiosity-worker.ts"
+    "admin:new-session": "tsx scripts/add-session.ts"
   },
   "dependencies": {
     "@chakra-ui/react": "3.30.0",

@@ -5,7 +5,7 @@ import { countQueueItems } from '@/lib/db/queue'
 import { updateSessionByToken } from '@/lib/db/sessions'
 import { ensureGuestUser, ensureUserByEmail, synthesizeGuestEmail } from '@/lib/db/users'
 import { logger } from '@/lib/logger'
-import { processNextPendingCuriosityQuiz } from '@/lib/workers/process-curiosity-quiz'
+import { processCuriosityQuiz } from '@/lib/workers/process-curiosity-quiz'
 import { initializeSessionChain } from '@/lib/workflows/session-init'
 import type { ArticleRow, SessionRow, UserRow } from '@/types/db'
 
@@ -16,7 +16,7 @@ const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers)
  *
  * Prerequisites:
  * - Session, article, quiz, and curiosity_quiz must already exist (call initSession first)
- * - Session should be in 'pending' or 'bookmarked' status
+ * - Session should be in 'pending' or 'errored' status
  *
  * This function invokes the curiosity quiz worker which handles:
  * - Article scraping (with retry logic)
@@ -24,27 +24,38 @@ const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers)
  *
  * Note: Article scraping is handled by the worker itself, not here,
  * to avoid race conditions between multiple scraping attempts.
+ *
+ * @param curiosityQuizId - Required. The ID of the specific curiosity quiz to process.
  */
 export async function triggerQuizWorker(
   session: SessionRow,
   article: ArticleRow,
-  options: { sync?: boolean } = {}
+  options: { sync?: boolean; curiosityQuizId: number }
 ): Promise<void> {
-  const { sync = false } = options
+  const { sync = false, curiosityQuizId } = options
 
   // Invoke quiz worker (it will handle article scraping with retry logic)
   const shouldProcess = session.status === 'pending' || session.status === 'errored'
 
   if (shouldProcess) {
     if (sync) {
-      logger.info({ sessionToken: session.session_token }, 'Processing curiosity quiz (sync)...')
-      await pendingWorkerLimit(() => processNextPendingCuriosityQuiz())
+      logger.info(
+        { sessionToken: session.session_token, curiosityQuizId },
+        'Processing curiosity quiz (sync)...'
+      )
+      await pendingWorkerLimit(() => processCuriosityQuiz(curiosityQuizId))
       logger.info({ sessionToken: session.session_token }, 'Curiosity quiz processing completed')
     } else {
-      logger.info({ sessionToken: session.session_token }, 'Quiz worker invoked (async)')
+      logger.info(
+        { sessionToken: session.session_token, curiosityQuizId },
+        'Quiz worker invoked (async)'
+      )
       pendingWorkerLimit(() =>
-        processNextPendingCuriosityQuiz().catch((err) => {
-          logger.error({ err, sessionToken: session.session_token }, 'Quiz worker failed')
+        processCuriosityQuiz(curiosityQuizId).catch((err) => {
+          logger.error(
+            { err, sessionToken: session.session_token, curiosityQuizId },
+            'Quiz worker failed'
+          )
         })
       )
     }
@@ -197,17 +208,52 @@ export async function enqueueAndProcessSession(
   const shouldProcess = session.status === 'pending' || session.status === 'errored'
 
   if (shouldProcess) {
+    // Get curiosity quiz ID for specific processing
+    if (!session.quiz_id) {
+      logger.error(
+        { sessionToken: session.session_token },
+        'Session missing quiz_id - cannot invoke worker'
+      )
+      return {
+        session,
+        workerInvoked: false,
+        queueFull: false,
+      }
+    }
+
+    const curiosityQuiz = await getCuriosityQuizByQuizId(session.quiz_id)
+    if (!curiosityQuiz) {
+      logger.error(
+        { sessionToken: session.session_token, quizId: session.quiz_id },
+        'Curiosity quiz not found - cannot invoke worker'
+      )
+      return {
+        session,
+        workerInvoked: false,
+        queueFull: false,
+      }
+    }
+
     if (sync) {
       // Synchronous: Wait for worker to complete
-      logger.info({ sessionToken: session.session_token }, 'Processing curiosity quiz (sync)...')
-      await pendingWorkerLimit(() => processNextPendingCuriosityQuiz())
+      logger.info(
+        { sessionToken: session.session_token, curiosityQuizId: curiosityQuiz.id },
+        'Processing curiosity quiz (sync)...'
+      )
+      await pendingWorkerLimit(() => processCuriosityQuiz(curiosityQuiz.id))
       logger.info({ sessionToken: session.session_token }, 'Curiosity quiz processing completed')
     } else {
       // Asynchronous: Fire and forget
-      logger.info({ sessionToken: session.session_token }, 'Worker invoked (async)')
+      logger.info(
+        { sessionToken: session.session_token, curiosityQuizId: curiosityQuiz.id },
+        'Worker invoked (async)'
+      )
       pendingWorkerLimit(() =>
-        processNextPendingCuriosityQuiz().catch((err) => {
-          logger.error({ err, sessionToken: session.session_token }, 'Worker failed')
+        processCuriosityQuiz(curiosityQuiz.id).catch((err) => {
+          logger.error(
+            { err, sessionToken: session.session_token, curiosityQuizId: curiosityQuiz.id },
+            'Worker failed'
+          )
         })
       )
     }

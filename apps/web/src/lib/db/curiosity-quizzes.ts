@@ -47,9 +47,21 @@ export async function updateCuriosityQuiz(
   execute(result, { context: `update curiosity quiz ${id}` })
 }
 
-export async function claimNextCuriosityQuiz(): Promise<ClaimedCuriosityQuiz | null> {
+export async function claimCuriosityQuiz(
+  curiosityQuizId: number
+): Promise<{ claimed: boolean; info: ClaimedCuriosityQuiz | null }> {
   const result = (await supabase
-    .rpc('claim_next_curiosity_quiz')
-    .maybeSingle()) as PostgrestSingleResponse<ClaimedCuriosityQuiz>
-  return queryMaybeSingle<ClaimedCuriosityQuiz>(result, { context: 'claim curiosity quiz' })
+    .rpc('claim_specific_curiosity_quiz', { p_curiosity_quiz_id: curiosityQuizId })
+    .maybeSingle()) as PostgrestSingleResponse<ClaimedCuriosityQuiz & { claimed: boolean }>
+
+  const data = queryMaybeSingle<ClaimedCuriosityQuiz & { claimed: boolean }>(result, {
+    context: `claim curiosity quiz ${curiosityQuizId}`,
+  })
+
+  if (!data) {
+    return { claimed: false, info: null }
+  }
+
+  const { claimed, ...info } = data
+  return { claimed, info }
 }

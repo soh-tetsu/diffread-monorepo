@@ -62,7 +62,11 @@ export async function initializeSessionChain({
   // Ensure curiosity quiz exists
   if (!existingCuriosityQuiz) {
     // New quiz - create it
-    await createCuriosityQuiz(quiz.id)
+    const newCuriosityQuiz = await createCuriosityQuiz(quiz.id)
+    logger.info(
+      { sessionId: session.id, quizId: quiz.id, curiosityQuizId: newCuriosityQuiz.id },
+      'Created new curiosity quiz'
+    )
   }
 
   // Link quiz to session if not already linked

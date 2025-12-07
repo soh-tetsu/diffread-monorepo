@@ -46,10 +46,3 @@ export async function updateScaffoldQuiz(
   const result = await supabase.from('scaffold_quizzes').update(updates).eq('id', id)
   execute(result, { context: `update scaffold quiz ${id}` })
 }
-
-export async function claimNextScaffoldQuiz(): Promise<ClaimedScaffoldQuiz | null> {
-  const result = (await supabase
-    .rpc('claim_next_scaffold_quiz')
-    .maybeSingle()) as PostgrestSingleResponse<ClaimedScaffoldQuiz>
-  return queryMaybeSingle<ClaimedScaffoldQuiz>(result, { context: 'claim scaffold quiz' })
-}

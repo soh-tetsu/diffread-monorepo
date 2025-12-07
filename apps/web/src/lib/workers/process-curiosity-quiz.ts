@@ -10,7 +10,7 @@ import {
 } from '@diffread/question-engine'
 import { getArticleById, updateArticleMetadata } from '@/lib/db/articles'
 import {
-  claimNextCuriosityQuiz,
+  claimCuriosityQuiz,
   getCuriosityQuizById,
   updateCuriosityQuiz,
 } from '@/lib/db/curiosity-quizzes'
@@ -173,113 +173,134 @@ async function handleCuriosityQuizFailure(
   }
 }
 
-export async function processNextPendingCuriosityQuiz(): Promise<void> {
-  // Step 1: Claim next pending curiosity quiz (atomic lock)
-  const claimed = await claimNextCuriosityQuiz()
-  if (!claimed) {
-    logger.debug('No pending curiosity quizzes')
+async function processCuriosityQuizCore(
+  curiosityQuizId: number,
+  quizId: number,
+  articleId: number
+): Promise<void> {
+  logger.info({ curiosityQuizId, quizId }, 'Processing curiosity quiz')
+
+  // Step 1: Load article content
+  const article = await getArticleById(articleId)
+  logger.info(
+    { curiosityQuizId, articleId, articleStatus: article.status },
+    'Loading article content'
+  )
+
+  // If article is being scraped, wait and retry
+  let content: string | undefined
+  let retries = 0
+  const MAX_SCRAPING_RETRIES = 3
+  const RETRY_DELAY_MS = 2000
+
+  while (retries < MAX_SCRAPING_RETRIES) {
+    try {
+      const result = await ensureArticleContent(article)
+      content = result.content
+      break
+    } catch (err) {
+      const isScrapingError =
+        err instanceof Error && err.message?.includes('currently being scraped')
+      if (isScrapingError && retries < MAX_SCRAPING_RETRIES - 1) {
+        retries++
+        logger.info(
+          { curiosityQuizId, articleId, retries },
+          'Article being scraped, waiting before retry'
+        )
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+        // Re-fetch article to get updated status
+        const updatedArticle = await getArticleById(articleId)
+        Object.assign(article, updatedArticle)
+      } else {
+        throw err
+      }
+    }
+  }
+
+  if (!content) {
+    throw new Error('Failed to load article content after retries')
+  }
+
+  logger.info(
+    {
+      curiosityQuizId,
+      articleId,
+      contentLength: content?.length ?? 0,
+    },
+    'Article content loaded'
+  )
+
+  // Step 2: Check if pedagogy already extracted (idempotency)
+  const curiosityQuiz = await getCuriosityQuizById(curiosityQuizId)
+  if (!curiosityQuiz) {
+    throw new Error(`Curiosity quiz ${curiosityQuizId} not found`)
+  }
+
+  let metadata: AnalysisResponse['metadata']
+
+  if (curiosityQuiz.pedagogy) {
+    // Reuse existing pedagogy
+    logger.info({ curiosityQuizId }, 'Reusing existing pedagogy')
+
+    // Reconstruct metadata from article + pedagogy
+    const articleData = await getArticleById(articleId)
+    metadata = {
+      archetype: articleData.metadata.archetype,
+      logical_schema: articleData.metadata.logical_schema,
+      structural_skeleton: articleData.metadata.structural_skeleton,
+      domain: articleData.metadata.domain,
+      core_thesis: articleData.metadata.core_thesis,
+      pedagogy: curiosityQuiz.pedagogy,
+      language: articleData.metadata.language || 'en',
+    } as AnalysisResponse['metadata']
+  } else {
+    // Extract pedagogy
+    metadata = await extractPedagogy(curiosityQuizId, articleId, content)
+  }
+
+  // Step 3: Generate curiosity questions from pedagogy
+  const questions = await generateCuriosityQuestions(curiosityQuizId, metadata)
+
+  // Step 4: Store questions and mark ready
+  await updateCuriosityQuiz(curiosityQuizId, {
+    questions,
+    status: 'ready',
+    model_version: process.env.GEMINI_MODEL || 'unknown',
+  })
+
+  // Step 5: Update ALL sessions linked to this quiz
+  await updateSessionsByQuizId(quizId, { status: 'ready' })
+
+  logger.info({ curiosityQuizId, quizId }, 'Curiosity quiz completed')
+}
+
+export async function processCuriosityQuiz(curiosityQuizId: number): Promise<void> {
+  // Step 1: Claim specific curiosity quiz (atomic lock)
+  const result = await claimCuriosityQuiz(curiosityQuizId)
+  if (!result.claimed || !result.info) {
+    // Check actual status for better logging
+    const quiz = await getCuriosityQuizById(curiosityQuizId)
+    if (!quiz) {
+      logger.warn(
+        { curiosityQuizId },
+        'Curiosity quiz does not exist - this is a data integrity issue'
+      )
+    } else {
+      logger.info(
+        { curiosityQuizId, actualStatus: quiz.status },
+        'Could not claim curiosity quiz (not in pending/failed status)'
+      )
+    }
     return
   }
 
-  const { curiosity_quiz_id, quiz_id, article_id } = claimed
-
-  logger.info({ curiosityQuizId: curiosity_quiz_id, quizId: quiz_id }, 'Processing curiosity quiz')
+  const { quiz_id, article_id } = result.info
 
   try {
-    // Step 2: Load article content
-    const article = await getArticleById(article_id)
-    logger.info(
-      { curiosityQuizId: curiosity_quiz_id, articleId: article_id, articleStatus: article.status },
-      'Loading article content'
-    )
-
-    // If article is being scraped, wait and retry
-    let content: string
-    let retries = 0
-    const MAX_SCRAPING_RETRIES = 3
-    const RETRY_DELAY_MS = 2000
-
-    while (retries < MAX_SCRAPING_RETRIES) {
-      try {
-        const result = await ensureArticleContent(article)
-        content = result.content
-        break
-      } catch (err) {
-        const isScrapingError =
-          err instanceof Error && err.message?.includes('currently being scraped')
-        if (isScrapingError && retries < MAX_SCRAPING_RETRIES - 1) {
-          retries++
-          logger.info(
-            { curiosityQuizId: curiosity_quiz_id, articleId: article_id, retries },
-            'Article being scraped, waiting before retry'
-          )
-          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
-          // Re-fetch article to get updated status
-          const updatedArticle = await getArticleById(article_id)
-          Object.assign(article, updatedArticle)
-        } else {
-          throw err
-        }
-      }
-    }
-
-    logger.info(
-      {
-        curiosityQuizId: curiosity_quiz_id,
-        articleId: article_id,
-        contentLength: content?.length ?? 0,
-      },
-      'Article content loaded'
-    )
-
-    // Step 3: Check if pedagogy already extracted (idempotency)
-    const curiosityQuiz = await getCuriosityQuizById(curiosity_quiz_id)
-    if (!curiosityQuiz) {
-      throw new Error(`Curiosity quiz ${curiosity_quiz_id} not found`)
-    }
-
-    let metadata: AnalysisResponse['metadata']
-
-    if (curiosityQuiz.pedagogy) {
-      // Reuse existing pedagogy
-      logger.info({ curiosityQuizId: curiosity_quiz_id }, 'Reusing existing pedagogy')
-
-      // Reconstruct metadata from article + pedagogy
-      const articleData = await getArticleById(article_id)
-      metadata = {
-        archetype: articleData.metadata.archetype,
-        logical_schema: articleData.metadata.logical_schema,
-        structural_skeleton: articleData.metadata.structural_skeleton,
-        domain: articleData.metadata.domain,
-        core_thesis: articleData.metadata.core_thesis,
-        pedagogy: curiosityQuiz.pedagogy,
-        language: articleData.metadata.language || 'en',
-      } as AnalysisResponse['metadata']
-    } else {
-      // Extract pedagogy
-      metadata = await extractPedagogy(curiosity_quiz_id, article_id, content)
-    }
-
-    // Step 4: Generate curiosity questions from pedagogy
-    const questions = await generateCuriosityQuestions(curiosity_quiz_id, metadata)
-
-    // Step 5: Store questions and mark ready
-    await updateCuriosityQuiz(curiosity_quiz_id, {
-      questions,
-      status: 'ready',
-      model_version: process.env.GEMINI_MODEL || 'unknown',
-    })
-
-    // Step 6: Update ALL sessions linked to this quiz
-    await updateSessionsByQuizId(quiz_id, { status: 'ready' })
-
-    logger.info({ curiosityQuizId: curiosity_quiz_id, quizId: quiz_id }, 'Curiosity quiz completed')
+    await processCuriosityQuizCore(curiosityQuizId, quiz_id, article_id)
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
-    logger.error(
-      { err, curiosityQuizId: curiosity_quiz_id, quizId: quiz_id },
-      'Curiosity quiz processing failed'
-    )
-    await handleCuriosityQuizFailure(curiosity_quiz_id, quiz_id, err)
+    logger.error({ err, curiosityQuizId, quizId: quiz_id }, 'Curiosity quiz processing failed')
+    await handleCuriosityQuizFailure(curiosityQuizId, quiz_id, err)
   }
 }

@@ -113,17 +113,18 @@
   "quizSubmission": {
     "analyzing": "クイズを分析中...",
     "analyzingDescription": "クイズを準備しています。少々お待ちください。",
-    "scrapingUrl": "URLをスクレイピング中...",
-    "extractingMetadata": "メタデータを抽出中...",
-    "analyzingArticle": "記事を分析中...",
-    "generatingQuizzes": "クイズを生成中...",
+    "submittingUrl": "URLを送信中...",
+    "willStartSoon": "もうすぐ開始します",
+    "workingOnIt": "処理中...",
     "quizReady": "クイズ準備完了！",
     "clickToOpen": "どこでもクリックして開く。",
     "clickToOpenNewTab": "どこでもクリックして新しいタブで開く。",
     "generationFailed": "クイズ生成失敗",
     "takingLonger": "クイズの生成に時間がかかっています。しばらくしてからもう一度確認してください。",
     "queueFull": "記事をブックマークしました！",
-    "queueFullDescription": "キューが満杯です（2/2）。この記事を処理するには、現在のクイズを完了してください。"
+    "queueFullDescription": "キューが満杯です（2/2）。この記事を処理するには、現在のクイズを完了してください。",
+    "readyQuizzesAvailable": "{count}個のクイズが準備できています！待っている間に確認しましょう。",
+    "goToQueue": "移動"
   },
   "settings": {
     "language": "言語",

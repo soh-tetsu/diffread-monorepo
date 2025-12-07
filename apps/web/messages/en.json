@@ -113,17 +113,18 @@
   "quizSubmission": {
     "analyzing": "Analyzing quizzes...",
     "analyzingDescription": "We're preparing your quiz. This may take a moment.",
-    "scrapingUrl": "Scraping URL...",
-    "extractingMetadata": "Extracting metadata...",
-    "analyzingArticle": "Analyzing article...",
-    "generatingQuizzes": "Generating quizzes...",
+    "submittingUrl": "Submitting URL...",
+    "willStartSoon": "Will start soon",
+    "workingOnIt": "Working on it...",
     "quizReady": "Quiz ready!",
     "clickToOpen": "Click anywhere to open now.",
     "clickToOpenNewTab": "Click anywhere to open in new tab.",
     "generationFailed": "Quiz generation failed",
     "takingLonger": "Quiz is taking longer than expected. Please check back shortly.",
     "queueFull": "Article bookmarked!",
-    "queueFullDescription": "Your queue is full (2/2). Complete your current quizzes to process this article."
+    "queueFullDescription": "Your queue is full (2/2). Complete your current quizzes to process this article.",
+    "readyQuizzesAvailable": "{count} quizzes are ready! Check them out while waiting.",
+    "goToQueue": "Go"
   },
   "settings": {
     "language": "Language",

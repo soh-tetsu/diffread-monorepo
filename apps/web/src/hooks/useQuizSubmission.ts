@@ -70,17 +70,9 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
 
     const toastId = `quiz-submit-${Date.now()}`
 
-    // Progressive status updates
-    const updateStatus = (title: string) => {
-      toaster.update(toastId, {
-        title,
-        type: 'loading',
-      })
-    }
-
     toaster.loading({
       id: toastId,
-      title: t('scrapingUrl'),
+      title: t('submittingUrl'),
     })
 
     try {
@@ -114,84 +106,98 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
       const data = (await response.json()) as {
         sessionToken: string
         status: string
-        workerInvoked: boolean
+        queueStatus: {
+          total: number
+          sessionTokens: string[]
+        }
+        errorMessage: string | null
       }
       const newSessionToken = data.sessionToken
 
-      // Handle queue full case - worker not invoked means queue is full
-      if (!data.workerInvoked && data.status === 'bookmarked') {
-        toaster.update(toastId, {
-          title: t('queueFull'),
-          description: t('queueFullDescription'),
-          type: 'info',
-          duration: 10000,
-          closable: true,
-        })
+      // Handle queue full case - status is still bookmarked means queue is full
+      if (data.status === 'bookmarked') {
+        // Check if there are ready quizzes in the queue
+        if (data.queueStatus.total >= 2) {
+          toaster.update(toastId, {
+            title: t('queueFull'),
+            description: t('readyQuizzesAvailable', { count: data.queueStatus.total }),
+            type: 'info',
+            duration: Infinity,
+            closable: true,
+            action: {
+              label: t('goToQueue'),
+              onClick: () => {
+                window.location.href = '/bookmarks'
+                toaster.dismiss(toastId)
+              },
+            },
+          })
+        } else {
+          toaster.update(toastId, {
+            title: t('queueFull'),
+            description: t('queueFullDescription'),
+            type: 'info',
+            duration: 10000,
+            closable: true,
+          })
+        }
 
         return { sessionToken: newSessionToken }
       }
 
-      // Step 2: Start fake progress messages in background (non-blocking)
-      const startTime = Date.now()
-      const progressInterval = setInterval(() => {
-        const elapsedSeconds = (Date.now() - startTime) / 1000
-
-        if (elapsedSeconds >= 5 && elapsedSeconds < 15) {
-          updateStatus(t('extractingMetadata'))
-        } else if (elapsedSeconds >= 15 && elapsedSeconds < 30) {
-          updateStatus(t('analyzingArticle'))
-        } else if (elapsedSeconds >= 30) {
-          updateStatus(t('generatingQuizzes'))
-        }
-      }, 1000) // Check every second
-
-      // Step 3: Poll quiz status immediately and continuously
+      // Step 2: Poll session status immediately and continuously
       const maxAttempts = 40 // Increase attempts since we're polling faster
 
-      try {
-        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-          // Cookie is automatically sent by browser
-          const statusResponse = await fetch(`/api/curiosity?q=${newSessionToken}`, {
-            credentials: 'same-origin',
-          })
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        // Cookie is automatically sent by browser
+        const statusResponse = await fetch(`/api/session-status?q=${newSessionToken}`, {
+          credentials: 'same-origin',
+        })
 
-          if (statusResponse.ok) {
-            const payload = await statusResponse.json()
-            if (payload.status === 'ready') {
-              // Success! Quiz is ready - stop fake progress
-              clearInterval(progressInterval)
+        if (statusResponse.ok) {
+          const payload = await statusResponse.json()
 
-              const quizUrl = `/quiz?q=${encodeURIComponent(newSessionToken)}`
+          // Update toast based on real status
+          if (payload.status === 'pending') {
+            toaster.update(toastId, {
+              title: t('willStartSoon'),
+              type: 'loading',
+            })
+          } else if (payload.status === 'processing') {
+            toaster.update(toastId, {
+              title: t('workingOnIt'),
+              type: 'loading',
+            })
+          } else if (payload.status === 'ready') {
+            // Success! Quiz is ready
+            const quizUrl = `/quiz?q=${encodeURIComponent(newSessionToken)}`
 
-              toaster.update(toastId, {
-                title: t('quizReady'),
-                description: openInNewTab ? t('clickToOpenNewTab') : t('clickToOpen'),
-                type: 'success',
-                duration: Infinity,
-                closable: true,
-              })
+            toaster.update(toastId, {
+              title: t('quizReady'),
+              description: openInNewTab ? t('clickToOpenNewTab') : t('clickToOpen'),
+              type: 'success',
+              duration: Infinity,
+              closable: true,
+            })
 
-              makeToastClickable(toastId, quizUrl, openInNewTab)
+            makeToastClickable(toastId, quizUrl, openInNewTab)
 
-              return { sessionToken: newSessionToken }
-            }
-
-            if (payload.status === 'failed' || payload.status === 'skip_by_failure') {
-              clearInterval(progressInterval)
-              throw new Error(payload.errorMessage || t('generationFailed'))
-            }
+            return { sessionToken: newSessionToken }
+          } else if (
+            payload.status === 'failed' ||
+            payload.status === 'skip_by_failure' ||
+            payload.status === 'errored' ||
+            payload.status === 'skip_by_admin'
+          ) {
+            throw new Error(payload.errorMessage || t('generationFailed'))
           }
-
-          // Wait 3 seconds before next poll
-          await new Promise((resolve) => setTimeout(resolve, 3000))
         }
 
-        clearInterval(progressInterval)
-        throw new Error(t('takingLonger'))
-      } catch (err) {
-        clearInterval(progressInterval)
-        throw err
+        // Wait 3 seconds before next poll
+        await new Promise((resolve) => setTimeout(resolve, 3000))
       }
+
+      throw new Error(t('takingLonger'))
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
       setError(message)

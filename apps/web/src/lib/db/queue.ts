@@ -2,7 +2,7 @@ import pLimit from 'p-limit'
 import { execute } from '@/lib/db/supabase-helpers'
 import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
-import { processNextPendingCuriosityQuiz } from '@/lib/workers/process-curiosity-quiz'
+import { processCuriosityQuiz } from '@/lib/workers/process-curiosity-quiz'
 import type { SessionRow } from '@/types/db'
 
 const pendingWorkerLimit = pLimit(1)
@@ -65,15 +65,35 @@ export async function processNextBookmarkedSession(userId: string): Promise<bool
 
   execute(result, { context: `move bookmarked session ${bookmarked.id} to pending` })
 
-  // Invoke worker to process the newly pending session
+  // Get curiosity quiz ID for this session
+  if (!bookmarked.quiz_id) {
+    logger.error(
+      { sessionToken: bookmarked.session_token, sessionId: bookmarked.id },
+      'Bookmarked session missing quiz_id - cannot invoke worker'
+    )
+    return true
+  }
+
+  const { getCuriosityQuizByQuizId } = await import('@/lib/db/curiosity-quizzes')
+  const curiosityQuiz = await getCuriosityQuizByQuizId(bookmarked.quiz_id)
+
+  if (!curiosityQuiz) {
+    logger.error(
+      { sessionToken: bookmarked.session_token, quizId: bookmarked.quiz_id },
+      'Curiosity quiz not found for bookmarked session - cannot invoke worker'
+    )
+    return true
+  }
+
+  // Invoke worker to process the specific curiosity quiz
   logger.info(
-    { sessionToken: bookmarked.session_token, userId },
+    { sessionToken: bookmarked.session_token, userId, curiosityQuizId: curiosityQuiz.id },
     'Invoking worker for dequeued session'
   )
   pendingWorkerLimit(() =>
-    processNextPendingCuriosityQuiz().catch((err) => {
+    processCuriosityQuiz(curiosityQuiz.id).catch((err) => {
       logger.error(
-        { err, sessionToken: bookmarked.session_token },
+        { err, sessionToken: bookmarked.session_token, curiosityQuizId: curiosityQuiz.id },
         'Worker failed for dequeued session'
       )
     })
