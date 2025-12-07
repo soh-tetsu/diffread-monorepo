@@ -155,10 +155,10 @@ export async function POST(request: Request) {
           'PDF share target session created'
         )
 
-        // Redirect to bookmarks page
+        // Redirect to homepage
         const host = request.headers.get('host') || new URL(request.url).host
         const protocol = request.headers.get('x-forwarded-proto') || 'https'
-        const redirectUrl = new URL('/bookmarks', `${protocol}://${host}`)
+        const redirectUrl = new URL('/', `${protocol}://${host}`)
 
         return NextResponse.redirect(redirectUrl)
       } catch (error) {
@@ -234,10 +234,10 @@ export async function POST(request: Request) {
       'URL share target session created'
     )
 
-    // Redirect to bookmarks page
+    // Redirect to homepage
     const host = request.headers.get('host') || new URL(request.url).host
     const protocol = request.headers.get('x-forwarded-proto') || 'https'
-    const redirectUrl = new URL('/bookmarks', `${protocol}://${host}`)
+    const redirectUrl = new URL('/', `${protocol}://${host}`)
 
     return NextResponse.redirect(redirectUrl)
   } catch (error) {
