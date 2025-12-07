@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid'
 import { execute, queryMaybeSingle, querySingle } from '@/lib/db/supabase-helpers'
 import { synthesizeGuestEmail } from '@/lib/db/users'
 import { supabase } from '@/lib/supabase'
-import type { SessionRow, SessionStatus, StudyStatus } from '@/types/db'
+import type { SessionRow, SessionStatus } from '@/types/db'
 
 const SESSION_TOKEN_LENGTH = Number(process.env.SESSION_TOKEN_LENGTH ?? '16')
 

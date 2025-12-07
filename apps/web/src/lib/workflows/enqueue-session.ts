@@ -7,7 +7,7 @@ import { ensureGuestUser, ensureUserByEmail, synthesizeGuestEmail } from '@/lib/
 import { logger } from '@/lib/logger'
 import { processCuriosityQuiz } from '@/lib/workers/process-curiosity-quiz'
 import { initializeSessionChain } from '@/lib/workflows/session-init'
-import type { ArticleRow, SessionRow, UserRow } from '@/types/db'
+import type { SessionRow, UserRow } from '@/types/db'
 
 const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers)
 
@@ -29,7 +29,6 @@ const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers)
  */
 export async function triggerQuizWorker(
   session: SessionRow,
-  article: ArticleRow,
   options: { sync?: boolean; curiosityQuizId: number }
 ): Promise<void> {
   const { sync = false, curiosityQuizId } = options

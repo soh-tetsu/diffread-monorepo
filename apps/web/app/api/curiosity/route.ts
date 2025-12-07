@@ -160,7 +160,7 @@ export async function POST(request: Request) {
         // Trigger worker (fire-and-forget)
         // Pass curiosityQuizId to ensure we process the specific quiz for this session
         const { triggerQuizWorker } = await import('@/lib/workflows/enqueue-session')
-        triggerQuizWorker(sessionToProcess, article, {
+        triggerQuizWorker(sessionToProcess, {
           sync: false,
           curiosityQuizId: curiosityQuiz?.id,
         }).catch((err) => {

@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Badge,
   Box,
   Button,
   Card,
@@ -133,35 +134,19 @@ export default function BookmarksPage() {
                     borderWidth="2px"
                   >
                     <Card.Body py={3}>
-                      <HStack justify="space-between" gap={3}>
+                      <Stack
+                        direction={{ base: 'column', md: 'row' }}
+                        justify="space-between"
+                        align={{ base: 'stretch', md: 'center' }}
+                        gap={3}
+                      >
                         <VStack align="stretch" gap={1} flex={1} minW={0}>
-                          <HStack justify="space-between" gap={2}>
-                            <Text
-                              fontWeight="semibold"
-                              fontSize="sm"
-                              color="blackAlpha.900"
-                              flex={1}
-                            >
-                              {session.articleTitle ||
-                                (session.articleUrl.length > 40
-                                  ? `${session.articleUrl.substring(0, 40)}...`
-                                  : session.articleUrl)}
-                            </Text>
-                            <Text
-                              fontSize="xs"
-                              color={
-                                session.studyStatus === 'curiosity_in_progress'
-                                  ? 'orange.600'
-                                  : 'teal.600'
-                              }
-                              fontWeight="medium"
-                              flexShrink={0}
-                            >
-                              {session.studyStatus === 'curiosity_in_progress'
-                                ? t('inProgress')
-                                : t('ready')}
-                            </Text>
-                          </HStack>
+                          <Text fontWeight="semibold" fontSize="sm" color="blackAlpha.900">
+                            {session.articleTitle ||
+                              (session.articleUrl.length > 40
+                                ? `${session.articleUrl.substring(0, 40)}...`
+                                : session.articleUrl)}
+                          </Text>
                           <Link
                             href={session.articleUrl}
                             target="_blank"
@@ -177,15 +162,29 @@ export default function BookmarksPage() {
                         </VStack>
                         <Button
                           size="sm"
-                          colorPalette="teal"
-                          flexShrink={0}
+                          colorPalette={
+                            session.status === 'ready' &&
+                            (session.studyStatus === 'curiosity_in_progress' ||
+                              session.studyStatus === 'scaffold_in_progress')
+                              ? 'purple'
+                              : 'teal'
+                          }
+                          flexShrink={{ base: 1, md: 0 }}
+                          minW={{ base: 'auto', md: '120px' }}
+                          w={{ base: 'full', md: 'auto' }}
+                          loading={session.status === 'pending'}
+                          loadingText={t('processing')}
                           onClick={() => router.push(`/quiz?q=${session.sessionToken}`)}
                         >
-                          {session.studyStatus === 'curiosity_in_progress'
-                            ? t('continue')
-                            : t('startQuiz')}
+                          {session.status === 'ready' && session.studyStatus === 'not_started'
+                            ? t('start')
+                            : session.status === 'ready' &&
+                                (session.studyStatus === 'curiosity_in_progress' ||
+                                  session.studyStatus === 'scaffold_in_progress')
+                              ? t('continue')
+                              : t('processing')}
                         </Button>
-                      </HStack>
+                      </Stack>
                     </Card.Body>
                   </Card.Root>
                 ))}
@@ -207,7 +206,12 @@ export default function BookmarksPage() {
                 {waiting.map((session, index) => (
                   <Card.Root key={session.sessionToken} bg="white" borderColor="gray.200">
                     <Card.Body py={2}>
-                      <HStack justify="space-between" gap={3}>
+                      <Stack
+                        direction={{ base: 'column', md: 'row' }}
+                        justify="space-between"
+                        align={{ base: 'stretch', md: 'center' }}
+                        gap={3}
+                      >
                         <VStack align="stretch" gap={0.5} flex={1} minW={0}>
                           <HStack gap={2}>
                             <Text fontSize="sm" fontWeight="medium" color="gray.700" flexShrink={0}>
@@ -233,10 +237,24 @@ export default function BookmarksPage() {
                               : session.articleUrl}
                           </Link>
                         </VStack>
-                        <Text fontSize="xs" color="gray.600" flexShrink={0}>
-                          {session.status === 'pending' ? t('processing') : t('bookmarked')}
-                        </Text>
-                      </HStack>
+                        <Badge
+                          colorPalette={
+                            session.status === 'errored'
+                              ? 'orange'
+                              : session.status.startsWith('skip_by_')
+                                ? 'red'
+                                : 'gray'
+                          }
+                          size="sm"
+                          flexShrink={0}
+                        >
+                          {session.status === 'errored'
+                            ? t('errorWillRetry')
+                            : session.status.startsWith('skip_by_')
+                              ? t('failedToProcess')
+                              : t('bookmarked')}
+                        </Badge>
+                      </Stack>
                     </Card.Body>
                   </Card.Root>
                 ))}
@@ -258,7 +276,12 @@ export default function BookmarksPage() {
                 {archived.map((session) => (
                   <Card.Root key={session.sessionToken} bg="gray.50" borderColor="gray.200">
                     <Card.Body py={2}>
-                      <HStack justify="space-between" gap={3}>
+                      <Stack
+                        direction={{ base: 'column', md: 'row' }}
+                        justify="space-between"
+                        align={{ base: 'stretch', md: 'center' }}
+                        gap={3}
+                      >
                         <VStack align="stretch" gap={0.5} flex={1} minW={0}>
                           <Text fontSize="sm" fontWeight="medium" color="blackAlpha.900">
                             {session.articleTitle ||
@@ -283,12 +306,13 @@ export default function BookmarksPage() {
                           size="xs"
                           variant="ghost"
                           colorPalette="gray"
-                          flexShrink={0}
+                          flexShrink={{ base: 1, md: 0 }}
+                          w={{ base: 'full', md: 'auto' }}
                           onClick={() => router.push(`/quiz?q=${session.sessionToken}`)}
                         >
                           {t('review')}
                         </Button>
-                      </HStack>
+                      </Stack>
                     </Card.Body>
                   </Card.Root>
                 ))}

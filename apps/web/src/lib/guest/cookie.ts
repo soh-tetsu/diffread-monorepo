@@ -35,6 +35,7 @@ export function renewGuestIdCookie(guestId: string): void {
   const isSecure = window.location.protocol === 'https:'
   const secureFlag = isSecure ? 'Secure; ' : ''
 
+  // biome-ignore lint/suspicious/noDocumentCookie: Client-side cookie management
   document.cookie = `${COOKIE_NAME}=${guestId}; Max-Age=${MAX_AGE_SECONDS}; Path=/; SameSite=Lax; ${secureFlag}`
 }
 
@@ -44,5 +45,6 @@ export function renewGuestIdCookie(guestId: string): void {
 export function deleteGuestIdCookie(): void {
   if (typeof document === 'undefined') return
 
+  // biome-ignore lint/suspicious/noDocumentCookie: Client-side cookie deletion
   document.cookie = `${COOKIE_NAME}=; Max-Age=0; Path=/; SameSite=Lax`
 }

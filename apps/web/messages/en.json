@@ -137,6 +137,13 @@
     "onboardingDescription": "Complete the welcome quiz to unlock all features.",
     "startOnboarding": "Start Quiz"
   },
+  "shareConfirm": {
+    "title": "Save this article?",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "closing": "Returning..."
+  },
   "bookmarks": {
     "title": "Bookmarks",
     "errorLoading": "Failed to load bookmarks",
@@ -150,10 +157,13 @@
     "untitled": "Untitled Article",
     "ready": "Ready",
     "inProgress": "In Progress",
+    "start": "Start",
     "startQuiz": "Check Intuition",
     "continue": "Continue",
     "processing": "Processing...",
     "bookmarked": "Waiting",
+    "errorWillRetry": "Error. Will retry",
+    "failedToProcess": "Failed to process",
     "review": "Review"
   }
 }

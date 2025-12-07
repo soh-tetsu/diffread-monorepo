@@ -5,8 +5,8 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/config.ts')
 
 const withPWA = withPWAInit({
   dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
-  register: true,
+  disable: true, // Disable - we use custom sw.js
+  register: false, // Don't auto-register
   skipWaiting: true,
 })
 

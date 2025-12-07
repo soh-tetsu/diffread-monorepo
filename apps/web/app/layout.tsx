@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { GuestIdRenewal } from '@/components/providers/GuestIdRenewal'
 import { LocaleProvider } from '@/components/providers/LocaleProvider'
+import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
 import { Providers } from './providers'
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Providers>
+          <ServiceWorkerRegistration />
           <GuestIdRenewal />
           <LocaleProvider>{children}</LocaleProvider>
         </Providers>
