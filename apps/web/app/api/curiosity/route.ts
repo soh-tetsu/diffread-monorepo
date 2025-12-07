@@ -97,7 +97,6 @@ export async function POST(request: Request) {
     // Check queue size - determines if we trigger worker or just bookmark
     const queueCount = await countQueueItems(user.id)
     let workerInvoked = false
-    let queueFull = false
 
     if (queueCount < 2 && session.status === 'bookmarked') {
       // Queue has space - move to pending and trigger worker
@@ -110,15 +109,12 @@ export async function POST(request: Request) {
       })
 
       workerInvoked = true
-    } else if (queueCount >= 2) {
-      queueFull = true
     }
 
     return NextResponse.json({
       sessionToken: session.session_token,
       status: session.status,
       workerInvoked,
-      queueFull,
     })
   } catch (error) {
     if (error instanceof GuestSessionError) {

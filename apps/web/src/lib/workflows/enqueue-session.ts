@@ -27,6 +27,7 @@ const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers)
  */
 export async function triggerQuizWorker(
   session: SessionRow,
+  article: ArticleRow,
   options: { sync?: boolean } = {}
 ): Promise<void> {
   const { sync = false } = options
