@@ -6,7 +6,6 @@ import { updateSessionByToken } from '@/lib/db/sessions'
 import { ensureGuestUser, ensureUserByEmail, synthesizeGuestEmail } from '@/lib/db/users'
 import { logger } from '@/lib/logger'
 import { processNextPendingCuriosityQuiz } from '@/lib/workers/process-curiosity-quiz'
-import { ensureArticleContent } from '@/lib/workflows/article-content'
 import { initializeSessionChain } from '@/lib/workflows/session-init'
 import type { ArticleRow, SessionRow, UserRow } from '@/types/db'
 
@@ -19,10 +18,12 @@ const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers)
  * - Session, article, quiz, and curiosity_quiz must already exist (call initSession first)
  * - Session should be in 'pending' or 'bookmarked' status
  *
- * This function:
- * 1. Triggers article scraping (for title)
- * 2. Checks queue slots
- * 3. Invokes quiz generation worker if slots available
+ * This function invokes the curiosity quiz worker which handles:
+ * - Article scraping (with retry logic)
+ * - Quiz generation
+ *
+ * Note: Article scraping is handled by the worker itself, not here,
+ * to avoid race conditions between multiple scraping attempts.
  */
 export async function triggerQuizWorker(
   session: SessionRow,
@@ -31,22 +32,7 @@ export async function triggerQuizWorker(
 ): Promise<void> {
   const { sync = false } = options
 
-  // Step 1: Trigger article scraping for title (fire-and-forget)
-  if (article.status === 'pending' || article.status === 'stale') {
-    logger.info(
-      { articleId: article.id, sessionToken: session.session_token },
-      'Triggering article scraping for title'
-    )
-    ensureArticleContent(article).catch((err) => {
-      const isScrapingError =
-        err instanceof Error && err.message?.includes('currently being scraped')
-      if (!isScrapingError) {
-        logger.error({ err, articleId: article.id }, 'Article scraping failed')
-      }
-    })
-  }
-
-  // Step 2: Invoke quiz worker
+  // Invoke quiz worker (it will handle article scraping with retry logic)
   const shouldProcess = session.status === 'pending' || session.status === 'errored'
 
   if (shouldProcess) {
@@ -157,28 +143,8 @@ export async function enqueueAndProcessSession(
     'Session initialized'
   )
 
-  // Step 1.5: Trigger article scraping IMMEDIATELY to get title (even if queue is full)
-  // This happens BEFORE worker is invoked, eliminating race condition
-  // Skip if already scraping (avoid race condition error)
-  if (article.status === 'pending' || article.status === 'stale') {
-    logger.info(
-      { articleId: article.id, sessionToken: session.session_token },
-      'Triggering article scraping for title'
-    )
-    ensureArticleContent(article).catch((err) => {
-      // Ignore "already scraping" errors - another process is handling it
-      if (err.message?.includes('currently being scraped')) {
-        logger.debug({ articleId: article.id }, 'Article already being scraped, skipping')
-      } else {
-        logger.error({ err, articleId: article.id }, 'Article scraping failed')
-      }
-    })
-  } else if (article.status === 'scraping') {
-    logger.debug(
-      { articleId: article.id, sessionToken: session.session_token },
-      'Article already being scraped, skipping trigger'
-    )
-  }
+  // Article scraping is handled by the curiosity quiz worker with retry logic
+  // No need to trigger it here - avoids race conditions
 
   // Step 2: Check if session is bookmarked and needs queue slot check
   if (session.status === 'bookmarked') {
