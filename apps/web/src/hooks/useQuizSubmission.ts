@@ -113,13 +113,13 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
 
       const data = (await response.json()) as {
         sessionToken: string
-        queueFull?: boolean
-        workerInvoked?: boolean
+        status: string
+        workerInvoked: boolean
       }
       const newSessionToken = data.sessionToken
 
-      // Handle queue full case - article is bookmarked but not processing yet
-      if (data.queueFull) {
+      // Handle queue full case - worker not invoked means queue is full
+      if (!data.workerInvoked && data.status === 'bookmarked') {
         toaster.update(toastId, {
           title: t('queueFull'),
           description: t('queueFullDescription'),
