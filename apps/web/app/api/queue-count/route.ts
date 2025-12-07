@@ -11,12 +11,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Count queue items and get first ready session
+    // Count sessions that are ready to take (user can actually interact with them)
     const { data, error, count } = await supabase
       .from('sessions')
       .select('session_token', { count: 'exact' })
       .eq('user_id', guestId)
-      .in('status', ['ready', 'pending'])
+      .eq('status', 'ready')
       .in('study_status', ['not_started', 'curiosity_in_progress'])
       .order('created_at', { ascending: true })
       .limit(1)
