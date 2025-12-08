@@ -7,11 +7,18 @@ import {
   updateArticleMetadata,
   updateArticleStatus,
 } from '@/lib/db/articles'
+import {
+  ArticleInvalidStateError,
+  ArticleRetryableError,
+  ArticleStorageError,
+  ArticleTerminalError,
+} from '@/lib/errors/article-errors'
 import { logger } from '@/lib/logger'
 import { GEMINI_ANALYSIS_MODEL, requireGeminiApiKey } from '@/lib/quiz/gemini'
 import type { ScrapedArticle } from '@/lib/quiz/scraper'
 import { scrapeArticle } from '@/lib/quiz/scraper'
 import { downloadArticleContent, uploadArticleBundle, uploadArticlePdf } from '@/lib/storage'
+import { withRetry, withRetryResult } from '@/lib/utils/retry'
 import type { ArticleRow, QuizRow } from '@/types/db'
 
 function extractString(value: unknown): string | null {
@@ -58,6 +65,10 @@ type ArticleProcessingState =
   | 'scraping'
   | 'unexpected'
 
+/*
+ * Determine the processing state of an article based on its status and freshness.
+ * No side effects.
+ */
 function describeArticleState(article: ArticleRow): ArticleProcessingState {
   if (article.status === 'ready') {
     return isArticleFresh(article) ? 'fresh' : 'stale'
@@ -80,14 +91,42 @@ function describeArticleState(article: ArticleRow): ArticleProcessingState {
 async function loadStoredArticleContent(article: ArticleRow): Promise<string> {
   const storagePath = article.storage_path
   if (!storagePath) {
-    throw new Error(`Article ${article.id} has no stored content`)
+    throw new ArticleStorageError(`Article has no stored content path`, article.id)
   }
 
-  const content = await downloadArticleContent(storagePath, article.storage_metadata)
-  if (content === null) {
-    throw new Error(`Stored article content missing for article ${article.id}`)
+  try {
+    return await withRetry(
+      async () => {
+        const content = await downloadArticleContent(storagePath, article.storage_metadata)
+        if (content === null) {
+          throw new Error(`Stored article content missing`)
+        }
+        return content
+      },
+      {
+        maxAttempts: 2,
+        delayMs: 1000,
+        onRetry: (attempt, error) => {
+          logger.warn(
+            { articleId: article.id, attempt, err: error },
+            'Failed to load stored content, will retry'
+          )
+        },
+        onFailure: (attempts, error) => {
+          logger.error(
+            { articleId: article.id, attempts, err: error },
+            'Failed to load stored content after all retries'
+          )
+        },
+      }
+    )
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
+    throw new ArticleStorageError(
+      err.message || 'Failed to load stored article content',
+      article.id
+    )
   }
-  return content
 }
 
 async function persistScrapeResult(
@@ -170,31 +209,61 @@ async function scrapeAndPersistArticle(
     throw new Error('Article is currently being scraped by another process')
   }
 
+  // Mark article as scraping before starting retry loop
   try {
-    const scraped = await scrapeArticle(article)
-    return await persistScrapeResult(article, scraped)
-  } catch (error) {
-    if (options.allowFallback && article.storage_path) {
-      logger.warn(
-        { articleId: article.id, err: error },
-        'Scrape failed; falling back to stored article content'
-      )
-      try {
-        await updateArticleStatus(article.id, 'stale')
-      } catch (statusError) {
-        logger.warn({ articleId: article.id, err: statusError }, 'Failed to restore stale status')
-      }
-      const content = await loadStoredArticleContent(article)
-      return { article: { ...article, status: 'stale' }, content }
-    }
-
-    try {
-      await updateArticleStatus(article.id, 'skip_by_failure')
-    } catch (statusError) {
-      logger.error({ err: statusError, articleId: article.id }, 'Failed to mark skip_by_failure')
-    }
-    throw error
+    await updateArticleStatus(article.id, 'scraping')
+  } catch (statusError) {
+    logger.error({ err: statusError, articleId: article.id }, 'Failed to mark article as scraping')
+    throw statusError
   }
+
+  // Try to scrape and persist
+  const result = await withRetryResult(
+    async () => {
+      const scraped = await scrapeArticle(article)
+      return await persistScrapeResult(article, scraped)
+    },
+    {
+      maxAttempts: 1,
+      delayMs: 1000,
+      onRetry: (attempt, error) => {
+        logger.warn({ articleId: article.id, attempt, err: error }, 'Scraping failed, will retry')
+      },
+    }
+  )
+
+  // If scraping succeeded, return the result
+  if (result.ok) {
+    return result.value
+  }
+
+  // Scraping failed - check if we can fall back to stored content
+  if (options.allowFallback && article.storage_path) {
+    logger.warn(
+      { articleId: article.id, err: result.error },
+      'Scrape failed; falling back to stored article content'
+    )
+    try {
+      await updateArticleStatus(article.id, 'stale')
+    } catch (statusError) {
+      logger.warn({ articleId: article.id, err: statusError }, 'Failed to restore stale status')
+    }
+    const content = await loadStoredArticleContent(article)
+    return { article: { ...article, status: 'stale' }, content }
+  }
+
+  // No fallback available - mark as terminal failure and throw
+  logger.error({ articleId: article.id, err: result.error }, 'Scraping failed after all retries')
+  try {
+    await updateArticleStatus(
+      article.id,
+      'skip_by_failure',
+      result.error.message || 'Article scraping failed after all retries'
+    )
+  } catch (statusError) {
+    logger.error({ err: statusError, articleId: article.id }, 'Failed to mark skip_by_failure')
+  }
+  throw result.error
 }
 
 function extractAnalysisMetadata(metadata: Record<string, unknown> | null): ArticleMetadata | null {
@@ -216,13 +285,11 @@ export async function loadArticleForQuiz(quiz: QuizRow): Promise<ArticleRow> {
   return getArticleById(quiz.article_id)
 }
 
-export async function ensureArticleContent(article: ArticleRow): Promise<PreparedArticle> {
+/**
+ * Internal function that handles article content loading logic
+ */
+async function ensureArticleContentCore(article: ArticleRow): Promise<PreparedArticle> {
   let workingArticle = article
-
-  if (workingArticle.status === 'ready' && !isArticleFresh(workingArticle)) {
-    await updateArticleStatus(workingArticle.id, 'stale')
-    workingArticle = { ...workingArticle, status: 'stale' }
-  }
 
   const state = describeArticleState(workingArticle)
 
@@ -232,16 +299,60 @@ export async function ensureArticleContent(article: ArticleRow): Promise<Prepare
       return { article: workingArticle, content }
     }
     case 'stale':
+      // Mark article as stale in database if it's currently marked as ready
+      if (workingArticle.status === 'ready') {
+        await updateArticleStatus(workingArticle.id, 'stale')
+        workingArticle = { ...workingArticle, status: 'stale' }
+      }
       return scrapeAndPersistArticle(workingArticle, { allowFallback: true })
     case 'needs_scrape':
       return scrapeAndPersistArticle(workingArticle, { allowFallback: false })
     case 'skip':
-      throw new Error(`Article is skipped (${workingArticle.status}), cannot scrape`)
+      throw new ArticleTerminalError(
+        `Article is in terminal state: ${workingArticle.status}`,
+        workingArticle.id,
+        workingArticle.status
+      )
     case 'scraping':
       // Another process is already scraping - this is a race condition
       throw new Error('Article is currently being scraped by another process')
     default:
-      throw new Error(`Unexpected article status: ${workingArticle.status}`)
+      throw new ArticleInvalidStateError(
+        `Unexpected article status: ${workingArticle.status}`,
+        workingArticle.id,
+        workingArticle.status
+      )
+  }
+}
+
+/**
+ * Ensure article content is available for quiz generation
+ *
+ * Public interface for loading article content with proper error handling.
+ * Article status is managed internally.
+ */
+export async function ensureArticleContent(article: ArticleRow): Promise<PreparedArticle> {
+  try {
+    return await ensureArticleContentCore(article)
+  } catch (error) {
+    // Check if this is a storage load failure
+    if (error instanceof ArticleStorageError) {
+      // Storage error is transient (Supabase outage, network issue, etc.)
+      // Wrap as retryable error for session-level retry
+      logger.warn(
+        { articleId: error.articleId, err: error },
+        'Storage load failed, marking as retryable error'
+      )
+      throw new ArticleRetryableError(
+        `Failed to load stored content: ${error.message}`,
+        error.articleId,
+        error
+      )
+    }
+
+    // Article status already updated by internal functions (scraping, etc)
+    // Re-throw for caller to handle
+    throw error
   }
 }
 

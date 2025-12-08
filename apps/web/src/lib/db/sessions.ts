@@ -1,7 +1,9 @@
 import { nanoid } from 'nanoid'
 import { execute, queryMaybeSingle, querySingle } from '@/lib/db/supabase-helpers'
 import { synthesizeGuestEmail } from '@/lib/db/users'
+import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
+import { withRetry } from '@/lib/utils/retry'
 import type { SessionRow, SessionStatus } from '@/types/db'
 
 const SESSION_TOKEN_LENGTH = Number(process.env.SESSION_TOKEN_LENGTH ?? '16')
@@ -93,12 +95,26 @@ export async function updateSessionByToken(
   )
 }
 
-export async function updateSessionsByQuizId(
-  quizId: number,
-  updates: Partial<Pick<SessionRow, 'status' | 'metadata'>>
-): Promise<void> {
-  const result = await supabase.from('sessions').update(updates).eq('quiz_id', quizId)
-  execute(result, { context: `update sessions for quiz ${quizId}` })
+export async function updateSessionStatus(quizId: number, status: SessionStatus): Promise<void> {
+  await withRetry(
+    async () => {
+      const result = await supabase.from('sessions').update({ status }).eq('quiz_id', quizId)
+      execute(result, { context: `update sessions status for quiz ${quizId}` })
+    },
+    {
+      maxAttempts: 1,
+      delayMs: 1000,
+      onRetry: (attempt, error) => {
+        logger.warn({ quizId, attempt, err: error }, 'Failed to update sessions status, retrying')
+      },
+      onFailure: (attempts, error) => {
+        logger.error(
+          { quizId, attempts, err: error },
+          'Failed to update sessions status after all retries'
+        )
+      },
+    }
+  )
 }
 
 export async function getSessionsByUserId(userId: string, limit = 50): Promise<SessionRow[]> {

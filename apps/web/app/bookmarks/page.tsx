@@ -6,6 +6,7 @@ import {
   Button,
   ButtonGroup,
   Card,
+  CloseButton,
   Heading,
   HStack,
   IconButton,
@@ -53,6 +54,10 @@ export default function BookmarksPage() {
   const guestId = readGuestIdFromCookie()
   const [deletingToken, setDeletingToken] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
+  const [retryingToken, setRetryingToken] = useState<string | null>(null)
+  const [confirmingRetry, setConfirmingRetry] = useState<string | null>(null)
+  const [archivingToken, setArchivingToken] = useState<string | null>(null)
+  const [confirmingArchive, setConfirmingArchive] = useState<string | null>(null)
 
   const { data, error, isLoading, mutate } = useSWR<BookmarksResponse>(
     guestId ? '/api/bookmarks' : null,
@@ -72,6 +77,113 @@ export default function BookmarksPage() {
 
   const handleDeleteCancel = () => {
     setConfirmingDelete(null)
+  }
+
+  const handleRetryClick = (sessionToken: string) => {
+    setConfirmingRetry(sessionToken)
+  }
+
+  const handleRetryCancel = () => {
+    setConfirmingRetry(null)
+  }
+
+  const handleRetryConfirm = async (sessionToken: string) => {
+    setRetryingToken(sessionToken)
+    setConfirmingRetry(null)
+
+    try {
+      // Find the session to get its article URL
+      const session = [...(data?.queue || []), ...(data?.waiting || [])].find(
+        (s) => s.sessionToken === sessionToken
+      )
+
+      if (!session) {
+        throw new Error('Session not found')
+      }
+
+      // Re-trigger the worker by calling the curiosity API
+      const res = await fetch('/api/curiosity', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentToken: sessionToken,
+          url: session.articleUrl,
+        }),
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to retry session')
+      }
+
+      // Refresh the bookmarks list
+      await mutate()
+
+      toaster.success({
+        title: t('retry'),
+        description: 'Quiz generation re-triggered',
+      })
+    } catch (err) {
+      toaster.error({
+        title: 'Error',
+        description: 'Failed to retry session',
+      })
+    } finally {
+      setRetryingToken(null)
+    }
+  }
+
+  const handleArchiveClick = (sessionToken: string) => {
+    setConfirmingArchive(sessionToken)
+  }
+
+  const handleArchiveCancel = () => {
+    setConfirmingArchive(null)
+  }
+
+  const shouldShowRetry = (session: BookmarkSession): boolean => {
+    if (session.status === 'errored') {
+      return true
+    }
+    if (session.status === 'pending') {
+      const now = Date.now()
+      const ageInSeconds = (now - session.timestamp) / 1000
+      return ageInSeconds > 60
+    }
+    return false
+  }
+
+  const handleArchiveConfirm = async (sessionToken: string) => {
+    setArchivingToken(sessionToken)
+    setConfirmingArchive(null)
+
+    try {
+      const res = await fetch(`/api/sessions?token=${sessionToken}`, {
+        method: 'PATCH',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ study_status: 'archived' }),
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to archive session')
+      }
+
+      // Refresh the bookmarks list
+      await mutate()
+
+      toaster.success({
+        title: t('archive'),
+        description: 'Session archived successfully',
+      })
+    } catch (err) {
+      toaster.error({
+        title: 'Error',
+        description: 'Failed to archive session',
+      })
+    } finally {
+      setArchivingToken(null)
+    }
   }
 
   const handleDeleteConfirm = async (sessionToken: string) => {
@@ -180,13 +292,8 @@ export default function BookmarksPage() {
                     borderWidth="2px"
                   >
                     <Card.Body py={3}>
-                      <Stack
-                        direction={{ base: 'column', md: 'row' }}
-                        justify="space-between"
-                        align={{ base: 'stretch', md: 'center' }}
-                        gap={3}
-                      >
-                        <VStack align="stretch" gap={1} flex={1} minW={0}>
+                      <HStack align="start" gap={3} w="full">
+                        <VStack align="stretch" gap={0.5} flex={1} minW={0}>
                           <Text fontWeight="semibold" fontSize="sm" color="blackAlpha.900">
                             {session.articleTitle || formatUrlForDisplay(session.articleUrl)}
                           </Text>
@@ -201,31 +308,84 @@ export default function BookmarksPage() {
                             {formatUrlForDisplay(session.articleUrl)}
                           </Link>
                         </VStack>
-                        <Button
-                          size="sm"
-                          colorPalette={
-                            session.status === 'ready' &&
-                            (session.studyStatus === 'curiosity_in_progress' ||
-                              session.studyStatus === 'scaffold_in_progress')
-                              ? 'purple'
-                              : 'teal'
-                          }
-                          flexShrink={{ base: 1, md: 0 }}
-                          minW={{ base: 'auto', md: '120px' }}
-                          w={{ base: 'full', md: 'auto' }}
-                          loading={session.status === 'pending'}
-                          loadingText={t('processing')}
-                          onClick={() => router.push(`/quiz?q=${session.sessionToken}`)}
-                        >
-                          {session.status === 'ready' && session.studyStatus === 'not_started'
-                            ? t('start')
-                            : session.status === 'ready' &&
-                                (session.studyStatus === 'curiosity_in_progress' ||
-                                  session.studyStatus === 'scaffold_in_progress')
-                              ? t('continue')
-                              : t('processing')}
-                        </Button>
-                      </Stack>
+                        <VStack gap={2} flexShrink={0} alignSelf="center" w="140px">
+                          <Button
+                            size="sm"
+                            colorPalette={
+                              session.status === 'ready' &&
+                              (session.studyStatus === 'curiosity_in_progress' ||
+                                session.studyStatus === 'scaffold_in_progress')
+                                ? 'purple'
+                                : 'teal'
+                            }
+                            w="full"
+                            variant="subtle"
+                            loading={session.status === 'pending'}
+                            loadingText={t('processing')}
+                            onClick={() => router.push(`/quiz?q=${session.sessionToken}`)}
+                          >
+                            {session.status === 'ready' && session.studyStatus === 'not_started'
+                              ? t('start')
+                              : session.status === 'ready' &&
+                                  (session.studyStatus === 'curiosity_in_progress' ||
+                                    session.studyStatus === 'scaffold_in_progress')
+                                ? t('continue')
+                                : t('processing')}
+                          </Button>
+                          {confirmingRetry === session.sessionToken ? (
+                            <ButtonGroup size="sm" variant="outline" w="full">
+                              <Button
+                                colorPalette="blue"
+                                flex="1"
+                                loading={retryingToken === session.sessionToken}
+                                onClick={() => handleRetryConfirm(session.sessionToken)}
+                              >
+                                {t('retry')}
+                              </Button>
+                              <CloseButton onClick={handleRetryCancel} />
+                            </ButtonGroup>
+                          ) : confirmingArchive === session.sessionToken ? (
+                            <ButtonGroup size="sm" variant="outline" w="full">
+                              <Button
+                                colorPalette="gray"
+                                flex="1"
+                                loading={archivingToken === session.sessionToken}
+                                onClick={() => handleArchiveConfirm(session.sessionToken)}
+                              >
+                                {t('archive')}
+                              </Button>
+                              <CloseButton onClick={handleArchiveCancel} />
+                            </ButtonGroup>
+                          ) : (
+                            <>
+                              {shouldShowRetry(session) && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  colorPalette="blue"
+                                  w="full"
+                                  loading={retryingToken === session.sessionToken}
+                                  onClick={() => handleRetryClick(session.sessionToken)}
+                                >
+                                  {t('retry')}
+                                </Button>
+                              )}
+                              {(session.status === 'ready' || session.status === 'errored') && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  colorPalette="gray"
+                                  w="full"
+                                  loading={archivingToken === session.sessionToken}
+                                  onClick={() => handleArchiveClick(session.sessionToken)}
+                                >
+                                  {t('archive')}
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </VStack>
+                      </HStack>
                     </Card.Body>
                   </Card.Root>
                 ))}

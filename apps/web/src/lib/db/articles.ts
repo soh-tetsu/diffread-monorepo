@@ -1,5 +1,7 @@
 import { execute, queryMaybeSingle, querySingle } from '@/lib/db/supabase-helpers'
+import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
+import { withRetry } from '@/lib/utils/retry'
 import type { ArticleRow, ArticleStatus, ContentMedium } from '@/types/db'
 
 export async function getArticleById(id: number): Promise<ArticleRow> {
@@ -65,9 +67,36 @@ export async function getOrCreateArticle(
   return querySingle<ArticleRow>(result, { context: 'get or create article' })
 }
 
-export async function updateArticleStatus(articleId: number, status: ArticleStatus): Promise<void> {
-  const result = await supabase.from('articles').update({ status }).eq('id', articleId)
-  execute(result, { context: `update article ${articleId} status` })
+export async function updateArticleStatus(
+  articleId: number,
+  status: ArticleStatus,
+  errorMessage?: string
+): Promise<void> {
+  await withRetry(
+    async () => {
+      const updates: { status: ArticleStatus; error_message?: string | null } = { status }
+
+      if (errorMessage !== undefined) {
+        updates.error_message = errorMessage ? errorMessage.slice(0, 500) : null
+      }
+
+      const result = await supabase.from('articles').update(updates).eq('id', articleId)
+      execute(result, { context: `update article ${articleId} status` })
+    },
+    {
+      maxAttempts: 3,
+      delayMs: 1000,
+      onRetry: (attempt, error) => {
+        logger.warn({ articleId, attempt, err: error }, 'Failed to update article status, retrying')
+      },
+      onFailure: (attempts, error) => {
+        logger.error(
+          { articleId, attempts, err: error },
+          'Failed to update article status after all retries'
+        )
+      },
+    }
+  )
 }
 
 /**

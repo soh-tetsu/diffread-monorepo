@@ -2,7 +2,7 @@ import pLimit from 'p-limit'
 import { execute } from '@/lib/db/supabase-helpers'
 import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
-import { processCuriosityQuiz } from '@/lib/workers/process-curiosity-quiz'
+import { processSession } from '@/lib/workers/process-curiosity-quiz'
 import type { SessionRow } from '@/types/db'
 
 const pendingWorkerLimit = pLimit(1)
@@ -85,13 +85,13 @@ export async function processNextBookmarkedSession(userId: string): Promise<bool
     return true
   }
 
-  // Invoke worker to process the specific curiosity quiz
+  // Invoke worker to process the specific session
   logger.info(
     { sessionToken: bookmarked.session_token, userId, curiosityQuizId: curiosityQuiz.id },
     'Invoking worker for dequeued session'
   )
   pendingWorkerLimit(() =>
-    processCuriosityQuiz(curiosityQuiz.id).catch((err) => {
+    processSession(curiosityQuiz.id).catch((err) => {
       logger.error(
         { err, sessionToken: bookmarked.session_token, curiosityQuizId: curiosityQuiz.id },
         'Worker failed for dequeued session'

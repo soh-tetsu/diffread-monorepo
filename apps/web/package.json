@@ -1,9 +1,10 @@
 {
   "name": "diffread-web",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "tsx scripts/update-sw-version.ts",
     "build": "next build",
     "start": "next start",
     "lint": "biome check .",

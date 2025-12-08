@@ -14,11 +14,18 @@ import {
   getCuriosityQuizById,
   updateCuriosityQuiz,
 } from '@/lib/db/curiosity-quizzes'
-import { updateSessionsByQuizId } from '@/lib/db/sessions'
+import { updateSessionStatus } from '@/lib/db/sessions'
+import {
+  ArticleInvalidStateError,
+  ArticleRetryableError,
+  ArticleTerminalError,
+} from '@/lib/errors/article-errors'
+import { QuizRetryableError, QuizTerminalError } from '@/lib/errors/quiz-errors'
 import { logger } from '@/lib/logger'
+import { withRetry } from '@/lib/utils/retry'
 import { ensureArticleContent } from '@/lib/workflows/article-content'
 
-async function extractPedagogy(
+async function extractPedagogyCore(
   curiosityQuizId: number,
   articleId: number,
   content: string
@@ -84,7 +91,35 @@ async function extractPedagogy(
   return analysisResponse.metadata
 }
 
-async function generateCuriosityQuestions(
+async function extractPedagogy(
+  curiosityQuizId: number,
+  articleId: number,
+  content: string
+): Promise<AnalysisResponse['metadata']> {
+  try {
+    return await withRetry(() => extractPedagogyCore(curiosityQuizId, articleId, content), {
+      maxAttempts: 2,
+      delayMs: 1000,
+      onRetry: (attempt, error) => {
+        logger.warn(
+          { curiosityQuizId, attempt, err: error },
+          'Pedagogy extraction failed, will retry'
+        )
+      },
+      onFailure: (attempts, error) => {
+        logger.error(
+          { curiosityQuizId, attempts, err: error },
+          'Pedagogy extraction failed after all retries'
+        )
+      },
+    })
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
+    throw new QuizRetryableError(`Pedagogy extraction failed: ${err.message}`, curiosityQuizId, err)
+  }
+}
+
+async function generateCuriosityQuestionsCore(
   curiosityQuizId: number,
   metadata: AnalysisResponse['metadata']
 ): Promise<HookGeneratorV2Response['quiz_cards']> {
@@ -126,11 +161,134 @@ async function generateCuriosityQuestions(
   return hookResponse.quiz_cards
 }
 
-async function handleCuriosityQuizFailure(
+async function generateCuriosityQuestions(
+  curiosityQuizId: number,
+  metadata: AnalysisResponse['metadata']
+): Promise<HookGeneratorV2Response['quiz_cards']> {
+  try {
+    return await withRetry(() => generateCuriosityQuestionsCore(curiosityQuizId, metadata), {
+      maxAttempts: 2,
+      delayMs: 1000,
+      onRetry: (attempt, error) => {
+        logger.warn(
+          { curiosityQuizId, attempt, err: error },
+          'Question generation failed, will retry'
+        )
+      },
+      onFailure: (attempts, error) => {
+        logger.error(
+          { curiosityQuizId, attempts, err: error },
+          'Question generation failed after all retries'
+        )
+      },
+    })
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
+    throw new QuizRetryableError(`Question generation failed: ${err.message}`, curiosityQuizId, err)
+  }
+}
+
+/**
+ * Handle session-level failures by updating session status
+ *
+ * Responsibility:
+ * - Update all linked sessions to reflect the failure
+ *
+ * Sub-task responsibilities (NOT this function's job):
+ * - Article errors: Article status already updated by ensureArticleContent
+ * - Quiz errors: Quiz status already updated by quiz generation logic
+ */
+async function handleSessionFailure(
   curiosityQuizId: number,
   quizId: number,
   error: Error
 ): Promise<void> {
+  // Check if error indicates terminal article failure or invalid state
+  if (error instanceof ArticleTerminalError || error instanceof ArticleInvalidStateError) {
+    // Article is terminal or in invalid state - session cannot proceed
+    // Article status is already updated by ensureArticleContent
+    const errorType = error instanceof ArticleInvalidStateError ? 'invalid state' : 'terminal'
+
+    await updateSessionStatus(quizId, 'skip_by_failure')
+
+    logger.error(
+      { curiosityQuizId, quizId, articleId: error.articleId, articleStatus: error.articleStatus },
+      `Article ${errorType}, marking session as skip_by_failure`
+    )
+    return
+  }
+
+  // Check if error is retryable article error (transient failures like storage errors)
+  if (error instanceof ArticleRetryableError) {
+    // Retryable error - mark session as errored for retry
+    // Article status is already handled by article sub-task
+    await updateSessionStatus(quizId, 'errored')
+
+    logger.warn(
+      { curiosityQuizId, quizId, articleId: error.articleId },
+      'Article retryable error, marking session as errored for retry'
+    )
+    return
+  }
+
+  // Check if quiz error is terminal
+  if (error instanceof QuizTerminalError) {
+    // Terminal quiz error - cannot proceed
+    // Quiz status already updated by quiz generation logic
+    await updateSessionStatus(quizId, 'skip_by_failure')
+
+    logger.error(
+      { curiosityQuizId, quizId },
+      'Quiz terminal error, marking session as skip_by_failure'
+    )
+    return
+  }
+
+  // Check if quiz error is retryable (transient failures)
+  if (error instanceof QuizRetryableError) {
+    // Get current retry count and determine next action
+    const quiz = await getCuriosityQuizById(curiosityQuizId)
+    if (!quiz) {
+      logger.error({ curiosityQuizId }, 'Curiosity quiz not found during failure handling')
+      return
+    }
+
+    const retryCount = quiz.retry_count + 1
+    const maxRetries = 3
+
+    if (retryCount >= maxRetries) {
+      // Exhausted session-level retries - mark as terminal
+      await updateCuriosityQuiz(curiosityQuizId, {
+        status: 'skip_by_failure',
+        error_message: error.message.slice(0, 500),
+        retry_count: retryCount,
+      })
+
+      await updateSessionStatus(quizId, 'skip_by_failure')
+
+      logger.error(
+        { curiosityQuizId, quizId, retryCount },
+        'Quiz failed after max session retries, marked as skip_by_failure'
+      )
+    } else {
+      // Mark for session-level retry
+      await updateCuriosityQuiz(curiosityQuizId, {
+        status: 'failed',
+        error_message: error.message.slice(0, 500),
+        retry_count: retryCount,
+      })
+
+      await updateSessionStatus(quizId, 'errored')
+
+      logger.warn(
+        { curiosityQuizId, quizId, retryCount, maxRetries },
+        'Quiz retryable error, marked for session-level retry'
+      )
+    }
+    return
+  }
+
+  // Unknown error type - treat as retryable with retry logic
   const curiosityQuiz = await getCuriosityQuizById(curiosityQuizId)
   if (!curiosityQuiz) {
     logger.error({ curiosityQuizId }, 'Curiosity quiz not found during failure handling')
@@ -148,12 +306,11 @@ async function handleCuriosityQuizFailure(
       retry_count: retryCount,
     })
 
-    // Update all sessions
-    await updateSessionsByQuizId(quizId, { status: 'skip_by_failure' })
+    await updateSessionStatus(quizId, 'skip_by_failure')
 
     logger.error(
       { curiosityQuizId, quizId, retryCount },
-      'Curiosity quiz failed after max retries, marked as skip_by_failure'
+      'Unknown error after max retries, marked as skip_by_failure'
     )
   } else {
     // Mark as failed, will retry
@@ -163,63 +320,39 @@ async function handleCuriosityQuizFailure(
       retry_count: retryCount,
     })
 
-    // Update sessions to errored (retryable)
-    await updateSessionsByQuizId(quizId, { status: 'errored' })
+    await updateSessionStatus(quizId, 'errored')
 
     logger.warn(
       { curiosityQuizId, quizId, retryCount, maxRetries },
-      'Curiosity quiz failed, marked for retry'
+      'Unknown error, marked for retry'
     )
   }
 }
 
-async function processCuriosityQuizCore(
+/**
+ * Process a session by orchestrating article and quiz generation sub-tasks
+ *
+ * Responsibility:
+ * - Orchestrate sub-tasks: article content loading, quiz generation
+ * - Update session status on success
+ * - Errors are caught by caller and handled by handleSessionFailure
+ */
+async function processSessionCore(
   curiosityQuizId: number,
   quizId: number,
   articleId: number
 ): Promise<void> {
-  logger.info({ curiosityQuizId, quizId }, 'Processing curiosity quiz')
+  logger.info({ curiosityQuizId, quizId }, 'Processing session')
 
   // Step 1: Load article content
   const article = await getArticleById(articleId)
   logger.info(
     { curiosityQuizId, articleId, articleStatus: article.status },
-    'Loading article content'
+    'Loading article contentupdateSessionsByQuizId'
   )
 
-  // If article is being scraped, wait and retry
-  let content: string | undefined
-  let retries = 0
-  const MAX_SCRAPING_RETRIES = 3
-  const RETRY_DELAY_MS = 2000
-
-  while (retries < MAX_SCRAPING_RETRIES) {
-    try {
-      const result = await ensureArticleContent(article)
-      content = result.content
-      break
-    } catch (err) {
-      const isScrapingError =
-        err instanceof Error && err.message?.includes('currently being scraped')
-      if (isScrapingError && retries < MAX_SCRAPING_RETRIES - 1) {
-        retries++
-        logger.info(
-          { curiosityQuizId, articleId, retries },
-          'Article being scraped, waiting before retry'
-        )
-        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
-        // Re-fetch article to get updated status
-        const updatedArticle = await getArticleById(articleId)
-        Object.assign(article, updatedArticle)
-      } else {
-        throw err
-      }
-    }
-  }
-
-  if (!content) {
-    throw new Error('Failed to load article content after retries')
-  }
+  const result = await ensureArticleContent(article)
+  const content = result.content
 
   logger.info(
     {
@@ -233,7 +366,10 @@ async function processCuriosityQuizCore(
   // Step 2: Check if pedagogy already extracted (idempotency)
   const curiosityQuiz = await getCuriosityQuizById(curiosityQuizId)
   if (!curiosityQuiz) {
-    throw new Error(`Curiosity quiz ${curiosityQuizId} not found`)
+    throw new QuizTerminalError(
+      `Curiosity quiz ${curiosityQuizId} not found - data integrity issue`,
+      curiosityQuizId
+    )
   }
 
   let metadata: AnalysisResponse['metadata']
@@ -269,12 +405,12 @@ async function processCuriosityQuizCore(
   })
 
   // Step 5: Update ALL sessions linked to this quiz
-  await updateSessionsByQuizId(quizId, { status: 'ready' })
+  await updateSessionStatus(quizId, 'ready')
 
   logger.info({ curiosityQuizId, quizId }, 'Curiosity quiz completed')
 }
 
-export async function processCuriosityQuiz(curiosityQuizId: number): Promise<void> {
+export async function processSession(curiosityQuizId: number): Promise<void> {
   // Step 1: Claim specific curiosity quiz (atomic lock)
   const result = await claimCuriosityQuiz(curiosityQuizId)
   if (!result.claimed || !result.info) {
@@ -285,10 +421,17 @@ export async function processCuriosityQuiz(curiosityQuizId: number): Promise<voi
         { curiosityQuizId },
         'Curiosity quiz does not exist - this is a data integrity issue'
       )
+    } else if (quiz.status === 'ready') {
+      // Quiz is already ready - propagate success to sessions
+      logger.info(
+        { curiosityQuizId, quizId: quiz.quiz_id },
+        'Curiosity quiz already ready, propagating success to sessions'
+      )
+      await updateSessionStatus(quiz.quiz_id, 'ready')
     } else {
       logger.info(
         { curiosityQuizId, actualStatus: quiz.status },
-        'Could not claim curiosity quiz (not in pending/failed status)'
+        'Could not claim session (not in pending/failed status)'
       )
     }
     return
@@ -297,10 +440,10 @@ export async function processCuriosityQuiz(curiosityQuizId: number): Promise<voi
   const { quiz_id, article_id } = result.info
 
   try {
-    await processCuriosityQuizCore(curiosityQuizId, quiz_id, article_id)
+    await processSessionCore(curiosityQuizId, quiz_id, article_id)
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
-    logger.error({ err, curiosityQuizId, quizId: quiz_id }, 'Curiosity quiz processing failed')
-    await handleCuriosityQuizFailure(curiosityQuizId, quiz_id, err)
+    logger.error({ err, curiosityQuizId, quizId: quiz_id }, 'Session processing failed')
+    await handleSessionFailure(curiosityQuizId, quiz_id, err)
   }
 }

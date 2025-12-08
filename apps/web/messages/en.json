@@ -71,7 +71,7 @@
     "submitDescription": "Drop any URL to check your intuition. We'll generate a magic link in minutes.",
     "loadingMessage": "Warming up Diffread…",
     "queueBanner": "You have {count} {count, plural, one {quiz} other {quizzes}} ready in your queue!",
-    "queueBannerAction": "Take it",
+    "queueBannerAction": "Start",
     "presetQuiz": {
       "question1": {
         "category": "Scenario · Strategy: The Simulation",
@@ -124,7 +124,7 @@
     "queueFull": "Article bookmarked!",
     "queueFullDescription": "Your queue is full (2/2). Complete your current quizzes to process this article.",
     "readyQuizzesAvailable": "{count} quizzes are ready! Check them out while waiting.",
-    "goToQueue": "Go"
+    "goToQueue": "Start"
   },
   "settings": {
     "language": "Language",
@@ -169,6 +169,12 @@
     "delete": "Delete",
     "deleteConfirm": "Delete this article?",
     "deleting": "Deleting...",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "retryConfirm": "Re-trigger quiz generation?",
+    "retrying": "Retrying...",
+    "archive": "Archive",
+    "archiveConfirm": "Archive this article?",
+    "archiving": "Archiving..."
   }
 }

@@ -71,7 +71,7 @@
     "submitDescription": "URLを入力して直感をチェックしてください。数分でマジックリンクを生成します。",
     "loadingMessage": "Diffreadを準備中…",
     "queueBanner": "キューに{count}個のクイズが準備できています！",
-    "queueBannerAction": "受け取る",
+    "queueBannerAction": "開始",
     "presetQuiz": {
       "question1": {
         "category": "シナリオ・戦略：シミュレーション",
@@ -124,7 +124,7 @@
     "queueFull": "記事をブックマークしました！",
     "queueFullDescription": "キューが満杯です（2/2）。この記事を処理するには、現在のクイズを完了してください。",
     "readyQuizzesAvailable": "{count}個のクイズが準備できています！待っている間に確認しましょう。",
-    "goToQueue": "移動"
+    "goToQueue": "開始"
   },
   "settings": {
     "language": "言語",
@@ -162,6 +162,12 @@
     "errorWillRetry": "エラー。再試行します",
     "failedToProcess": "処理に失敗しました",
     "start": "開始",
-    "cancel": "キャンセル"
+    "cancel": "キャンセル",
+    "retry": "再試行",
+    "retryConfirm": "クイズ生成を再実行しますか？",
+    "retrying": "再試行中...",
+    "archive": "アーカイブ",
+    "archiveConfirm": "この記事をアーカイブしますか？",
+    "archiving": "アーカイブ中..."
   }
 }

@@ -49,6 +49,7 @@ export interface ArticleRow {
   original_url: string
 
   status: ArticleStatus
+  error_message: string | null
   storage_path: string | null
   content_hash: string | null
   last_scraped_at: string | null

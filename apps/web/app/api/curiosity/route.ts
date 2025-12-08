@@ -121,9 +121,9 @@ export async function POST(request: Request) {
         session.status === 'errored')
     ) {
       // Check if curiosity quiz is already ready
+      // if so, it won't occupy a queue slot
       if (curiosityQuiz.status === 'ready') {
-        // Quiz is ready - back-propagate status through the chain
-        // Ensure article content is available (ensureArticleContent handles status checking)
+        // Ensure article content is available
         if (article.status !== 'ready') {
           logger.info(
             {
@@ -140,8 +140,8 @@ export async function POST(request: Request) {
         }
 
         // Update all sessions linked to this quiz
-        const { updateSessionsByQuizId } = await import('@/lib/db/sessions')
-        await updateSessionsByQuizId(session.quiz_id, { status: 'ready' })
+        const { updateSessionStatus } = await import('@/lib/db/sessions')
+        await updateSessionStatus(session.quiz_id, 'ready')
 
         // Update local session object
         session.status = 'ready'
