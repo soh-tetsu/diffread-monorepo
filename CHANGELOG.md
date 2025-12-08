@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - Ready quiz status propagation to sessions
+- Handle stuck quiz generation sessions
 
 ## [0.3.1] - 2025-12-07
 
