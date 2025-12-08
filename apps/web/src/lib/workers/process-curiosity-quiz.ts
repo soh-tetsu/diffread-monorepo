@@ -410,40 +410,128 @@ async function processSessionCore(
   logger.info({ curiosityQuizId, quizId }, 'Curiosity quiz completed')
 }
 
+/**
+ * Handle stuck processing status by checking if quiz has been processing too long
+ *
+ * @param curiosityQuizId - The curiosity quiz ID
+ * @param quiz - The curiosity quiz record
+ * @throws QuizTerminalError if retry limit exceeded
+ * @throws QuizRetryableError if stuck but can retry
+ */
+async function handleStuckProcessing(
+  curiosityQuizId: number,
+  quiz: { quiz_id: number; updated_at: string; retry_count: number }
+): Promise<void> {
+  const now = Date.now()
+  const updatedAt = new Date(quiz.updated_at).getTime()
+  const ageInMinutes = (now - updatedAt) / 1000 / 60
+
+  if (ageInMinutes > 3) {
+    // Stuck in processing - check retry limit
+    const maxRetries = 3
+
+    if (quiz.retry_count >= maxRetries) {
+      // Already at max retries - mark as terminal failure and throw
+      await updateCuriosityQuiz(curiosityQuizId, {
+        status: 'skip_by_failure',
+        error_message: 'Quiz stuck in processing status for over 3 minutes',
+      })
+      logger.error(
+        {
+          curiosityQuizId,
+          quizId: quiz.quiz_id,
+          ageInMinutes,
+          retryCount: quiz.retry_count,
+          maxRetries,
+        },
+        'Curiosity quiz stuck in processing after max retries'
+      )
+      throw new QuizTerminalError(
+        'Quiz stuck in processing status for over 3 minutes',
+        curiosityQuizId
+      )
+    } else {
+      // Mark as failed and throw retryable error
+      await updateCuriosityQuiz(curiosityQuizId, {
+        status: 'failed',
+        error_message: 'Quiz stuck in processing status for over 3 minutes',
+      })
+      logger.warn(
+        {
+          curiosityQuizId,
+          quizId: quiz.quiz_id,
+          ageInMinutes,
+          retryCount: quiz.retry_count,
+          maxRetries,
+        },
+        'Curiosity quiz stuck in processing, will retry'
+      )
+      throw new QuizRetryableError(
+        'Quiz stuck in processing status for over 3 minutes',
+        curiosityQuizId
+      )
+    }
+  } else {
+    // Still being processed by another worker
+    logger.info(
+      { curiosityQuizId, actualStatus: 'processing', ageInMinutes },
+      'Quiz is being processed by another worker'
+    )
+  }
+}
+
 export async function processSession(curiosityQuizId: number): Promise<void> {
   // Step 1: Claim specific curiosity quiz (atomic lock)
   const result = await claimCuriosityQuiz(curiosityQuizId)
-  if (!result.claimed || !result.info) {
-    // Check actual status for better logging
-    const quiz = await getCuriosityQuizById(curiosityQuizId)
-    if (!quiz) {
-      logger.warn(
-        { curiosityQuizId },
-        'Curiosity quiz does not exist - this is a data integrity issue'
-      )
-    } else if (quiz.status === 'ready') {
-      // Quiz is already ready - propagate success to sessions
-      logger.info(
-        { curiosityQuizId, quizId: quiz.quiz_id },
-        'Curiosity quiz already ready, propagating success to sessions'
-      )
-      await updateSessionStatus(quiz.quiz_id, 'ready')
-    } else {
+
+  let quiz_id: number | undefined
+
+  try {
+    if (!result.claimed || !result.info) {
+      // Check actual status for better logging
+      const quiz = await getCuriosityQuizById(curiosityQuizId)
+      if (!quiz) {
+        logger.warn(
+          { curiosityQuizId },
+          'Curiosity quiz does not exist - this is a data integrity issue'
+        )
+        return
+      }
+
+      quiz_id = quiz.quiz_id
+
+      if (quiz.status === 'ready') {
+        // Quiz is already ready - propagate success to sessions
+        logger.info(
+          { curiosityQuizId, quizId: quiz.quiz_id },
+          'Curiosity quiz already ready, propagating success to sessions'
+        )
+        await updateSessionStatus(quiz.quiz_id, 'ready')
+        return
+      }
+
+      if (quiz.status === 'processing') {
+        // Check if stuck - will throw error if stuck
+        await handleStuckProcessing(curiosityQuizId, quiz)
+        return
+      }
+
       logger.info(
         { curiosityQuizId, actualStatus: quiz.status },
         'Could not claim session (not in pending/failed status)'
       )
+      return
     }
-    return
-  }
 
-  const { quiz_id, article_id } = result.info
+    quiz_id = result.info.quiz_id
+    const article_id = result.info.article_id
 
-  try {
     await processSessionCore(curiosityQuizId, quiz_id, article_id)
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
     logger.error({ err, curiosityQuizId, quizId: quiz_id }, 'Session processing failed')
-    await handleSessionFailure(curiosityQuizId, quiz_id, err)
+    if (quiz_id) {
+      await handleSessionFailure(curiosityQuizId, quiz_id, err)
+    }
   }
 }
