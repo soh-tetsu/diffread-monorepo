@@ -9,14 +9,14 @@ const pendingWorkerLimit = pLimit(1)
 
 /**
  * Count how many sessions are in the user's queue
- * Queue = status is ready OR pending AND study_status is not completed/archived
+ * Queue = status is ready OR pending OR errored AND study_status is not completed/archived
  */
 export async function countQueueItems(userId: string): Promise<number> {
   const result = await supabase
     .from('sessions')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .in('status', ['ready', 'pending'])
+    .in('status', ['ready', 'pending', 'errored'])
     .in('study_status', ['not_started', 'curiosity_in_progress'])
 
   if (result.error) {

@@ -162,6 +162,7 @@
     "startQuiz": "Check Intuition",
     "continue": "Continue",
     "processing": "Processing...",
+    "failed": "Failed",
     "bookmarked": "Waiting",
     "errorWillRetry": "Error. Will retry",
     "failedToProcess": "Failed to process",

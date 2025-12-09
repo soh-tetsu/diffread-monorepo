@@ -308,7 +308,8 @@ export default function BookmarksPage() {
                             {formatUrlForDisplay(session.articleUrl)}
                           </Link>
                         </VStack>
-                        <VStack gap={2} flexShrink={0} alignSelf="center" w="140px">
+                        <VStack gap={1} flexShrink={0} alignSelf="center" w="140px">
+                          {/* Top row: Status button (Start/Continue/Processing/Failed) */}
                           <Button
                             size="sm"
                             colorPalette={
@@ -316,12 +317,20 @@ export default function BookmarksPage() {
                               (session.studyStatus === 'curiosity_in_progress' ||
                                 session.studyStatus === 'scaffold_in_progress')
                                 ? 'purple'
-                                : 'teal'
+                                : session.status === 'errored' &&
+                                    retryingToken !== session.sessionToken
+                                  ? 'red'
+                                  : 'teal'
                             }
                             w="full"
                             variant="subtle"
-                            loading={session.status === 'pending'}
+                            loading={
+                              session.status === 'pending' && retryingToken !== session.sessionToken
+                            }
                             loadingText={t('processing')}
+                            disabled={
+                              session.status === 'errored' && retryingToken !== session.sessionToken
+                            }
                             onClick={() => router.push(`/quiz?q=${session.sessionToken}`)}
                           >
                             {session.status === 'ready' && session.studyStatus === 'not_started'
@@ -330,8 +339,12 @@ export default function BookmarksPage() {
                                   (session.studyStatus === 'curiosity_in_progress' ||
                                     session.studyStatus === 'scaffold_in_progress')
                                 ? t('continue')
-                                : t('processing')}
+                                : session.status === 'errored' &&
+                                    retryingToken !== session.sessionToken
+                                  ? t('failed')
+                                  : t('processing')}
                           </Button>
+                          {/* Bottom row: Archive and Retry buttons */}
                           {confirmingRetry === session.sessionToken ? (
                             <ButtonGroup size="sm" variant="outline" w="full">
                               <Button
@@ -357,32 +370,32 @@ export default function BookmarksPage() {
                               <CloseButton onClick={handleArchiveCancel} />
                             </ButtonGroup>
                           ) : (
-                            <>
-                              {shouldShowRetry(session) && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  colorPalette="blue"
-                                  w="full"
-                                  loading={retryingToken === session.sessionToken}
-                                  onClick={() => handleRetryClick(session.sessionToken)}
-                                >
-                                  {t('retry')}
-                                </Button>
-                              )}
+                            <HStack gap={1} w="full">
                               {(session.status === 'ready' || session.status === 'errored') && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   colorPalette="gray"
-                                  w="full"
+                                  flex="1"
                                   loading={archivingToken === session.sessionToken}
                                   onClick={() => handleArchiveClick(session.sessionToken)}
                                 >
                                   {t('archive')}
                                 </Button>
                               )}
-                            </>
+                              {shouldShowRetry(session) && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  colorPalette="blue"
+                                  flex="1"
+                                  loading={retryingToken === session.sessionToken}
+                                  onClick={() => handleRetryClick(session.sessionToken)}
+                                >
+                                  {t('retry')}
+                                </Button>
+                              )}
+                            </HStack>
                           )}
                         </VStack>
                       </HStack>

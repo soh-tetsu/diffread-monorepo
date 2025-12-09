@@ -92,10 +92,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         // Archived section
         archived.push(bookmark)
       } else if (
-        (bookmark.status === 'ready' || bookmark.status === 'pending') &&
+        (bookmark.status === 'ready' ||
+          bookmark.status === 'pending' ||
+          bookmark.status === 'errored') &&
         (bookmark.studyStatus === 'not_started' || bookmark.studyStatus === 'curiosity_in_progress')
       ) {
-        // Queue section (ready to solve OR currently generating, max 2 slots)
+        // Queue section (ready to solve OR currently generating OR errored, max 2 slots)
         queue.push(bookmark)
       } else {
         // Waiting list (bookmarked or errored, no slots occupied)
