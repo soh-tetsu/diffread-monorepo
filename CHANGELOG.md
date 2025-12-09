@@ -3,6 +3,9 @@
 All notable changes to this project will be documented in this file.
 
 ## [0.3.2] - 2025-12-08
+- hot fix
+
+## [0.3.2] - 2025-12-08
 
 ### Added
 - Retry button for failed or stuck quiz generation
