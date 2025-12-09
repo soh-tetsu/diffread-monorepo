@@ -114,8 +114,11 @@ export async function POST(request: Request) {
       throw new Error('Session initialization failed: missing curiosity quiz')
     }
 
+    // Detect retry: currentToken was validated and session matches
+    const isRetry = currentToken && session.session_token === currentToken
+
     if (
-      queueCount < 2 &&
+      (queueCount < 2 || isRetry) &&
       (session.status === 'bookmarked' ||
         session.status === 'pending' ||
         session.status === 'errored')

@@ -198,11 +198,14 @@ async function generateCuriosityQuestions(
  * - Article errors: Article status already updated by ensureArticleContent
  * - Quiz errors: Quiz status already updated by quiz generation logic
  */
-async function handleSessionFailure(
-  curiosityQuizId: number,
-  quizId: number,
-  error: Error
-): Promise<void> {
+async function handleSessionFailure(curiosityQuizId: number, error: Error): Promise<void> {
+  // Get quiz_id from curiosity quiz
+  const quiz = await getCuriosityQuizById(curiosityQuizId)
+  if (!quiz) {
+    logger.error({ curiosityQuizId }, 'Curiosity quiz not found during failure handling')
+    return
+  }
+  const quizId = quiz.quiz_id
   // Check if error indicates terminal article failure or invalid state
   if (error instanceof ArticleTerminalError || error instanceof ArticleInvalidStateError) {
     // Article is terminal or in invalid state - session cannot proceed
@@ -431,41 +434,11 @@ async function handleStuckProcessing(
     const maxRetries = 3
 
     if (quiz.retry_count >= maxRetries) {
-      // Already at max retries - mark as terminal failure and throw
-      await updateCuriosityQuiz(curiosityQuizId, {
-        status: 'skip_by_failure',
-        error_message: 'Quiz stuck in processing status for over 3 minutes',
-      })
-      logger.error(
-        {
-          curiosityQuizId,
-          quizId: quiz.quiz_id,
-          ageInMinutes,
-          retryCount: quiz.retry_count,
-          maxRetries,
-        },
-        'Curiosity quiz stuck in processing after max retries'
-      )
       throw new QuizTerminalError(
         'Quiz stuck in processing status for over 3 minutes',
         curiosityQuizId
       )
     } else {
-      // Mark as failed and throw retryable error
-      await updateCuriosityQuiz(curiosityQuizId, {
-        status: 'failed',
-        error_message: 'Quiz stuck in processing status for over 3 minutes',
-      })
-      logger.warn(
-        {
-          curiosityQuizId,
-          quizId: quiz.quiz_id,
-          ageInMinutes,
-          retryCount: quiz.retry_count,
-          maxRetries,
-        },
-        'Curiosity quiz stuck in processing, will retry'
-      )
       throw new QuizRetryableError(
         'Quiz stuck in processing status for over 3 minutes',
         curiosityQuizId
@@ -481,12 +454,12 @@ async function handleStuckProcessing(
 }
 
 export async function processSession(curiosityQuizId: number): Promise<void> {
-  // Step 1: Claim specific curiosity quiz (atomic lock)
-  const result = await claimCuriosityQuiz(curiosityQuizId)
-
   let quiz_id: number | undefined
 
   try {
+    // Step 1: Claim specific curiosity quiz (atomic lock)
+    const result = await claimCuriosityQuiz(curiosityQuizId)
+
     if (!result.claimed || !result.info) {
       // Check actual status for better logging
       const quiz = await getCuriosityQuizById(curiosityQuizId)
@@ -530,8 +503,6 @@ export async function processSession(curiosityQuizId: number): Promise<void> {
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
     logger.error({ err, curiosityQuizId, quizId: quiz_id }, 'Session processing failed')
-    if (quiz_id) {
-      await handleSessionFailure(curiosityQuizId, quiz_id, err)
-    }
+    await handleSessionFailure(curiosityQuizId, err)
   }
 }

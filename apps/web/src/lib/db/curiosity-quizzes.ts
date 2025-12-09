@@ -50,18 +50,24 @@ export async function updateCuriosityQuiz(
 export async function claimCuriosityQuiz(
   curiosityQuizId: number
 ): Promise<{ claimed: boolean; info: ClaimedCuriosityQuiz | null }> {
-  const result = (await supabase
-    .rpc('claim_specific_curiosity_quiz', { p_curiosity_quiz_id: curiosityQuizId })
-    .maybeSingle()) as PostgrestSingleResponse<ClaimedCuriosityQuiz & { claimed: boolean }>
+  try {
+    const result = (await supabase
+      .rpc('claim_specific_curiosity_quiz', { p_curiosity_quiz_id: curiosityQuizId })
+      .maybeSingle()) as PostgrestSingleResponse<ClaimedCuriosityQuiz & { claimed: boolean }>
 
-  const data = queryMaybeSingle<ClaimedCuriosityQuiz & { claimed: boolean }>(result, {
-    context: `claim curiosity quiz ${curiosityQuizId}`,
-  })
+    const data = queryMaybeSingle<ClaimedCuriosityQuiz & { claimed: boolean }>(result, {
+      context: `claim curiosity quiz ${curiosityQuizId}`,
+    })
 
-  if (!data) {
-    return { claimed: false, info: null }
+    if (!data) {
+      return { claimed: false, info: null }
+    }
+
+    const { claimed, ...info } = data
+    return { claimed, info }
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error))
+    const { QuizRetryableError } = await import('@/lib/errors/quiz-errors')
+    throw new QuizRetryableError(`Failed to claim quiz: ${err.message}`, curiosityQuizId, err)
   }
-
-  const { claimed, ...info } = data
-  return { claimed, info }
 }
