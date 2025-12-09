@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 import { ensureSessionForGuest, extractGuestId, GuestSessionError } from '@/lib/api/guest-session'
 import { getCuriosityQuizByQuizId } from '@/lib/db/curiosity-quizzes'
 import { logger } from '@/lib/logger'
@@ -137,8 +137,13 @@ export async function POST(request: Request) {
             'Curiosity quiz is ready but article not ready - ensuring article content'
           )
           const { ensureArticleContent } = await import('@/lib/workflows/article-content')
-          ensureArticleContent(article).catch((err) => {
-            logger.error({ err, articleId: article.id }, 'Failed to ensure article content')
+          // Use after() to ensure background task completes even after response is sent
+          after(async () => {
+            try {
+              await ensureArticleContent(article)
+            } catch (err) {
+              logger.error({ err, articleId: article.id }, 'Failed to ensure article content')
+            }
           })
         }
 
@@ -160,14 +165,19 @@ export async function POST(request: Request) {
             ? await updateSession(session.id, { status: 'pending' })
             : session
 
-        // Trigger worker (fire-and-forget)
+        // Trigger worker in background
+        // Use after() to ensure worker completes even after response is sent
         // Pass curiosityQuizId to ensure we process the specific quiz for this session
         const { triggerQuizWorker } = await import('@/lib/workflows/enqueue-session')
-        triggerQuizWorker(sessionToProcess, {
-          sync: false,
-          curiosityQuizId: curiosityQuiz?.id,
-        }).catch((err) => {
-          logger.error({ err, sessionToken: session.session_token }, 'Worker invocation failed')
+        after(async () => {
+          try {
+            await triggerQuizWorker(sessionToProcess, {
+              sync: false,
+              curiosityQuizId: curiosityQuiz?.id,
+            })
+          } catch (err) {
+            logger.error({ err, sessionToken: session.session_token }, 'Worker invocation failed')
+          }
         })
 
         // Update session reference after status change

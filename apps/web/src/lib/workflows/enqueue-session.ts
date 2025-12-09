@@ -1,5 +1,3 @@
-import pLimit from 'p-limit'
-import { concurrencyConfig } from '@/lib/config'
 import { getCuriosityQuizByQuizId } from '@/lib/db/curiosity-quizzes'
 import { countQueueItems } from '@/lib/db/queue'
 import { updateSessionByToken } from '@/lib/db/sessions'
@@ -8,8 +6,6 @@ import { logger } from '@/lib/logger'
 import { processSession } from '@/lib/workers/process-curiosity-quiz'
 import { initializeSessionChain } from '@/lib/workflows/session-init'
 import type { SessionRow, UserRow } from '@/types/db'
-
-const pendingWorkerLimit = pLimit(concurrencyConfig.pendingWorkers)
 
 /**
  * Trigger quiz worker for an already-initialized session
@@ -37,27 +33,22 @@ export async function triggerQuizWorker(
   const shouldProcess = session.status === 'pending' || session.status === 'errored'
 
   if (shouldProcess) {
-    if (sync) {
-      logger.info(
-        { sessionToken: session.session_token, curiosityQuizId },
-        'Processing session (sync)...'
-      )
-      await pendingWorkerLimit(() => processSession(curiosityQuizId))
-      logger.info({ sessionToken: session.session_token }, 'Session processing completed')
-    } else {
-      logger.info(
-        { sessionToken: session.session_token, curiosityQuizId },
-        'Session worker invoked (async)'
-      )
-      pendingWorkerLimit(() =>
-        processSession(curiosityQuizId).catch((err) => {
-          logger.error(
-            { err, sessionToken: session.session_token, curiosityQuizId },
-            'Session worker failed'
-          )
-        })
-      )
-    }
+    // if (sync) {
+    logger.info(
+      { sessionToken: session.session_token, curiosityQuizId },
+      'Processing session (sync)...'
+    )
+    await processSession(curiosityQuizId)
+    logger.info({ sessionToken: session.session_token }, 'Session processing completed')
+    // } else {
+    // logger.info(
+    //   { sessionToken: session.session_token, curiosityQuizId },
+    //   'Session worker invoked (async)'
+    // )
+    // Note: processSession handles its own errors internally via handleSessionFailure
+    // No need to wrap in try-catch here - errors are logged inside processSession
+    // void processSession(curiosityQuizId)
+    // }
   } else {
     logger.info(
       { sessionToken: session.session_token, status: session.status },
@@ -239,7 +230,7 @@ export async function enqueueAndProcessSession(
         { sessionToken: session.session_token, curiosityQuizId: curiosityQuiz.id },
         'Processing session (sync)...'
       )
-      await pendingWorkerLimit(() => processSession(curiosityQuiz.id))
+      await processSession(curiosityQuiz.id)
       logger.info({ sessionToken: session.session_token }, 'Session processing completed')
     } else {
       // Asynchronous: Fire and forget
@@ -247,14 +238,9 @@ export async function enqueueAndProcessSession(
         { sessionToken: session.session_token, curiosityQuizId: curiosityQuiz.id },
         'Session worker invoked (async)'
       )
-      pendingWorkerLimit(() =>
-        processSession(curiosityQuiz.id).catch((err) => {
-          logger.error(
-            { err, sessionToken: session.session_token, curiosityQuizId: curiosityQuiz.id },
-            'Session worker failed'
-          )
-        })
-      )
+      // Note: processSession handles its own errors internally via handleSessionFailure
+      // No need to wrap in try-catch here - errors are logged inside processSession
+      void processSession(curiosityQuiz.id)
     }
   } else {
     logger.info(

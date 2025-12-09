@@ -147,8 +147,8 @@ export default function BookmarksPage() {
     }
     if (session.status === 'pending') {
       const now = Date.now()
-      const ageInSeconds = (now - session.timestamp) / 1000
-      return ageInSeconds > 60
+      const ageInMinutes = (now - session.timestamp) / 1000 / 60
+      return ageInMinutes > 3
     }
     return false
   }

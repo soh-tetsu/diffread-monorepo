@@ -199,8 +199,18 @@ async function generateCuriosityQuestions(
  * - Quiz errors: Quiz status already updated by quiz generation logic
  */
 async function handleSessionFailure(curiosityQuizId: number, error: Error): Promise<void> {
+  logger.info(
+    { curiosityQuizId, errorName: error.name, errorMessage: error.message },
+    '[TRACE] handleSessionFailure called'
+  )
+
   // Get quiz_id from curiosity quiz
   const quiz = await getCuriosityQuizById(curiosityQuizId)
+  logger.info(
+    { curiosityQuizId, quizFound: !!quiz, quizId: quiz?.quiz_id },
+    '[TRACE] Fetched curiosity quiz'
+  )
+
   if (!quiz) {
     logger.error({ curiosityQuizId }, 'Curiosity quiz not found during failure handling')
     return
@@ -208,10 +218,15 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
   const quizId = quiz.quiz_id
   // Check if error indicates terminal article failure or invalid state
   if (error instanceof ArticleTerminalError || error instanceof ArticleInvalidStateError) {
+    logger.info(
+      { curiosityQuizId, quizId },
+      '[TRACE] Handling ArticleTerminalError/InvalidStateError'
+    )
     // Article is terminal or in invalid state - session cannot proceed
     // Article status is already updated by ensureArticleContent
     const errorType = error instanceof ArticleInvalidStateError ? 'invalid state' : 'terminal'
 
+    logger.info({ curiosityQuizId, quizId }, '[TRACE] Updating session status to skip_by_failure')
     await updateSessionStatus(quizId, 'skip_by_failure')
 
     logger.error(
@@ -223,8 +238,10 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
 
   // Check if error is retryable article error (transient failures like storage errors)
   if (error instanceof ArticleRetryableError) {
+    logger.info({ curiosityQuizId, quizId }, '[TRACE] Handling ArticleRetryableError')
     // Retryable error - mark session as errored for retry
     // Article status is already handled by article sub-task
+    logger.info({ curiosityQuizId, quizId }, '[TRACE] Updating session status to errored')
     await updateSessionStatus(quizId, 'errored')
 
     logger.warn(
@@ -236,8 +253,10 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
 
   // Check if quiz error is terminal
   if (error instanceof QuizTerminalError) {
+    logger.info({ curiosityQuizId, quizId }, '[TRACE] Handling QuizTerminalError')
     // Terminal quiz error - cannot proceed
     // Quiz status already updated by quiz generation logic
+    logger.info({ curiosityQuizId, quizId }, '[TRACE] Updating session status to skip_by_failure')
     await updateSessionStatus(quizId, 'skip_by_failure')
 
     logger.error(
@@ -249,17 +268,27 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
 
   // Check if quiz error is retryable (transient failures)
   if (error instanceof QuizRetryableError) {
+    logger.info({ curiosityQuizId, quizId }, '[TRACE] Handling QuizRetryableError')
     // Get current retry count and determine next action
-    const quiz = await getCuriosityQuizById(curiosityQuizId)
-    if (!quiz) {
+    const quizData = await getCuriosityQuizById(curiosityQuizId)
+    logger.info(
+      { curiosityQuizId, quizFound: !!quizData, retryCount: quizData?.retry_count },
+      '[TRACE] Fetched quiz for retry logic'
+    )
+
+    if (!quizData) {
       logger.error({ curiosityQuizId }, 'Curiosity quiz not found during failure handling')
       return
     }
 
-    const retryCount = quiz.retry_count + 1
+    const retryCount = quizData.retry_count + 1
     const maxRetries = 3
 
     if (retryCount >= maxRetries) {
+      logger.info(
+        { curiosityQuizId, quizId, retryCount },
+        '[TRACE] Max retries exceeded, marking skip_by_failure'
+      )
       // Exhausted session-level retries - mark as terminal
       await updateCuriosityQuiz(curiosityQuizId, {
         status: 'skip_by_failure',
@@ -267,6 +296,7 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
         retry_count: retryCount,
       })
 
+      logger.info({ curiosityQuizId, quizId }, '[TRACE] Updating session status to skip_by_failure')
       await updateSessionStatus(quizId, 'skip_by_failure')
 
       logger.error(
@@ -274,6 +304,7 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
         'Quiz failed after max session retries, marked as skip_by_failure'
       )
     } else {
+      logger.info({ curiosityQuizId, quizId, retryCount, maxRetries }, '[TRACE] Marking for retry')
       // Mark for session-level retry
       await updateCuriosityQuiz(curiosityQuizId, {
         status: 'failed',
@@ -281,6 +312,7 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
         retry_count: retryCount,
       })
 
+      logger.info({ curiosityQuizId, quizId }, '[TRACE] Updating session status to errored')
       await updateSessionStatus(quizId, 'errored')
 
       logger.warn(
@@ -292,7 +324,16 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
   }
 
   // Unknown error type - treat as retryable with retry logic
+  logger.info(
+    { curiosityQuizId, quizId, errorType: error.constructor.name },
+    '[TRACE] Handling unknown error type'
+  )
   const curiosityQuiz = await getCuriosityQuizById(curiosityQuizId)
+  logger.info(
+    { curiosityQuizId, quizFound: !!curiosityQuiz, retryCount: curiosityQuiz?.retry_count },
+    '[TRACE] Fetched quiz for unknown error handling'
+  )
+
   if (!curiosityQuiz) {
     logger.error({ curiosityQuizId }, 'Curiosity quiz not found during failure handling')
     return
@@ -302,6 +343,10 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
   const maxRetries = 3
 
   if (retryCount >= maxRetries) {
+    logger.info(
+      { curiosityQuizId, quizId, retryCount },
+      '[TRACE] Unknown error: Max retries exceeded'
+    )
     // Skip after max retries
     await updateCuriosityQuiz(curiosityQuizId, {
       status: 'skip_by_failure',
@@ -309,6 +354,7 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
       retry_count: retryCount,
     })
 
+    logger.info({ curiosityQuizId, quizId }, '[TRACE] Updating session status to skip_by_failure')
     await updateSessionStatus(quizId, 'skip_by_failure')
 
     logger.error(
@@ -316,6 +362,10 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
       'Unknown error after max retries, marked as skip_by_failure'
     )
   } else {
+    logger.info(
+      { curiosityQuizId, quizId, retryCount, maxRetries },
+      '[TRACE] Unknown error: Marking for retry'
+    )
     // Mark as failed, will retry
     await updateCuriosityQuiz(curiosityQuizId, {
       status: 'failed',
@@ -323,6 +373,7 @@ async function handleSessionFailure(curiosityQuizId: number, error: Error): Prom
       retry_count: retryCount,
     })
 
+    logger.info({ curiosityQuizId, quizId }, '[TRACE] Updating session status to errored')
     await updateSessionStatus(quizId, 'errored')
 
     logger.warn(
@@ -457,8 +508,14 @@ export async function processSession(curiosityQuizId: number): Promise<void> {
   let quiz_id: number | undefined
 
   try {
+    logger.info({ curiosityQuizId }, '[TRACE] processSession: Starting')
     // Step 1: Claim specific curiosity quiz (atomic lock)
+    logger.info({ curiosityQuizId }, '[TRACE] processSession: Calling claimCuriosityQuiz')
     const result = await claimCuriosityQuiz(curiosityQuizId)
+    logger.info(
+      { curiosityQuizId, claimed: result.claimed, hasInfo: !!result.info },
+      '[TRACE] processSession: claimCuriosityQuiz returned'
+    )
 
     if (!result.claimed || !result.info) {
       // Check actual status for better logging
@@ -503,6 +560,14 @@ export async function processSession(curiosityQuizId: number): Promise<void> {
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
     logger.error({ err, curiosityQuizId, quizId: quiz_id }, 'Session processing failed')
+    logger.info(
+      { curiosityQuizId, quizId: quiz_id, errorName: err.name, errorMessage: err.message },
+      '[TRACE] processSession: Caught error, calling handleSessionFailure'
+    )
     await handleSessionFailure(curiosityQuizId, err)
+    logger.info(
+      { curiosityQuizId, quizId: quiz_id },
+      '[TRACE] processSession: handleSessionFailure completed'
+    )
   }
 }

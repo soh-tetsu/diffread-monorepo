@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [0.3.2] - 2025-12-08
 - hot fix
 - Failed jobs are displayed in Quiz Queue
+- fix RPC bug
+- fix backgroun job unexpected exit bug
 
 ## [0.3.2] - 2025-12-08
 

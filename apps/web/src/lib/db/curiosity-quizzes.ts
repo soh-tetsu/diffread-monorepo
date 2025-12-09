@@ -50,14 +50,27 @@ export async function updateCuriosityQuiz(
 export async function claimCuriosityQuiz(
   curiosityQuizId: number
 ): Promise<{ claimed: boolean; info: ClaimedCuriosityQuiz | null }> {
+  const { logger } = await import('@/lib/logger')
+
   try {
+    logger.info({ curiosityQuizId }, '[TRACE] claimCuriosityQuiz: Calling RPC')
     const result = (await supabase
       .rpc('claim_specific_curiosity_quiz', { p_curiosity_quiz_id: curiosityQuizId })
       .maybeSingle()) as PostgrestSingleResponse<ClaimedCuriosityQuiz & { claimed: boolean }>
 
+    logger.info(
+      { curiosityQuizId, hasError: !!result.error, status: result.status },
+      '[TRACE] claimCuriosityQuiz: RPC returned'
+    )
+
     const data = queryMaybeSingle<ClaimedCuriosityQuiz & { claimed: boolean }>(result, {
       context: `claim curiosity quiz ${curiosityQuizId}`,
     })
+
+    logger.info(
+      { curiosityQuizId, hasData: !!data },
+      '[TRACE] claimCuriosityQuiz: queryMaybeSingle returned'
+    )
 
     if (!data) {
       return { claimed: false, info: null }
@@ -67,6 +80,10 @@ export async function claimCuriosityQuiz(
     return { claimed, info }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
+    logger.error(
+      { curiosityQuizId, err, errorMessage: err.message, errorStack: err.stack },
+      '[TRACE] claimCuriosityQuiz: Caught error, wrapping in QuizRetryableError'
+    )
     const { QuizRetryableError } = await import('@/lib/errors/quiz-errors')
     throw new QuizRetryableError(`Failed to claim quiz: ${err.message}`, curiosityQuizId, err)
   }
