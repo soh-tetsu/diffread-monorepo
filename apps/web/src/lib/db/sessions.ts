@@ -35,6 +35,7 @@ type CreateSessionInput = {
   articleUrl: string
   email?: string
   status?: SessionStatus
+  metadata?: Record<string, unknown>
 }
 
 export async function createSession({
@@ -42,6 +43,7 @@ export async function createSession({
   articleUrl,
   email,
   status = 'bookmarked',
+  metadata = {},
 }: CreateSessionInput): Promise<SessionRow> {
   return querySingle<SessionRow>(
     await supabase
@@ -53,7 +55,7 @@ export async function createSession({
         article_url: articleUrl,
         quiz_id: null,
         status,
-        metadata: {},
+        metadata,
       })
       .select('*')
       .single(),

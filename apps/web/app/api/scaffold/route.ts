@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
-import { ensureSessionForGuest, extractGuestId, GuestSessionError } from '@/lib/api/guest-session'
+import {
+  extractGuestId,
+  GuestSessionError,
+  validateSessionOwnership,
+} from '@/lib/api/guest-session'
 import { getScaffoldQuizByQuizId } from '@/lib/db/scaffold-quizzes'
 import { logger } from '@/lib/logger'
 
@@ -7,7 +11,7 @@ export async function POST(request: Request) {
   try {
     const { currentToken } = await request.json()
     const guestId = extractGuestId(request)
-    const session = await ensureSessionForGuest(currentToken, guestId, {
+    const session = await validateSessionOwnership(currentToken, guestId, {
       tokenName: 'currentToken',
       messages: {
         MISSING_TOKEN: 'Missing currentToken.',
@@ -61,7 +65,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const token = searchParams.get('q')
     const guestId = extractGuestId(request)
-    const session = await ensureSessionForGuest(token, guestId, {
+    const session = await validateSessionOwnership(token, guestId, {
       messages: {
         MISSING_TOKEN: 'Missing session token.',
         SESSION_NOT_FOUND: 'Session not found.',

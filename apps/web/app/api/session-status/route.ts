@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
-import { ensureSessionForGuest, extractGuestId, GuestSessionError } from '@/lib/api/guest-session'
+import {
+  extractGuestId,
+  GuestSessionError,
+  validateSessionOwnership,
+} from '@/lib/api/guest-session'
 import { getCuriosityQuizByQuizId } from '@/lib/db/curiosity-quizzes'
 import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
@@ -11,7 +15,7 @@ export async function GET(request: Request) {
     const guestId = extractGuestId(request)
 
     // Validate session belongs to this guest
-    const session = await ensureSessionForGuest(token, guestId, {
+    const session = await validateSessionOwnership(token, guestId, {
       messages: {
         MISSING_TOKEN: 'Missing session token',
         SESSION_NOT_FOUND: 'Session not found',
@@ -29,7 +33,7 @@ export async function GET(request: Request) {
 
     // Get queue status: all ready sessions user can take
     // Reuse same logic as /api/queue-count
-    // Use session.user_id as source of truth (validated by ensureSessionForGuest)
+    // Use session.user_id as source of truth (validated by validateSessionOwnership)
     const { data: readySessions, error } = await supabase
       .from('sessions')
       .select('session_token', { count: 'exact' })

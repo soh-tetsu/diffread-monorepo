@@ -45,6 +45,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         study_status,
         created_at,
         quiz_id,
+        metadata,
         quizzes(
           article_id,
           articles(
@@ -66,10 +67,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const bookmarks: BookmarkSession[] = (sessions || []).map((session: any) => {
       let articleTitle: string | null = null
 
-      // Extract article title from nested join
+      // Priority 1: Article metadata (from full scrape)
       if (session.quizzes?.articles?.metadata) {
         const metadata = session.quizzes.articles.metadata as { title?: string | null }
         articleTitle = metadata.title || null
+      }
+
+      // Priority 2: Session metadata (from share-target or early title fetch)
+      if (!articleTitle && session.metadata) {
+        const sessionMetadata = session.metadata as { title?: string | null }
+        articleTitle = sessionMetadata.title || null
       }
 
       return {

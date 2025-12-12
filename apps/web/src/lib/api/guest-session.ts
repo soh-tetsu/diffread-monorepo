@@ -35,15 +35,15 @@ export function extractGuestId(request: Request): string | null {
   return null
 }
 
-type EnsureSessionOptions = {
+type ValidateSessionOptions = {
   tokenName?: string
   messages?: Partial<Record<GuestSessionErrorCode, string>>
 }
 
-export async function ensureSessionForGuest(
+export async function validateSessionOwnership(
   tokenInput: unknown,
   guestId: string | null,
-  options: EnsureSessionOptions = {}
+  options: ValidateSessionOptions = {}
 ): Promise<SessionRow> {
   const tokenLabel = options.tokenName ?? 'session token'
   const messages = options.messages ?? {}

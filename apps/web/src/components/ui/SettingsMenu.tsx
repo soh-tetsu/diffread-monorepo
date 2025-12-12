@@ -147,8 +147,8 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
           </DrawerHeader>
           <DrawerBody>
             <VStack align="stretch" gap={4} h="full" py={2}>
-              {/* User ID Display or Onboarding Task */}
-              {profile?.userId ? (
+              {/* User ID Display */}
+              {profile?.userId && (
                 <Card.Root size="sm" variant="elevated">
                   <Card.Body>
                     <HStack justify="space-between" gap={2}>
@@ -161,40 +161,6 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
                     </HStack>
                   </Card.Body>
                 </Card.Root>
-              ) : (
-                !hasCompletedOnboarding && (
-                  <Card.Root size="sm" variant="outline" borderColor="orange.200" bg="orange.50">
-                    <Card.Body>
-                      <VStack align="stretch" gap={2}>
-                        <HStack justify="space-between">
-                          <HStack gap={2}>
-                            <LuCircleAlert size={16} color="var(--orange-600)" />
-                            <Text fontSize="sm" fontWeight="semibold" color="orange.700">
-                              {t('onboardingPending')}
-                            </Text>
-                          </HStack>
-                          <Badge colorPalette="orange" size="sm">
-                            {t('todo')}
-                          </Badge>
-                        </HStack>
-                        <Text fontSize="xs" color="gray.600">
-                          {t('onboardingDescription')}
-                        </Text>
-                        <Button
-                          size="xs"
-                          colorPalette="orange"
-                          variant="solid"
-                          onClick={() => {
-                            setOpen(false)
-                            router.push('/')
-                          }}
-                        >
-                          {t('startOnboarding')}
-                        </Button>
-                      </VStack>
-                    </Card.Body>
-                  </Card.Root>
-                )
               )}
 
               {/* Navigation Links */}
@@ -237,31 +203,43 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
                 </VStack>
               )}
 
-              {/* Language Switcher */}
-              <VStack align="stretch" gap={2} pt={2} borderTopWidth="1px" borderColor="gray.100">
-                <Text fontSize="xs" fontWeight="medium" color={'blackAlpha.900'} px={1}>
-                  {t('language')}
-                </Text>
-                <HStack gap={1}>
-                  {locales.map((loc) => (
-                    <Button
-                      key={loc}
-                      size="sm"
-                      variant={locale === loc ? 'solid' : 'ghost'}
-                      colorPalette="teal"
-                      onClick={() => switchLocale(loc)}
-                      flex={1}
-                    >
-                      <HStack gap={1.5}>
-                        <Text fontSize="sm">{localeConfig[loc].flag}</Text>
-                        <Text fontSize="sm" color={'blackAlpha.950'}>
-                          {localeConfig[loc].label}
+              {/* Notification Area - below navigation separator */}
+              {!hasCompletedOnboarding && (
+                <VStack align="stretch" gap={2} pt={2} borderTopWidth="1px" borderColor="gray.100">
+                  {/* Onboarding Task */}
+                  <Card.Root size="sm" variant="outline" borderColor="orange.200" bg="orange.50">
+                    <Card.Body>
+                      <VStack align="stretch" gap={2}>
+                        <HStack justify="space-between">
+                          <HStack gap={2}>
+                            <LuCircleAlert size={16} color="var(--orange-600)" />
+                            <Text fontSize="sm" fontWeight="semibold" color="orange.700">
+                              {t('onboardingPending')}
+                            </Text>
+                          </HStack>
+                          <Badge colorPalette="orange" size="sm">
+                            {t('todo')}
+                          </Badge>
+                        </HStack>
+                        <Text fontSize="xs" color="gray.600">
+                          {t('onboardingDescription')}
                         </Text>
-                      </HStack>
-                    </Button>
-                  ))}
-                </HStack>
-              </VStack>
+                        <Button
+                          size="xs"
+                          colorPalette="orange"
+                          variant="solid"
+                          onClick={() => {
+                            router.push('/?onboarding=true')
+                            setOpen(false)
+                          }}
+                        >
+                          {t('startOnboarding')}
+                        </Button>
+                      </VStack>
+                    </Card.Body>
+                  </Card.Root>
+                </VStack>
+              )}
 
               {/* Spacer */}
               <Flex flex={1} />
@@ -283,19 +261,43 @@ export function SettingsMenu({ showHomeButton = false }: SettingsMenuProps) {
                 </Button>
               )}
 
-              {/* Clean Cache Button */}
-              <Button
-                variant="ghost"
-                size="md"
-                justifyContent="flex-start"
-                loading={isUpdating}
-                onClick={handleForceUpdate}
-              >
-                <HStack gap={3}>
-                  <LuTrash2 size={18} />
-                  <Text color={'blackAlpha.900'}>{t('cleanCache')}</Text>
+              {/* Tools Section */}
+              <VStack align="stretch" gap={2} pt={2} borderTopWidth="1px" borderColor="gray.100">
+                {/* Language Switcher */}
+                <HStack gap={1}>
+                  {locales.map((loc) => (
+                    <Button
+                      key={loc}
+                      size="sm"
+                      variant={locale === loc ? 'solid' : 'ghost'}
+                      colorPalette="teal"
+                      onClick={() => switchLocale(loc)}
+                      flex={1}
+                    >
+                      <HStack gap={1.5}>
+                        <Text fontSize="sm">{localeConfig[loc].flag}</Text>
+                        <Text fontSize="sm" color={'blackAlpha.950'}>
+                          {localeConfig[loc].label}
+                        </Text>
+                      </HStack>
+                    </Button>
+                  ))}
                 </HStack>
-              </Button>
+
+                {/* Clean Cache Button */}
+                <Button
+                  variant="ghost"
+                  size="md"
+                  justifyContent="flex-start"
+                  loading={isUpdating}
+                  onClick={handleForceUpdate}
+                >
+                  <HStack gap={3}>
+                    <LuTrash2 size={18} />
+                    <Text color={'blackAlpha.900'}>{t('cleanCache')}</Text>
+                  </HStack>
+                </Button>
+              </VStack>
 
               {/* Manifest Link */}
               <Link asChild color="teal.600" fontSize="sm" textAlign="center">

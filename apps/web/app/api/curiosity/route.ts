@@ -1,15 +1,19 @@
+import { cookies } from 'next/headers'
 import { after, NextResponse } from 'next/server'
-import { ensureSessionForGuest, extractGuestId, GuestSessionError } from '@/lib/api/guest-session'
+import {
+  extractGuestId,
+  GuestSessionError,
+  validateSessionOwnership,
+} from '@/lib/api/guest-session'
 import { getCuriosityQuizByQuizId } from '@/lib/db/curiosity-quizzes'
 import { logger } from '@/lib/logger'
-import { supabase } from '@/lib/supabase'
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const token = searchParams.get('q')
     const guestId = extractGuestId(request)
-    const session = await ensureSessionForGuest(token, guestId, {
+    const session = await validateSessionOwnership(token, guestId, {
       messages: {
         MISSING_TOKEN: 'Missing session token',
         SESSION_NOT_FOUND: 'Session not found',
@@ -55,164 +59,105 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { currentToken, url } = body
+    const { currentToken, url, title } = body
     const guestId = extractGuestId(request)
 
     if (!url || typeof url !== 'string') {
       return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
     }
 
-    // Resolve userId from either currentToken (warm start) or guestId (cold start)
+    const { getUserById, createGuestUser, synthesizeGuestEmail } = await import('@/lib/db/users')
+    const { getOrCreateSession } = await import('@/lib/db/sessions')
+
     let userId: string
 
-    if (currentToken) {
-      // Warm start: validate currentToken belongs to this guestId
-      const currentSession = await ensureSessionForGuest(currentToken, guestId, {
+    // Case A: Both currentToken and guestId → validate ownership
+    if (currentToken && guestId) {
+      const session = await validateSessionOwnership(currentToken, guestId, {
         messages: {
           MISSING_TOKEN: 'Invalid session token',
           SESSION_NOT_FOUND: 'Session not found',
         },
       })
-      userId = currentSession.user_id
-    } else {
-      // Cold start: use guestId directly as userId
-      if (!guestId) {
-        return NextResponse.json({ error: 'Missing guest ID' }, { status: 400 })
-      }
-      userId = guestId
+      userId = session.user_id
     }
-
-    // Always initialize the full chain: session → article → quiz → curiosity_quiz
-    const { initializeSessionChain } = await import('@/lib/workflows/session-init')
-    const { ensureGuestUser, synthesizeGuestEmail } = await import('@/lib/db/users')
-    const { countQueueItems } = await import('@/lib/db/queue')
-    const { updateSession } = await import('@/lib/db/sessions')
-
-    const { user } = await ensureGuestUser({ userId })
-    const { session, article } = await initializeSessionChain({
-      userId: user.id,
-      email: user.email ?? synthesizeGuestEmail(user.id),
-      originalUrl: url,
-    })
-
-    // Check queue size - determines if we trigger worker or just bookmark
-    const queueCount = await countQueueItems(user.id)
-
-    // Session must have quiz_id after initializeSessionChain
-    if (!session.quiz_id) {
-      logger.error({ sessionId: session.id }, 'Session missing quiz_id after initialization')
-      throw new Error('Session initialization failed: missing quiz_id')
-    }
-
-    // Get curiosity quiz (guaranteed to exist after initializeSessionChain)
-    const curiosityQuiz = await getCuriosityQuizByQuizId(session.quiz_id)
-    if (!curiosityQuiz) {
-      logger.error(
-        { sessionId: session.id, quizId: session.quiz_id },
-        'Curiosity quiz missing after initialization'
-      )
-      throw new Error('Session initialization failed: missing curiosity quiz')
-    }
-
-    // Detect retry: currentToken was validated and session matches
-    const isRetry = currentToken && session.session_token === currentToken
-
-    if (
-      (queueCount < 2 || isRetry) &&
-      (session.status === 'bookmarked' ||
-        session.status === 'pending' ||
-        session.status === 'errored')
-    ) {
-      // Check if curiosity quiz is already ready
-      // if so, it won't occupy a queue slot
-      if (curiosityQuiz.status === 'ready') {
-        // Ensure article content is available
-        if (article.status !== 'ready') {
-          logger.info(
-            {
-              articleId: article.id,
-              articleStatus: article.status,
-              curiosityQuizStatus: curiosityQuiz.status,
-            },
-            'Curiosity quiz is ready but article not ready - ensuring article content'
-          )
-          const { ensureArticleContent } = await import('@/lib/workflows/article-content')
-          // Use after() to ensure background task completes even after response is sent
-          after(async () => {
-            try {
-              await ensureArticleContent(article)
-            } catch (err) {
-              logger.error({ err, articleId: article.id }, 'Failed to ensure article content')
-            }
-          })
-        }
-
-        // Update all sessions linked to this quiz
-        const { updateSessionStatus } = await import('@/lib/db/sessions')
-        await updateSessionStatus(session.quiz_id, 'ready')
-
-        // Update local session object
-        session.status = 'ready'
-
-        logger.info(
-          { sessionToken: session.session_token, quizId: session.quiz_id },
-          'Curiosity quiz already ready - back-propagated status to all sessions'
-        )
-      } else {
-        // Queue has space - move to pending if bookmarked, or retry if already pending/errored
-        const sessionToProcess =
-          session.status === 'bookmarked'
-            ? await updateSession(session.id, { status: 'pending' })
-            : session
-
-        // Trigger worker in background
-        // Use after() to ensure worker completes even after response is sent
-        // Pass curiosityQuizId to ensure we process the specific quiz for this session
-        const { triggerQuizWorker } = await import('@/lib/workflows/enqueue-session')
-        after(async () => {
-          try {
-            await triggerQuizWorker(sessionToProcess, {
-              sync: false,
-              curiosityQuizId: curiosityQuiz?.id,
-            })
-          } catch (err) {
-            logger.error({ err, sessionToken: session.session_token }, 'Worker invocation failed')
-          }
+    // Case B: Only guestId → existing user, new submission
+    else if (guestId) {
+      let user = await getUserById(guestId)
+      if (!user) {
+        // Soft policy: recreate deleted guest
+        user = await createGuestUser({
+          userId: guestId,
+          metadata: { recreatedAt: new Date().toISOString() },
         })
 
-        // Update session reference after status change
-        Object.assign(session, sessionToProcess)
+        // Set cookie for recreated user
+        const cookieStore = await cookies()
+        cookieStore.set('diffread_guest_id', user.id, {
+          httpOnly: false,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 365 * 24 * 60 * 60, // 1 year
+          path: '/',
+        })
       }
+      userId = user.id
+    }
+    // Case C: No guestId → create new guest
+    else {
+      const user = await createGuestUser()
+      userId = user.id
+
+      // Set guest ID cookie for new users (same as /api/guests)
+      const cookieStore = await cookies()
+      cookieStore.set('diffread_guest_id', user.id, {
+        httpOnly: false, // Client can read and renew
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 365 * 24 * 60 * 60, // 1 year
+        path: '/',
+      })
     }
 
-    // Get error message from curiosity quiz if it exists
-    const errorMessage = curiosityQuiz?.error_message ?? null
+    // Fetch title if not provided (URL submission from home screen)
+    let sessionTitle = title
+    if (!sessionTitle) {
+      const { fetchArticleTitle } = await import('@/lib/quiz/scraper')
+      const { normalizeUrl } = await import('@/lib/utils/normalize-url')
 
-    // Get queue status: all ready sessions user can take
-    // Reuse same logic as /api/queue-count
-    const { data: readySessions, error: queueError } = await supabase
-      .from('sessions')
-      .select('session_token', { count: 'exact' })
-      .eq('user_id', user.id)
-      .eq('status', 'ready')
-      .in('study_status', ['not_started', 'curiosity_in_progress'])
-      .order('created_at', { ascending: true })
-
-    if (queueError) {
-      logger.error({ err: queueError, userId: user.id }, 'Failed to fetch ready sessions')
+      const normalizedUrl = normalizeUrl(url)
+      sessionTitle = await fetchArticleTitle(normalizedUrl)
     }
 
-    const sessionTokens = readySessions?.map((s) => s.session_token) || []
-
-    return NextResponse.json({
-      sessionToken: session.session_token,
-      status: session.status,
-      queueStatus: {
-        total: sessionTokens.length,
-        sessionTokens,
-      },
-      errorMessage,
+    // Create session (with title from share-target or fetched from URL)
+    const session = await getOrCreateSession({
+      userId,
+      articleUrl: url,
+      email: synthesizeGuestEmail(userId),
+      metadata: sessionTitle ? { title: sessionTitle } : undefined,
     })
+
+    // Check queue capacity (abuse prevention)
+    const { countQueueItems, MAX_QUEUE_SIZE } = await import('@/lib/db/queue')
+    const queueCount = await countQueueItems(userId)
+
+    if (queueCount >= MAX_QUEUE_SIZE) {
+      // Queue full - session remains 'bookmarked' (waiting list)
+      return NextResponse.json({
+        sessionToken: session.session_token,
+        status: 'bookmarked',
+        queueStatus: 'full',
+      })
+    } else {
+      // Queue has slots - trigger background worker
+      const { processCuriositySubmission } = await import('@/lib/workflows/curiosity-submission')
+      after(() => processCuriositySubmission(session))
+
+      return NextResponse.json({
+        sessionToken: session.session_token,
+        status: 'pending',
+      })
+    }
   } catch (error) {
     if (error instanceof GuestSessionError) {
       return NextResponse.json({ error: error.message }, { status: error.status })

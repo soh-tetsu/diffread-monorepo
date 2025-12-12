@@ -7,9 +7,10 @@ import { useState } from 'react'
 
 type ShareConfirmClientProps = {
   url?: string
+  title?: string
 }
 
-export function ShareConfirmClient({ url }: ShareConfirmClientProps) {
+export function ShareConfirmClient({ url, title }: ShareConfirmClientProps) {
   const t = useTranslations('shareConfirm')
   const router = useRouter()
   const [isSaving, setIsSaving] = useState(false)
@@ -23,7 +24,7 @@ export function ShareConfirmClient({ url }: ShareConfirmClientProps) {
       const response = await fetch('/api/curiosity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, title }),
         credentials: 'same-origin',
       })
 

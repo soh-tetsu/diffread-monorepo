@@ -7,6 +7,9 @@ import type { SessionRow } from '@/types/db'
 
 const pendingWorkerLimit = pLimit(1)
 
+// Maximum number of sessions in processing queue per user (abuse prevention)
+export const MAX_QUEUE_SIZE = 2
+
 /**
  * Count how many sessions are in the user's queue
  * Queue = status is ready OR pending OR errored AND study_status is not completed/archived

@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server'
-import { ensureSessionForGuest, extractGuestId, GuestSessionError } from '@/lib/api/guest-session'
+import {
+  extractGuestId,
+  GuestSessionError,
+  validateSessionOwnership,
+} from '@/lib/api/guest-session'
 import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
 
@@ -9,7 +13,7 @@ export async function GET(request: Request) {
     const token = searchParams.get('q')
     const guestId = extractGuestId(request)
 
-    const session = await ensureSessionForGuest(token, guestId, {
+    const session = await validateSessionOwnership(token, guestId, {
       messages: {
         MISSING_TOKEN: 'Missing session token.',
         SESSION_NOT_FOUND: 'Session not found.',

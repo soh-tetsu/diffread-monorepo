@@ -278,18 +278,45 @@ export default function HomePage() {
   const { hasCompletedOnboarding, isLoading: isLoadingProfile, refetch } = useUserProfile()
   const [mode, setMode] = useState<'loading' | 'onboarding' | 'register'>('loading')
   const [isUnlocking, setIsUnlocking] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  // Check URL parameter for onboarding trigger - no dependency array to run on every render
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const shouldShowOnboarding = params.get('onboarding') === 'true'
+
+    if (shouldShowOnboarding && !showOnboarding) {
+      setShowOnboarding(true)
+      // Clean up URL after detecting the parameter
+      window.history.replaceState({}, '', '/')
+    }
+  })
 
   useEffect(() => {
     if (!isReady) return
-    // Show onboarding if: no guest ID OR guest exists but hasn't completed onboarding
-    if (!guestId) {
+
+    // Priority 1: Explicitly triggered from menu - always show
+    if (showOnboarding) {
       setMode('onboarding')
-    } else if (isLoadingProfile) {
-      setMode('loading')
-    } else {
-      setMode(hasCompletedOnboarding ? 'register' : 'onboarding')
+      return
     }
-  }, [guestId, isReady, hasCompletedOnboarding, isLoadingProfile])
+
+    // Priority 2: Loading profile
+    if (isLoadingProfile) {
+      setMode('loading')
+      return
+    }
+
+    // Priority 3: No guestId and not completed - show automatically
+    if (!hasCompletedOnboarding && !guestId) {
+      setMode('onboarding')
+      return
+    }
+
+    // Default: Show register form
+    setMode('register')
+  }, [isReady, isLoadingProfile, hasCompletedOnboarding, showOnboarding, guestId])
 
   // Handle error messages from share target redirects
   useEffect(() => {
@@ -342,6 +369,9 @@ export default function HomePage() {
 
       // Force refresh user profile to update hasCompletedOnboarding across all instances
       await refetch()
+
+      // Reset explicit trigger flag so mode selection logic can respond to hasCompletedOnboarding
+      setShowOnboarding(false)
 
       toaster.create({
         title: t('guestProfileReady'),

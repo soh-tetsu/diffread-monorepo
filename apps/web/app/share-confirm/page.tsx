@@ -57,7 +57,7 @@ export default async function ShareConfirmPage({
           </Box>
 
           {/* Client-side interactive buttons */}
-          <ShareConfirmClient url={url} />
+          <ShareConfirmClient url={url} title={title} />
         </Stack>
       </Box>
     </Box>

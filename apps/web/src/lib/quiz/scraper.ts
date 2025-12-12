@@ -65,6 +65,67 @@ function isPdfResponse(contentType: string | null, requestedUrl: string): boolea
   return requestedUrl.toLowerCase().includes('.pdf')
 }
 
+/**
+ * Lightweight title extraction without full article scraping
+ * Fetches only the HTML head section to extract title metadata
+ *
+ * @param normalizedUrl - The normalized article URL
+ * @returns Title from og:title, twitter:title, or <title> tag, or null if not found
+ */
+export async function fetchArticleTitle(normalizedUrl: string): Promise<string | null> {
+  const targetUrl = stripTracking(normalizedUrl)
+
+  try {
+    const response = await fetch(targetUrl, {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:118.0) Gecko/20100101 Firefox/118.0',
+        accept: 'text/html,application/xhtml+xml',
+      },
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    // Check if it's a PDF - PDFs don't have HTML titles
+    if (isPdfResponse(response.headers.get('content-type'), response.url || targetUrl)) {
+      return null
+    }
+
+    // Read response as text
+    const html = await response.text()
+
+    // Parse with JSDOM (only need document head)
+    const dom = new JSDOM(html, { url: targetUrl })
+    const doc = dom.window.document
+
+    // Priority 1: Open Graph title
+    const ogTitle = doc.querySelector('meta[property="og:title"]')?.getAttribute('content')
+    if (ogTitle?.trim()) {
+      return ogTitle.trim()
+    }
+
+    // Priority 2: Twitter title
+    const twitterTitle = doc.querySelector('meta[name="twitter:title"]')?.getAttribute('content')
+    if (twitterTitle?.trim()) {
+      return twitterTitle.trim()
+    }
+
+    // Priority 3: Standard <title> tag
+    const title = doc.title?.trim()
+    if (title) {
+      return title
+    }
+
+    return null
+  } catch (error) {
+    // Silently fail - title fetching is opportunistic, not critical
+    console.error('Failed to fetch article title:', error)
+    return null
+  }
+}
+
 export async function scrapeArticle(article: ArticleRow): Promise<ScrapedArticle> {
   const targetUrl = stripTracking(article.normalized_url)
   const response = await fetch(targetUrl, {
