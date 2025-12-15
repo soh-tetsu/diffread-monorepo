@@ -24,9 +24,13 @@ External App → Browser Share Menu → Diffread PWA
                                         ↓
                                   POST /api/share-target
                                         ↓
-                              Create Quiz Session
+                            303 Redirect to /share-confirm
                                         ↓
-                              Redirect to /quiz?q=<token>
+                        User confirms or cancels the share
+                                        ↓
+                    (If confirmed) POST /api/curiosity
+                                        ↓
+                          Create session & trigger worker
 ```
 
 ### 3. What Can Be Shared

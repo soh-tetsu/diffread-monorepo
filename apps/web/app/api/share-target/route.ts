@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       redirectUrl.searchParams.set('filename', pdfFile.name || 'shared-document.pdf')
       if (title) redirectUrl.searchParams.set('title', title)
 
-      return NextResponse.redirect(redirectUrl)
+      return NextResponse.redirect(redirectUrl, 303)
     }
 
     // Handle URL sharing - just redirect immediately
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     if (sharedUrl) redirectUrl.searchParams.set('url', sharedUrl)
     if (title) redirectUrl.searchParams.set('title', title)
 
-    return NextResponse.redirect(redirectUrl)
+    return NextResponse.redirect(redirectUrl, 303)
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))
     logger.error({ err }, 'Failed to process share target')
