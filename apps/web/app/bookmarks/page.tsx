@@ -23,6 +23,7 @@ import { LuTrash2, LuX } from 'react-icons/lu'
 import useSWR from 'swr'
 import { AppToolbar } from '@/components/ui/AppToolbar'
 import { toaster } from '@/components/ui/toaster'
+import { Tooltip } from '@/components/ui/tooltip'
 import { readGuestIdFromCookie } from '@/lib/guest/cookie'
 import { formatUrlForDisplay } from '@/lib/utils/format-url'
 import type { SessionStatus, StudyStatus } from '@/types/db'
@@ -34,6 +35,8 @@ type BookmarkSession = {
   status: SessionStatus
   studyStatus: StudyStatus
   timestamp: number
+  errorMessage?: string
+  errorStep?: string
 }
 
 type BookmarksResponse = {
@@ -310,40 +313,51 @@ export default function BookmarksPage() {
                         </VStack>
                         <VStack gap={1} flexShrink={0} alignSelf="center" w="140px">
                           {/* Top row: Status button (Start/Continue/Processing/Failed) */}
-                          <Button
-                            size="sm"
-                            colorPalette={
-                              session.status === 'ready' &&
-                              (session.studyStatus === 'curiosity_in_progress' ||
-                                session.studyStatus === 'scaffold_in_progress')
-                                ? 'purple'
-                                : session.status === 'errored' &&
-                                    retryingToken !== session.sessionToken
-                                  ? 'red'
-                                  : 'teal'
+                          <Tooltip
+                            content={
+                              session.status === 'errored' && session.errorMessage
+                                ? `${session.errorStep ? `${session.errorStep}: ` : ''}${session.errorMessage}`
+                                : undefined
                             }
-                            w="full"
-                            variant="subtle"
-                            loading={
-                              session.status === 'pending' && retryingToken !== session.sessionToken
-                            }
-                            loadingText={t('processing')}
-                            disabled={
-                              session.status === 'errored' && retryingToken !== session.sessionToken
-                            }
-                            onClick={() => router.push(`/quiz?q=${session.sessionToken}`)}
+                            disabled={session.status !== 'errored' || !session.errorMessage}
                           >
-                            {session.status === 'ready' && session.studyStatus === 'not_started'
-                              ? t('start')
-                              : session.status === 'ready' &&
-                                  (session.studyStatus === 'curiosity_in_progress' ||
-                                    session.studyStatus === 'scaffold_in_progress')
-                                ? t('continue')
-                                : session.status === 'errored' &&
-                                    retryingToken !== session.sessionToken
-                                  ? t('failed')
-                                  : t('processing')}
-                          </Button>
+                            <Button
+                              size="sm"
+                              colorPalette={
+                                session.status === 'ready' &&
+                                (session.studyStatus === 'curiosity_in_progress' ||
+                                  session.studyStatus === 'scaffold_in_progress')
+                                  ? 'purple'
+                                  : session.status === 'errored' &&
+                                      retryingToken !== session.sessionToken
+                                    ? 'red'
+                                    : 'teal'
+                              }
+                              w="full"
+                              variant="subtle"
+                              loading={
+                                session.status === 'pending' &&
+                                retryingToken !== session.sessionToken
+                              }
+                              loadingText={t('processing')}
+                              disabled={
+                                session.status === 'errored' &&
+                                retryingToken !== session.sessionToken
+                              }
+                              onClick={() => router.push(`/quiz?q=${session.sessionToken}`)}
+                            >
+                              {session.status === 'ready' && session.studyStatus === 'not_started'
+                                ? t('start')
+                                : session.status === 'ready' &&
+                                    (session.studyStatus === 'curiosity_in_progress' ||
+                                      session.studyStatus === 'scaffold_in_progress')
+                                  ? t('continue')
+                                  : session.status === 'errored' &&
+                                      retryingToken !== session.sessionToken
+                                    ? t('failed')
+                                    : t('processing')}
+                            </Button>
+                          </Tooltip>
                           {/* Bottom row: Archive and Retry buttons */}
                           {confirmingRetry === session.sessionToken ? (
                             <ButtonGroup size="sm" variant="outline" w="full">

@@ -66,8 +66,6 @@ export interface ArticleRow {
 export interface QuizRow {
   id: number
   article_id: number
-
-  user_id: string | null
   variant: string | null
 
   created_at: string

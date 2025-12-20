@@ -209,14 +209,7 @@ async function scrapeAndPersistArticle(
     throw new Error('Article is currently being scraped by another process')
   }
 
-  // Mark article as scraping before starting retry loop
-  try {
-    await updateArticleStatus(article.id, 'scraping')
-  } catch (statusError) {
-    logger.error({ err: statusError, articleId: article.id }, 'Failed to mark article as scraping')
-    throw statusError
-  }
-
+  // RPC has already set status to 'scraping', proceed with scraping
   // Try to scrape and persist
   const result = await withRetryResult(
     async () => {

@@ -2,7 +2,7 @@ import pLimit from 'p-limit'
 import { execute } from '@/lib/db/supabase-helpers'
 import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
-import { processSession } from '@/lib/workers/process-curiosity-quiz'
+import { processSession } from '@/lib/workers/process-session-coordinator'
 import type { SessionRow } from '@/types/db'
 
 const pendingWorkerLimit = pLimit(1)
@@ -68,35 +68,16 @@ export async function processNextBookmarkedSession(userId: string): Promise<bool
 
   execute(result, { context: `move bookmarked session ${bookmarked.id} to pending` })
 
-  // Get curiosity quiz ID for this session
-  if (!bookmarked.quiz_id) {
-    logger.error(
-      { sessionToken: bookmarked.session_token, sessionId: bookmarked.id },
-      'Bookmarked session missing quiz_id - cannot invoke worker'
-    )
-    return true
-  }
-
-  const { getCuriosityQuizByQuizId } = await import('@/lib/db/curiosity-quizzes')
-  const curiosityQuiz = await getCuriosityQuizByQuizId(bookmarked.quiz_id)
-
-  if (!curiosityQuiz) {
-    logger.error(
-      { sessionToken: bookmarked.session_token, quizId: bookmarked.quiz_id },
-      'Curiosity quiz not found for bookmarked session - cannot invoke worker'
-    )
-    return true
-  }
-
-  // Invoke worker to process the specific session
+  // Invoke worker to process the session
+  // Worker will handle all setup (article, quiz, curiosity quiz, generation)
   logger.info(
-    { sessionToken: bookmarked.session_token, userId, curiosityQuizId: curiosityQuiz.id },
+    { sessionToken: bookmarked.session_token, userId, sessionId: bookmarked.id },
     'Invoking worker for dequeued session'
   )
   pendingWorkerLimit(() =>
-    processSession(curiosityQuiz.id).catch((err) => {
+    processSession(bookmarked).catch((err) => {
       logger.error(
-        { err, sessionToken: bookmarked.session_token, curiosityQuizId: curiosityQuiz.id },
+        { err, sessionToken: bookmarked.session_token, sessionId: bookmarked.id },
         'Worker failed for dequeued session'
       )
     })

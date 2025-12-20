@@ -81,37 +81,35 @@ The share target accepts the following parameters:
 
 ### API Route (`app/api/share-target/route.ts`)
 
-The `/api/share-target` endpoint handles two types of shares:
+The `/api/share-target` endpoint is a lightweight router that immediately redirects to the confirmation page. It does **not** process or store any data.
+
+#### URL Sharing
+
+When a URL is shared:
+
+1. **Extract Parameters**: Get `url`, `text`, and `title` from form data
+2. **Build Redirect URL**: Create `/share-confirm` URL with query parameters
+3. **303 Redirect**: Send user to confirmation page (converts POST to GET)
+
+**URL Flow:**
+```
+POST /api/share-target → 303 Redirect → GET /share-confirm?type=url&url=...&title=...
+```
 
 #### PDF File Sharing
 
 When a PDF file is shared:
 
 1. **Extract PDF File**: `formData.get('pdf')` returns a `File` object
-2. **Generate Synthetic URL**: Create `file:///filename.pdf` as article identifier
-3. **Upload to Storage**: Use `uploadArticlePdf()` to store in `articles-pdf` bucket
-4. **Create Article Record**: Store metadata with `content_medium: 'pdf'`
-5. **Create Quiz**: Initialize quiz with scaffold-only approach (no curiosity quiz)
-6. **Create Session**: Link user to quiz via session token
-7. **Redirect**: Send to `/quiz?q=<session_token>`
+2. **Build Redirect URL**: Create `/share-confirm` URL with filename
+3. **303 Redirect**: Send user to confirmation page
 
-**PDF Processing Flow:**
+**PDF Flow:**
 ```
-PDF File → uploadArticlePdf() → Supabase Storage (articles-pdf bucket)
-                              → Create article with content_medium='pdf'
-                              → Create quiz (scaffold only)
-                              → Create session
-                              → Redirect to quiz page
+POST /api/share-target → 303 Redirect → GET /share-confirm?type=pdf&filename=...&title=...
 ```
 
-#### URL Sharing
-
-When a URL is shared:
-
-1. **Extract URL**: From `url` or `text` parameter
-2. **Validate URL**: Ensures the shared content is a valid URL
-3. **Create Session**: Uses `enqueueAndProcessSession()` to create a quiz session
-4. **Redirects**: Sends user to `/quiz?q=<session_token>` or home page with error
+**Important:** The actual session creation and quiz processing happens **after** user confirmation in the `/share-confirm` page, not in `/api/share-target`.
 
 **Error Handling:**
 

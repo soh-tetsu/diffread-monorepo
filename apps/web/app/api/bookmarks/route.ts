@@ -12,6 +12,8 @@ type BookmarkSession = {
   status: string
   studyStatus: string
   timestamp: number
+  errorMessage?: string
+  errorStep?: string
 }
 
 /**
@@ -79,6 +81,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         articleTitle = sessionMetadata.title || null
       }
 
+      // Extract error information from metadata
+      let errorMessage: string | undefined
+      let errorStep: string | undefined
+      if (session.status === 'errored' && session.metadata?.lastError) {
+        errorMessage = session.metadata.lastError.reason
+        errorStep = session.metadata.lastError.step
+      }
+
       return {
         sessionToken: session.session_token,
         articleTitle,
@@ -86,6 +96,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         status: session.status,
         studyStatus: session.study_status,
         timestamp: session.created_at ? new Date(session.created_at).getTime() : Date.now(),
+        errorMessage,
+        errorStep,
       }
     })
 

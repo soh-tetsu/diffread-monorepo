@@ -44,27 +44,36 @@ export async function getOrCreateArticle(
   normalizedUrl: string,
   originalUrl: string
 ): Promise<ArticleRow> {
-  // Use upsert with onConflict to handle concurrent inserts
-  // If another process inserts the same normalized_url, we'll get the existing one
-  const result = await supabase
-    .from('articles')
-    .upsert(
-      {
-        normalized_url: normalizedUrl,
-        original_url: originalUrl,
-        status: 'pending' as ArticleStatus,
-        metadata: {},
-        storage_metadata: {},
-      },
-      {
-        onConflict: 'normalized_url',
-        ignoreDuplicates: false, // Return the existing row on conflict
-      }
-    )
-    .select('*')
-    .single()
+  // Call RPC to atomically create or return existing article
+  // Handles concurrent creation attempts via database upsert constraint
+  const result = await supabase.rpc('ensure_article_exists', {
+    p_normalized_url: normalizedUrl,
+    p_original_url: originalUrl,
+  })
 
-  return querySingle<ArticleRow>(result, { context: 'get or create article' })
+  if (result.error) {
+    throw new Error(`Failed to get or create article: ${result.error.message}`)
+  }
+
+  if (!result.data || result.data.length === 0) {
+    throw new Error('RPC returned no data')
+  }
+
+  const row = result.data[0]
+  return {
+    id: row.article_id,
+    normalized_url: row.normalized_url,
+    original_url: row.original_url,
+    status: row.status,
+    storage_path: null,
+    content_hash: null,
+    last_scraped_at: null,
+    metadata: {},
+    storage_metadata: {},
+    content_medium: 'html' as const,
+    created_at: row.created_at,
+    updated_at: new Date().toISOString(),
+  } as ArticleRow
 }
 
 export async function updateArticleStatus(

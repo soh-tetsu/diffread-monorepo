@@ -20,6 +20,7 @@ export async function GET(request: Request) {
       },
     })
 
+    // Session may not have quiz_id yet if still in setup phase
     if (!session.quiz_id) {
       return NextResponse.json({
         status: 'pending',
@@ -150,8 +151,9 @@ export async function POST(request: Request) {
       })
     } else {
       // Queue has slots - trigger background worker
-      const { processCuriositySubmission } = await import('@/lib/workflows/curiosity-submission')
-      after(() => processCuriositySubmission(session))
+      // Worker will handle all setup: article, quiz, curiosity quiz, generation
+      const { processSession } = await import('@/lib/workers/process-session-coordinator')
+      after(() => processSession(session))
 
       return NextResponse.json({
         sessionToken: session.session_token,
