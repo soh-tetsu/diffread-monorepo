@@ -1,4 +1,4 @@
-import type { PromptDefinitionV2 } from '../types'
+import type { PromptDefinitionV2 } from '../../types'
 
 type AnalysisPromptContext = {
   text: string

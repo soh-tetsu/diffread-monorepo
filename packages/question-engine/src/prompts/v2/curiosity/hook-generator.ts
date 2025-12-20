@@ -1,5 +1,5 @@
-import type { Metadata } from '../../workflows/curiosity-question-workflow'
-import type { PromptDefinitionV2 } from '../types'
+import type { PromptDefinitionV2 } from '../../types'
+import type { Metadata } from './schemas'
 
 /**
  * V2-specific prompt context for hook generation

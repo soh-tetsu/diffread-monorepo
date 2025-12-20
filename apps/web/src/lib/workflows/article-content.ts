@@ -1,10 +1,8 @@
-import { type ArticleMetadata, analyzeArticleMetadata } from '@diffread/question-engine'
 import {
   claimArticleForScraping,
   getArticleById,
   isArticleFresh,
   updateArticleContent,
-  updateArticleMetadata,
   updateArticleStatus,
 } from '@/lib/db/articles'
 import {
@@ -14,7 +12,6 @@ import {
   ArticleTerminalError,
 } from '@/lib/errors/article-errors'
 import { logger } from '@/lib/logger'
-import { GEMINI_ANALYSIS_MODEL, requireGeminiApiKey } from '@/lib/quiz/gemini'
 import type { ScrapedArticle } from '@/lib/quiz/scraper'
 import { scrapeArticle } from '@/lib/quiz/scraper'
 import { downloadArticleContent, uploadArticleBundle, uploadArticlePdf } from '@/lib/storage'
@@ -259,21 +256,6 @@ async function scrapeAndPersistArticle(
   throw result.error
 }
 
-function extractAnalysisMetadata(metadata: Record<string, unknown> | null): ArticleMetadata | null {
-  if (!metadata || typeof metadata !== 'object') {
-    return null
-  }
-  const analysis = metadata.analysis
-  if (!analysis || typeof analysis !== 'object') {
-    return null
-  }
-  const archetype = (analysis as Record<string, unknown>).archetype
-  if (typeof archetype !== 'string' || !archetype.trim()) {
-    return null
-  }
-  return analysis as ArticleMetadata
-}
-
 export async function loadArticleForQuiz(quiz: QuizRow): Promise<ArticleRow> {
   return getArticleById(quiz.article_id)
 }
@@ -346,40 +328,5 @@ export async function ensureArticleContent(article: ArticleRow): Promise<Prepare
     // Article status already updated by internal functions (scraping, etc)
     // Re-throw for caller to handle
     throw error
-  }
-}
-
-export async function ensureArticleAnalysis(
-  article: ArticleRow,
-  content: string,
-  opts?: { force?: boolean }
-): Promise<{ article: ArticleRow; metadata: ArticleMetadata }> {
-  if (!opts?.force) {
-    const cached = extractAnalysisMetadata(article.metadata)
-    if (cached) {
-      return { article, metadata: cached }
-    }
-  }
-
-  if (!content.trim()) {
-    throw new Error('Cannot analyze metadata for empty article content.')
-  }
-
-  const apiKey = requireGeminiApiKey()
-  const metadata = await analyzeArticleMetadata(content, {
-    apiKey,
-    model: GEMINI_ANALYSIS_MODEL,
-  })
-
-  const mergedMetadata = {
-    ...article.metadata,
-    analysis: metadata,
-  }
-
-  await updateArticleMetadata(article.id, mergedMetadata)
-
-  return {
-    article: { ...article, metadata: mergedMetadata },
-    metadata,
   }
 }

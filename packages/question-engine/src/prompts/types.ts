@@ -1,24 +1,6 @@
-import type { ArticleMetadata, QuizArticleInput, ReadingPlanPart, TaskTemplate } from '../types'
-
-export type PromptContext = {
-  article?: QuizArticleInput
-  metadata?: ArticleMetadata
-  text?: string
-  taskPool?: TaskTemplate[] | null
-  readingPlan?: ReadingPlanPart[]
-  taskInstruction?: string
-  questionType?: string
-  language?: string
-}
-
-export type PromptDefinition = {
-  id: string
-  version: string
-  objective: string
-  systemInstruction: string
-  render(context: PromptContext): string
-}
-
+/**
+ * V2 Prompt Definition - Generic with type-safe context
+ */
 export type PromptDefinitionV2<TContext> = {
   id: string
   version: string

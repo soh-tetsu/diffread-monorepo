@@ -1,6 +1,4 @@
 import { z } from 'zod'
-import type { LLMStep } from '../prompts/pipeline'
-import { analysisPromptV2 } from '../prompts/v2'
 
 /**
  * Inferred types from schemas (defined first for use in schema annotations)
@@ -259,55 +257,6 @@ export type CuriosityQuestionWorkflowOutput = AnalysisStepOutput & {
 }
 
 /**
- * Step 1: Analysis LLM Step
- * - Executes analysis prompt
- * - Parses metadata (including pedagogy hooks nested inside)
+ * Step definitions have been removed - the pipeline abstraction is no longer used.
+ * Use PromptExecutor directly instead (see process-generation.ts for examples).
  */
-const _analysisLLMStep: LLMStep<CuriosityQuestionWorkflowInput, AnalysisStepOutput> = {
-  name: 'analysis-llm-v2',
-  type: 'llm',
-
-  async execute(input: CuriosityQuestionWorkflowInput, deps) {
-    const response: AnalysisResponse = await deps.executor.execute<AnalysisResponse>(
-      analysisPromptV2,
-      { text: input.articleText },
-      AnalysisResponseSchema
-    )
-
-    const { rationale, metadata } = response
-
-    return {
-      ...input,
-      analysisRationale: rationale,
-      metadata,
-    }
-  },
-}
-
-/**
- * Step 2: Hook Generation LLM Step
- * - Executes hook generator prompt using pedagogy hooks from metadata
- * - Parses hook questions
- */
-// const hookGenerationLLMStep: LLMStep<AnalysisStepOutput, CuriosityQuestionWorkflowOutput> = {
-// name: "hook-generation-llm-v2",
-// type: "llm",
-
-// async execute(input, deps) {
-//   const response = await deps.executor.execute<HookGenerationResponse>(
-//     hookGeneratorPromptV2,
-//     {
-//       hooks: input.hooks,
-//     } as any,
-//     HookGenerationResponseSchema
-//   );
-
-//   const { rationale, hooks } = response;
-
-//   return {
-//     ...input,
-//     hookGenerationRationale: rationale,
-//     hookQuestions: hooks,
-//   };
-// },
-// };

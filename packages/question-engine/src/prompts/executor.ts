@@ -1,6 +1,5 @@
 import { type GoogleGenAI, HarmBlockThreshold, HarmCategory } from '@google/genai'
 import type { z } from 'zod'
-import type { PromptContext, PromptDefinition } from './types'
 
 export const DEFAULT_SAFETY_SETTINGS = [
   {
@@ -40,12 +39,9 @@ export class PromptExecutor {
     private config: GenerationConfig
   ) {}
 
-  // TODO: After V2 migration is complete, remove V1 overload and simplify to only support generic prompts
-  async execute<T>(
-    prompt: PromptDefinition,
-    context: PromptContext,
-    schema: z.ZodSchema<T>
-  ): Promise<T>
+  /**
+   * Execute a V2 prompt with type-safe context and response schema
+   */
   async execute<T, TContext>(
     prompt: {
       id: string
@@ -53,18 +49,6 @@ export class PromptExecutor {
       systemInstruction: string
       render(context: TContext): string
     },
-    context: TContext,
-    schema: z.ZodSchema<T>
-  ): Promise<T>
-  async execute<T, TContext>(
-    prompt:
-      | PromptDefinition
-      | {
-          id: string
-          version: string
-          systemInstruction: string
-          render(context: TContext): string
-        },
     context: TContext,
     schema: z.ZodSchema<T>
   ): Promise<T> {

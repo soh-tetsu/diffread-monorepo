@@ -1,5 +1,5 @@
 // This prompt is designed to ignore the structure (paragraphs) and focus purely on the Semantic Scope.
-export const EXTRACT_THREADS = `
+export const PROMPT_PHASE_1_EXTRACT_THREADS = `
 You are an expert Senior Researcher and Cognitive Scientist.
 Your goal is to deconstruct the input text into its constituent "Narrative Threads" to prepare for a deep structural analysis.
 
