@@ -2,8 +2,6 @@ import { Box, Heading } from '@chakra-ui/react'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import ReactMarkdown from 'react-markdown'
-import { SettingsMenu } from '@/components/ui/SettingsMenu'
-import { Toolbar } from '@/components/ui/Toolbar'
 
 export default function ReleasesPage() {
   // Read CHANGELOG.md from project root
@@ -12,11 +10,7 @@ export default function ReleasesPage() {
 
   return (
     <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)" color="gray.900">
-      <Toolbar>
-        <SettingsMenu showHomeButton />
-      </Toolbar>
-
-      <Box display="flex" justifyContent="center" px={4} py={1}>
+      <Box display="flex" justifyContent="center" px={4} pt={20}>
         <Box
           maxW="720px"
           w="full"
