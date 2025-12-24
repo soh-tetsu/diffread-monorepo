@@ -35,6 +35,10 @@ export type CoreThesis = {
   content: string
 }
 
+export type ArticleSummary = {
+  content: string
+}
+
 export type SourceLocation = {
   section_index: number
   anchor_text: string
@@ -60,6 +64,7 @@ export type Metadata = {
   structural_skeleton: StructuralSkeleton
   domain: Domain
   core_thesis: CoreThesis
+  summary: ArticleSummary
   pedagogy: Pedagogy
   language: string
 }
@@ -154,6 +159,10 @@ export const CoreThesisSchema: z.ZodType<CoreThesis> = z.object({
   content: z.string(),
 })
 
+export const ArticleSummarySchema: z.ZodType<ArticleSummary> = z.object({
+  content: z.string(),
+})
+
 export const SourceLocationSchema: z.ZodType<SourceLocation> = z.object({
   section_index: z.number().int().nonnegative(),
   anchor_text: z.string(),
@@ -179,6 +188,7 @@ export const MetadataSchema: z.ZodType<Metadata> = z.object({
   structural_skeleton: StructuralSkeletonSchema,
   domain: DomainSchema,
   core_thesis: CoreThesisSchema,
+  summary: ArticleSummarySchema,
   pedagogy: PedagogySchema,
   language: z.string(),
 })

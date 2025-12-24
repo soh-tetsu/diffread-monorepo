@@ -12,6 +12,8 @@ export {
   type Archetype,
   // Schemas
   ArchetypeSchema,
+  type ArticleSummary,
+  ArticleSummarySchema,
   type CoreThesis,
   CoreThesisSchema,
   type CuriosityGeneratorV2Response,

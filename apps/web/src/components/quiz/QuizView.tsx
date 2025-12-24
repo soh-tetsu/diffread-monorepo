@@ -21,6 +21,7 @@ type Props = {
   sessionToken: string
   articleUrl?: string | null
   articleTitle?: string | null
+  articleSummary?: string | null
   hookQuestions: QuizQuestion[]
   curiosityQuizStatus: CuriosityQuizStatus | null
   questions: QuizQuestion[]
@@ -33,6 +34,7 @@ export function QuizView({
   sessionToken,
   articleUrl,
   articleTitle,
+  articleSummary,
   hookQuestions,
   curiosityQuizStatus,
   initialInstructionsVisible = false,
@@ -261,6 +263,7 @@ export function QuizView({
                   questions={visibleCuriosityQuestions}
                   answers={curiosityQuiz.answers}
                   articleUrl={articleUrl}
+                  articleSummary={articleSummary}
                   onSelect={handleCuriositySelect}
                 />
               )}
@@ -305,6 +308,7 @@ export function QuizView({
                   questions={visibleScaffoldQuestions}
                   answers={scaffoldQuiz.answers}
                   articleUrl={articleUrl}
+                  articleSummary={articleSummary}
                   onSelect={handleScaffoldSelect}
                 />
               )}

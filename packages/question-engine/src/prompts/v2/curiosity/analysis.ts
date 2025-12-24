@@ -57,7 +57,15 @@ function renderAnalysisPrompt({ text }: AnalysisPromptContext): string {
   Extract the single central argument or purpose of the text (1-2 sentences).
   *   **Constraint:** This must be the absolute summary. If a fact is not necessary to support this statement, it is considered "Trivia."
 
-  **F. Pedagogical Extraction Algorithm (The Hooks)**
+  **F. Article Summary (Reader-Friendly Overview)**
+  Generate a 4-6 sentence summary of the entire article that:
+  *   Covers the main narrative arc or argument flow
+  *   Highlights 2-3 key points or findings
+  *   Is accessible to someone who hasn't read the article yet
+  *   Uses the same language as the source article
+  *   More detailed than the Core Thesis, but still concise
+
+  **G. Pedagogical Extraction Algorithm (The Hooks)**
   You must identify ALL "Curiosity Hooks" by applying the following 6-step algorithm:
 
   1.  **Identify High-Stakes Subjects (\`focal_point\`):**
@@ -106,7 +114,7 @@ function renderAnalysisPrompt({ text }: AnalysisPromptContext): string {
 
   6. **Order and Select:** Rank and select up to 3 unique Curiosity Hooks based on their Cognitive Impact Score (highest first). You may select fewer than 3—but at least one—if the information density is insufficient to support more without dilution or repetition.
 
-  **G. Capture The Semantic Block (Context Rule)**
+  **H. Capture The Semantic Block (Context Rule)**
      Extract \`relevant_context\` for selected hooks by \`Pedagogical Extraction Algorithm\`.
       When extracting \`relevant_context\`, do not just copy the fact. You MUST capture the full logical arc (approx. 3-5 sentences).
       *   **The Setup:** The sentence introducing the context or common assumption.
@@ -114,7 +122,7 @@ function renderAnalysisPrompt({ text }: AnalysisPromptContext): string {
       *   **The Reveal:** The sentence containing the core insight.
       *   *Reason:* This context allows external systems to generate questions without seeing the full text.
 
-  **H. Language Detection
+  **I. Language Detection
       Identify the dominant language of the main body text.
       *   **Output:** The ISO 639-1 code (e.g., "en", "ja", "es", "fr").
 
@@ -199,6 +207,15 @@ function renderAnalysisPrompt({ text }: AnalysisPromptContext): string {
       domain: DomainMetadata;
       core_thesis: {
         content: string; // Absolute summary, max 30 words.
+      };
+      summary: {
+        /**
+         * A concise yet comprehensive summary of the entire article (4-6 sentences).
+         * This should cover the main points, key arguments, and conclusions.
+         * More detailed than core_thesis but still accessible and scannable.
+         * Written in the same language as the article.
+         */
+        content: string;
       };
       pedagogy: {
         hooks: CuriosityHook[];

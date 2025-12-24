@@ -131,6 +131,7 @@ async function extractPedagogyCore(
     structural_skeleton: analysisResponse.metadata.structural_skeleton,
     domain: analysisResponse.metadata.domain,
     core_thesis: analysisResponse.metadata.core_thesis,
+    summary: analysisResponse.metadata.summary,
     language: analysisResponse.metadata.language,
   }
   await updateArticleMetadata(articleId, mergedMetadata)

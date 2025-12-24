@@ -9,10 +9,11 @@ type Props = {
   questions: QuizQuestion[]
   answers: QuizAnswers
   articleUrl?: string | null
+  articleSummary?: string | null
   onSelect: (questionId: number, optionIndex: number) => void
 }
 
-export function QuestionList({ questions, answers, articleUrl, onSelect }: Props) {
+export function QuestionList({ questions, answers, articleUrl, articleSummary, onSelect }: Props) {
   return (
     <VStack gap={{ base: 4, md: 6 }} align="stretch">
       {questions.map((question) => (
@@ -20,6 +21,7 @@ export function QuestionList({ questions, answers, articleUrl, onSelect }: Props
           <QuestionCard
             question={question}
             articleUrl={articleUrl}
+            articleSummary={articleSummary}
             selectedIndex={answers[question.id] ?? null}
             onSelect={(index) => onSelect(question.id, index)}
           />

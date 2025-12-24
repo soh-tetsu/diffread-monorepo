@@ -35,11 +35,13 @@ export async function GET(request: Request) {
 
       if (articleData) {
         const metadata = articleData.metadata as Record<string, unknown> | null
+        const summaryObj = metadata?.summary as Record<string, unknown> | undefined
         article = {
           id: articleData.id,
           status: articleData.status,
           metadata: {
             title: typeof metadata?.title === 'string' ? metadata.title : null,
+            summary: typeof summaryObj?.content === 'string' ? summaryObj.content : null,
           },
         }
       }

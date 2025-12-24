@@ -1,7 +1,8 @@
 'use client'
 
-import { Box, Button, Flex, Float, Link, Stack, Text, VStack } from '@chakra-ui/react'
+import { Box, Button, Collapsible, Flex, Float, Link, Stack, Text, VStack } from '@chakra-ui/react'
 import { useTranslations } from 'next-intl'
+import { LuChevronDown } from 'react-icons/lu'
 import { Blockquote, BlockquoteIcon } from '@/components/ui/blockquote'
 import type { QuizOption, QuizQuestion } from '@/lib/quiz/normalize-curiosity-quizzes'
 
@@ -9,6 +10,7 @@ type Props = {
   question: QuizQuestion
   selectedIndex: number | null
   articleUrl?: string | null
+  articleSummary?: string | null
   onSelect: (optionIndex: number) => void
 }
 
@@ -82,7 +84,13 @@ function OptionButton({
   )
 }
 
-export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: Props) {
+export function QuestionCard({
+  question,
+  selectedIndex,
+  articleUrl,
+  articleSummary,
+  onSelect,
+}: Props) {
   const t = useTranslations('quiz')
   const showFeedback = selectedIndex !== null
   const isCorrect = selectedIndex === question.answerIndex
@@ -141,6 +149,51 @@ export function QuestionCard({ question, selectedIndex, articleUrl, onSelect }: 
             <Text fontWeight="semibold" color="gray.900" mb={2}>
               {isCorrect ? t('feedback.correct') : t('feedback.incorrect')}
             </Text>
+
+            {/* Article Summary Collapsible */}
+            {articleSummary && (
+              <Box mt={3}>
+                <Collapsible.Root>
+                  <Collapsible.Trigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      width="full"
+                      justifyContent="space-between"
+                      fontWeight="semibold"
+                      px={4}
+                      py={3}
+                      bg="white"
+                      borderColor="blue.300"
+                      borderWidth="1px"
+                      _hover={{ bg: 'blue.50', borderColor: 'blue.400' }}
+                      borderRadius="lg"
+                    >
+                      <Text fontSize="sm" color="blue.700">
+                        {t('articleSummary.label')}
+                      </Text>
+                      <Collapsible.Indicator color="blue.700">
+                        <LuChevronDown />
+                      </Collapsible.Indicator>
+                    </Button>
+                  </Collapsible.Trigger>
+                  <Collapsible.Content>
+                    <Box
+                      mt={2}
+                      p={3}
+                      bg="blue.50"
+                      borderRadius="lg"
+                      borderWidth="1px"
+                      borderColor="blue.200"
+                    >
+                      <Text color="gray.700" lineHeight="1.6" fontSize="sm">
+                        {articleSummary}
+                      </Text>
+                    </Box>
+                  </Collapsible.Content>
+                </Collapsible.Root>
+              </Box>
+            )}
 
             {selectedIndex !== null && question.options[selectedIndex]?.rationale && (
               <Text color="gray.900" lineHeight="1.5" mt={2}>

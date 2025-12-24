@@ -28,6 +28,7 @@ type QuizMetaResponse = {
     status: string
     metadata: {
       title: string | null
+      summary: string | null
     }
   } | null
 }
@@ -274,6 +275,7 @@ function QuizPageContent() {
   // Normalize questions
   const curiosityQuestions = normalizeHookQuestions(curiosityQuizData.questions)
   const scaffoldQuestions = scaffoldQuizData?.questions || []
+  const articleSummary = quizMeta.article?.metadata?.summary || null
 
   return (
     <Box
@@ -287,6 +289,7 @@ function QuizPageContent() {
         sessionToken={token}
         articleUrl={quizMeta.session.article_url}
         articleTitle={quizMeta.article?.metadata?.title ?? null}
+        articleSummary={articleSummary}
         initialInstructionsVisible={showInstructions}
         hookQuestions={curiosityQuestions}
         curiosityQuizStatus={curiosityQuizData.status}

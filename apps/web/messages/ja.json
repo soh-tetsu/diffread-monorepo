@@ -4,6 +4,9 @@
       "correct": "いいですね！あなたの直感は記事と一致しています。",
       "incorrect": "惜しい。"
     },
+    "articleSummary": {
+      "label": "記事の要約を表示"
+    },
     "sourceReference": {
       "label": "出典",
       "viewInArticle": "記事で見る",

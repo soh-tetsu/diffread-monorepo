@@ -4,6 +4,9 @@
       "correct": "Nice! Your intuition matches the source.",
       "incorrect": "Not quite right."
     },
+    "articleSummary": {
+      "label": "Show Article Summary"
+    },
     "sourceReference": {
       "label": "Source Reference",
       "viewInArticle": "View in article",
