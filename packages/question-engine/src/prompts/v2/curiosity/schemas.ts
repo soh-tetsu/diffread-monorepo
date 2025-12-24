@@ -89,7 +89,7 @@ export type HookGenerationResponse = {
 }
 
 /**
- * V2 Hook Generator Output Types
+ * V2 Curiosity Generator Output Types
  */
 export type QuizOption = {
   id: string
@@ -113,7 +113,7 @@ export type QuizCard = {
   remediation: Remediation
 }
 
-export type HookGeneratorV2Response = {
+export type CuriosityGeneratorV2Response = {
   rationale: string
   quiz_cards: QuizCard[]
 }
@@ -228,10 +228,12 @@ export const QuizCardSchema: z.ZodType<QuizCard> = z.object({
   remediation: RemediationSchema,
 })
 
-export const HookGeneratorV2ResponseSchema: z.ZodType<HookGeneratorV2Response> = z.object({
-  rationale: z.string(),
-  quiz_cards: z.array(QuizCardSchema),
-})
+export const CuriosityGeneratorV2ResponseSchema: z.ZodType<CuriosityGeneratorV2Response> = z.object(
+  {
+    rationale: z.string(),
+    quiz_cards: z.array(QuizCardSchema),
+  }
+)
 
 /**
  * Workflow input type

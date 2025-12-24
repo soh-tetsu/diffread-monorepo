@@ -2,13 +2,13 @@ import type { PromptDefinitionV2 } from '../../types'
 import type { Metadata } from './schemas'
 
 /**
- * V2-specific prompt context for hook generation
+ * V2-specific prompt context for curiosity generation
  */
-export type HookGeneratorPromptContext = {
+export type CuriosityGeneratorPromptContext = {
   metadata: Metadata
 }
 
-function renderHookGeneratorPrompt(context: HookGeneratorPromptContext): string {
+function rendercuriosityGeneratorPrompt(context: CuriosityGeneratorPromptContext): string {
   const language_code: string = context.metadata.language || 'en'
   const pedagogyJson: string = JSON.stringify({ pedagogy: context.metadata.pedagogy }, null, 2)
 
@@ -182,11 +182,11 @@ function renderHookGeneratorPrompt(context: HookGeneratorPromptContext): string 
 `
 }
 
-export const hookGeneratorPromptV2: PromptDefinitionV2<HookGeneratorPromptContext> = {
+export const curiosityGeneratorPromptV2: PromptDefinitionV2<CuriosityGeneratorPromptContext> = {
   id: 'hook-generator-v2',
   version: 'v2.0.1',
   objective: 'Generate 3 curiosity-driven hook questions from extracted hook context',
   systemInstruction:
     "You are an expert educator. Generate hook questions that challenge assumptions and create curiosity by testing reader intuition against the article's counter-intuitive claims.",
-  render: (context) => renderHookGeneratorPrompt(context),
+  render: (context) => rendercuriosityGeneratorPrompt(context),
 }

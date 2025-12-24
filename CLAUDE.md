@@ -93,26 +93,6 @@ Sessions:           pending → ready / errored / skip_by_failure
 
 ### Worker Architecture
 
-**Two Independent Queues:**
-
-1. **Curiosity Quiz Worker** (`processNextPendingCuriosityQuiz`):
-   - Generates 3 predictive questions to raise curiosity
-   - Claims jobs via `claim_next_curiosity_quiz()` RPC (atomic locking)
-   - On success: marks curiosity quiz `ready`, updates all linked sessions to `ready`
-   - On failure: retries up to 3 times, then marks as `skip_by_failure`
-
-2. **Scaffold Quiz Worker** (`processNextPendingScaffoldQuiz`):
-   - Generates deep-dive questions via multi-stage Gemini workflow
-   - Claims jobs via `claim_next_scaffold_quiz()` RPC
-   - Created on-demand (not auto-created with curiosity quiz)
-   - Stores questions in JSONB column, marks scaffold quiz `ready`
-   - Failures do NOT affect session status (scaffold is optional)
-
-**Concurrency Controls:**
-
-- `SESSION_WORKER_CONCURRENCY=5`: Max concurrent session-triggered scrapes (rate-limited via `p-limit`)
-- `PENDING_WORKER_CONCURRENCY=1`: Backlog sweeper mutex (prevents duplicate cron runs)
-
 ### Question Generation Pipeline
 
 **Curiosity Quiz Workflow** (`@diffread/question-engine`):
@@ -184,16 +164,6 @@ apps/web/
 ├── scripts/                      # Admin CLI tools (add-session, drain-pending, etc.)
 └── supabase/migrations/          # Database migrations
 
-packages/question-engine/
-├── src/
-│   ├── prompts/                  # Gemini prompt templates
-│   ├── analyze-article.ts        # Metadata extraction
-│   ├── hook-generator.ts         # Hook question generation
-│   ├── instruction-question-generator.ts
-│   ├── article-planner.ts        # Reading plan generation
-│   ├── plan-expander.ts          # Instruction detail expansion
-│   └── question-generator.ts     # Orchestration functions
-└── bin/question-engine.ts        # CLI entry point
 ```
 
 ## Important Patterns

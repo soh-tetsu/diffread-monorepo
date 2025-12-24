@@ -2,8 +2,8 @@ export { type CreateLLMClientOptions, createLLMClient } from './prompts/create-e
 export { type GenerationConfig, PromptExecutor } from './prompts/executor'
 export {
   analysisPromptV2,
-  type HookGeneratorPromptContext,
-  hookGeneratorPromptV2,
+  type CuriosityGeneratorPromptContext,
+  curiosityGeneratorPromptV2,
 } from './prompts/v2'
 export {
   type AnalysisResponse,
@@ -14,6 +14,8 @@ export {
   ArchetypeSchema,
   type CoreThesis,
   CoreThesisSchema,
+  type CuriosityGeneratorV2Response,
+  CuriosityGeneratorV2ResponseSchema,
   type CuriosityQuestionWorkflowInput,
   type CuriosityQuestionWorkflowOutput,
   type Domain,
@@ -22,8 +24,6 @@ export {
   HookContextSchema,
   type HookGenerationResponse,
   HookGenerationResponseSchema,
-  type HookGeneratorV2Response,
-  HookGeneratorV2ResponseSchema,
   type HookQuestion,
   type HookQuestionOption,
   HookQuestionOptionSchema,

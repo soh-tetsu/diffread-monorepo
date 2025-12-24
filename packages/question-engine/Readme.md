@@ -14,7 +14,7 @@ packages/question-engine/src/
 │   └── v2/                          # V2 Prompt suite
 │       ├── curiosity/               # Curiosity Quiz prompts (entry point)
 │       │   ├── analysis.ts          # V2 analysis prompt (metadata extraction)
-│       │   ├── hook-generator.ts    # V2 hook generator prompt (3 questions)
+│       │   ├── curiosity-generator.ts # V2 curiosity prompt (3 hook questions)
 │       │   ├── schemas.ts           # Zod schemas + types for curiosity responses
 │       │   └── index.ts             # Re-exports
 │       ├── scaffold/                # Scaffold Quiz prompts (deep learning)

@@ -6,5 +6,8 @@
  */
 
 export { analysisPromptV2 } from './analysis'
-export { type HookGeneratorPromptContext, hookGeneratorPromptV2 } from './hook-generator'
+export {
+  type CuriosityGeneratorPromptContext,
+  curiosityGeneratorPromptV2,
+} from './curiosity-generator'
 export * from './schemas'

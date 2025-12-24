@@ -27,11 +27,11 @@ import {
   type AnalysisResponse,
   AnalysisResponseSchema,
   analysisPromptV2,
+  type CuriosityGeneratorPromptContext,
+  type CuriosityGeneratorV2Response,
+  CuriosityGeneratorV2ResponseSchema,
   createLLMClient,
-  type HookGeneratorPromptContext,
-  type HookGeneratorV2Response,
-  HookGeneratorV2ResponseSchema,
-  hookGeneratorPromptV2,
+  curiosityGeneratorPromptV2,
 } from '@diffread/question-engine'
 import { getArticleById, updateArticleMetadata } from '@/lib/db/articles'
 import { getCuriosityQuizById, updateCuriosityQuiz } from '@/lib/db/curiosity-quizzes'
@@ -169,7 +169,7 @@ async function extractPedagogy(
 async function generateCuriosityQuestionsCore(
   curiosityQuizId: number,
   metadata: AnalysisResponse['metadata']
-): Promise<HookGeneratorV2Response['quiz_cards']> {
+): Promise<CuriosityGeneratorV2Response['quiz_cards']> {
   logger.info({ curiosityQuizId }, 'Running V2 hook generation prompt')
 
   const apiKey = process.env.GEMINI_API_KEY
@@ -189,12 +189,12 @@ async function generateCuriosityQuestionsCore(
     },
   })
 
-  const context: HookGeneratorPromptContext = { metadata }
+  const context: CuriosityGeneratorPromptContext = { metadata }
 
-  const hookResponse: HookGeneratorV2Response = await executor.execute(
-    hookGeneratorPromptV2,
+  const hookResponse: CuriosityGeneratorV2Response = await executor.execute(
+    curiosityGeneratorPromptV2,
     context,
-    HookGeneratorV2ResponseSchema
+    CuriosityGeneratorV2ResponseSchema
   )
 
   logger.info(
@@ -211,7 +211,7 @@ async function generateCuriosityQuestionsCore(
 async function generateCuriosityQuestions(
   curiosityQuizId: number,
   metadata: AnalysisResponse['metadata']
-): Promise<HookGeneratorV2Response['quiz_cards']> {
+): Promise<CuriosityGeneratorV2Response['quiz_cards']> {
   try {
     return await withRetry(() => generateCuriosityQuestionsCore(curiosityQuizId, metadata), {
       maxAttempts: WORKER_CONSTANTS.RETRY.MAX_GENERATION_ATTEMPTS,
