@@ -16,6 +16,8 @@ const fetcher = async (url: string) => {
 
   if (!res.ok) {
     if (res.status === 401 || res.status === 404) {
+      // User doesn't exist in DB - return null
+      // Don't delete cookie: backend will recreate user on next URL submission (soft policy)
       return null
     }
     throw new Error('Failed to fetch user profile')
@@ -38,7 +40,8 @@ export function useUserProfile() {
 
   return {
     profile: data,
-    isLoading: !error && !data && !!guestId,
+    // Use strict undefined check to distinguish "not fetched yet" from "fetched but returned null"
+    isLoading: !error && data === undefined && !!guestId,
     isError: !!error,
     hasCompletedOnboarding: data?.metadata?.onboardingCompleted ?? false,
     refetch: mutate,
