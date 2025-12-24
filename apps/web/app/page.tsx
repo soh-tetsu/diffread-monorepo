@@ -11,7 +11,7 @@ import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
 import { QuestionList } from '@/components/quiz/QuestionList'
 import { QuizHeader } from '@/components/quiz/QuizHeader'
 import { AppToolbar } from '@/components/ui/AppToolbar'
-import { toaster } from '@/components/ui/toaster'
+import { NotificationBanner, useNotification } from '@/components/ui/NotificationBanner'
 import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
 import { useUserProfile } from '@/hooks/useUserProfile'
@@ -131,6 +131,7 @@ function OnboardingSection({
           total: PRESET_QUIZZES.length,
         })}
       />
+      <NotificationBanner />
 
       <Box
         as="section"
@@ -217,6 +218,7 @@ function UrlRegistrationSection() {
   return (
     <>
       <AppToolbar />
+      <NotificationBanner />
 
       <Box
         as="section"
@@ -272,6 +274,7 @@ function UrlRegistrationSection() {
 }
 
 export default function HomePage() {
+  const notification = useNotification()
   const t = useTranslations('toaster')
   const { guestId, isReady, persistGuestId } = useGuestProfile()
   const { hasCompletedOnboarding, isLoading: isLoadingProfile, refetch } = useUserProfile()
@@ -336,7 +339,7 @@ export default function HomePage() {
         errorMessage = t('pdfUploadFailed')
       }
 
-      toaster.create({
+      notification.show({
         title: t('shareErrorTitle'),
         description: errorMessage,
         type: 'error',
@@ -345,7 +348,7 @@ export default function HomePage() {
       // Clean up URL
       window.history.replaceState({}, '', '/')
     }
-  }, [t])
+  }, [t, notification])
 
   const handleUnlock = async () => {
     setIsUnlocking(true)
@@ -372,14 +375,14 @@ export default function HomePage() {
       // Reset explicit trigger flag so mode selection logic can respond to hasCompletedOnboarding
       setShowOnboarding(false)
 
-      toaster.create({
+      notification.show({
         title: t('guestProfileReady'),
         description: t('urlSubmissionsUnlocked'),
         type: 'success',
       })
       // Mode will be updated automatically by the useEffect watching hasCompletedOnboarding
     } catch (error) {
-      toaster.create({
+      notification.show({
         title: t('unableToUnlock'),
         description: error instanceof Error ? error.message : 'Unknown error',
         type: 'error',

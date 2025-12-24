@@ -19,10 +19,10 @@ import {
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
-import { LuTrash2, LuX } from 'react-icons/lu'
+import { LuTrash2 } from 'react-icons/lu'
 import useSWR from 'swr'
 import { AppToolbar } from '@/components/ui/AppToolbar'
-import { toaster } from '@/components/ui/toaster'
+import { NotificationBanner, useNotification } from '@/components/ui/NotificationBanner'
 import { Tooltip } from '@/components/ui/tooltip'
 import { readGuestIdFromCookie } from '@/lib/guest/cookie'
 import { formatUrlForDisplay } from '@/lib/utils/format-url'
@@ -55,6 +55,7 @@ export default function BookmarksPage() {
   const t = useTranslations('bookmarks')
   const router = useRouter()
   const guestId = readGuestIdFromCookie()
+  const notification = useNotification()
   const [deletingToken, setDeletingToken] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null)
   const [retryingToken, setRetryingToken] = useState<string | null>(null)
@@ -95,42 +96,18 @@ export default function BookmarksPage() {
     setConfirmingRetry(null)
 
     try {
-      // Find the session to get its article URL
-      const session = [...(data?.queue || []), ...(data?.waiting || [])].find(
-        (s) => s.sessionToken === sessionToken
-      )
-
-      if (!session) {
-        throw new Error('Session not found')
-      }
-
-      // Re-trigger the worker by calling the curiosity API
-      const res = await fetch('/api/curiosity', {
+      await fetch('/api/curiosity', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currentToken: sessionToken,
-          url: session.articleUrl,
+          url: [...(data?.queue || []), ...(data?.waiting || [])].find(
+            (s) => s.sessionToken === sessionToken
+          )?.articleUrl,
         }),
       })
-
-      if (!res.ok) {
-        throw new Error('Failed to retry session')
-      }
-
-      // Refresh the bookmarks list
       await mutate()
-
-      toaster.success({
-        title: t('retry'),
-        description: 'Quiz generation re-triggered',
-      })
-    } catch (err) {
-      toaster.error({
-        title: 'Error',
-        description: 'Failed to retry session',
-      })
     } finally {
       setRetryingToken(null)
     }
@@ -172,20 +149,9 @@ export default function BookmarksPage() {
         throw new Error('Failed to archive session')
       }
 
-      // Refresh the bookmarks list
       await mutate()
-
-      toaster.success({
-        title: t('archive'),
-        description: 'Session archived successfully',
-      })
-    } catch (_err) {
-      toaster.error({
-        title: 'Error',
-        description: 'Failed to archive session',
-      })
-    } finally {
       setArchivingToken(null)
+    } finally {
     }
   }
 
@@ -205,16 +171,9 @@ export default function BookmarksPage() {
 
       // Refresh bookmarks list
       await mutate()
-
-      toaster.success({
-        title: t('retry'),
-        description: 'Quiz generation re-triggered',
-      })
     } catch (_err) {
-      toaster.error({
-        title: 'Error',
-        description: 'Failed to retry session',
-      })
+      // Refresh bookmarks list
+      await mutate()
     } finally {
       setDeletingToken(null)
     }
@@ -231,6 +190,7 @@ export default function BookmarksPage() {
     return (
       <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)">
         <AppToolbar progressText="" />
+        <NotificationBanner />
         <Box maxW="960px" mx="auto" px={4} py={8} textAlign="center">
           <Text color="gray.600">{t('noGuestId')}</Text>
         </Box>
@@ -242,6 +202,7 @@ export default function BookmarksPage() {
     return (
       <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)">
         <AppToolbar progressText="" />
+        <NotificationBanner />
         <Box maxW="960px" mx="auto" px={4} py={8} textAlign="center">
           <Spinner size="lg" color="teal.500" />
         </Box>
@@ -253,6 +214,7 @@ export default function BookmarksPage() {
     return (
       <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)">
         <AppToolbar progressText="" />
+        <NotificationBanner />
         <Box maxW="960px" mx="auto" px={4} py={8}>
           <Text color="red.600">{t('errorLoading')}</Text>
         </Box>
@@ -265,6 +227,7 @@ export default function BookmarksPage() {
   return (
     <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)" color="gray.900">
       <AppToolbar />
+      <NotificationBanner />
 
       <Box maxW="960px" mx="auto" px={4} py={6}>
         <VStack align="stretch" gap={8}>

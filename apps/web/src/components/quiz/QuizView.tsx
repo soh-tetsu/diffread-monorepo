@@ -9,7 +9,7 @@ import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
 import { QuestionList } from '@/components/quiz/QuestionList'
 import { QuizHeader } from '@/components/quiz/QuizHeader'
 import { AppToolbar } from '@/components/ui/AppToolbar'
-import { toaster } from '@/components/ui/toaster'
+import { NotificationBanner, useNotification } from '@/components/ui/NotificationBanner'
 import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
 import { useUserStats } from '@/hooks/useUserStats'
@@ -42,6 +42,7 @@ export function QuizView({
 }: Props) {
   const t = useTranslations('quiz')
   const router = useRouter()
+  const notification = useNotification()
   const [showForm, setShowForm] = useState(false)
   const [scaffoldVisible, setScaffoldVisible] = useState(false)
   const [visibleCuriosityCount, setVisibleCuriosityCount] = useState(CHUNK_SIZE)
@@ -219,6 +220,7 @@ export function QuizView({
   return (
     <>
       <AppToolbar progressText={progressText} />
+      <NotificationBanner />
 
       <Box
         as="section"
@@ -284,7 +286,7 @@ export function QuizView({
                     if (questions.length > 0) {
                       setScaffoldVisible(true)
                     } else {
-                      toaster.create({
+                      notification.show({
                         title: 'Coming Soon!',
                         description: "We're still training the scaffold engine.",
                         type: 'info',

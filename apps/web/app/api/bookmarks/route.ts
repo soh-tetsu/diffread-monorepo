@@ -3,6 +3,11 @@ import { extractGuestId } from '@/lib/api/guest-session'
 import { autoFillQueue } from '@/lib/db/queue'
 import { supabase } from '@/lib/supabase'
 
+type LastError = {
+  reason: string
+  step: string
+}
+
 export const runtime = 'nodejs'
 
 type BookmarkSession = {
@@ -37,28 +42,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Fetch all sessions with article metadata in a single JOIN query
     // Use LEFT JOIN (not inner) to include sessions without quiz_id yet
-    const { data: sessions, error } = await supabase
+    type SessionWithMetadata = {
+      session_token: string
+      article_url: string
+      status: string
+      study_status: string
+      created_at: string | null
+      metadata: { lastError?: LastError } | null
+      quizzes: { articles: { metadata: { title?: string | null } } | null } | null
+    }
+
+    const { data: sessions, error } = (await supabase
       .from('sessions')
       .select(
         `
-        session_token,
-        article_url,
-        status,
-        study_status,
-        created_at,
-        quiz_id,
-        metadata,
-        quizzes(
-          article_id,
-          articles(
-            metadata
+          session_token,
+          article_url,
+          status,
+          study_status,
+          created_at,
+          quiz_id,
+          metadata,
+          quizzes(
+            article_id,
+            articles(
+              metadata
+            )
           )
-        )
-      `
+        `
       )
       .eq('user_id', guestId)
       .order('created_at', { ascending: false })
-      .limit(100)
+      .limit(100)) as { data: SessionWithMetadata[] | null; error: unknown }
 
     if (error) {
       console.error('Failed to fetch bookmarks:', error)
@@ -66,7 +81,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Transform the data
-    const bookmarks: BookmarkSession[] = (sessions || []).map((session: any) => {
+    const bookmarks: BookmarkSession[] = (sessions || []).map((session: SessionWithMetadata) => {
       let articleTitle: string | null = null
 
       // Priority 1: Article metadata (from full scrape)

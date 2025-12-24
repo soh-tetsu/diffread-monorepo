@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.6] - 2025-12-24
+
+### Added
+
+- NotificationBanner component replacing toaster (GitHub-style yellow notification bar)
+
 ## [0.3.5] - 2024-12-24
 
 - Add collapsible article summary in quiz feedback

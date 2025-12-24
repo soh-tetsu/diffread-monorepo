@@ -122,6 +122,8 @@
     "quizReady": "Quiz ready!",
     "clickToOpen": "Click anywhere to open now.",
     "clickToOpenNewTab": "Click anywhere to open in new tab.",
+    "open": "Open",
+    "openInNewTab": "Open in new tab",
     "generationFailed": "Quiz generation failed",
     "takingLonger": "Quiz is taking longer than expected. Please check back shortly.",
     "queueFull": "Article bookmarked!",

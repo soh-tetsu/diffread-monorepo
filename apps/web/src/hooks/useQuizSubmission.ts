@@ -1,6 +1,6 @@
 import { useTranslations } from 'next-intl'
 import { useState } from 'react'
-import { toaster } from '@/components/ui/toaster'
+import { useNotification } from '@/components/ui/NotificationBanner'
 
 type SubmissionOptions = {
   currentToken?: string
@@ -30,6 +30,7 @@ export type UseQuizSubmissionReturn = {
  */
 export function useQuizSubmission(): UseQuizSubmissionReturn {
   const t = useTranslations('quizSubmission')
+  const notification = useNotification()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -51,7 +52,7 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
             } else {
               window.location.href = quizUrl
             }
-            toaster.dismiss(toastId)
+            notification.dismiss(toastId)
           }
         }
         element.addEventListener('click', clickHandler, { once: true })
@@ -70,9 +71,11 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
 
     const toastId = `quiz-submit-${Date.now()}`
 
-    toaster.loading({
+    notification.show({
       id: toastId,
       title: t('submittingUrl'),
+      type: 'loading',
+      duration: Infinity,
     })
 
     try {
@@ -118,27 +121,25 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
       if (data.status === 'bookmarked') {
         // Check if there are ready quizzes in the queue
         if (data.queueStatus.total >= 2) {
-          toaster.update(toastId, {
+          notification.show({
             title: t('queueFull'),
             description: t('readyQuizzesAvailable', { count: data.queueStatus.total }),
             type: 'info',
             duration: Infinity,
-            closable: true,
             action: {
               label: t('goToQueue'),
               onClick: () => {
                 window.location.href = '/bookmarks'
-                toaster.dismiss(toastId)
+                notification.dismiss(toastId)
               },
             },
           })
         } else {
-          toaster.update(toastId, {
+          notification.show({
             title: t('queueFull'),
             description: t('queueFullDescription'),
             type: 'info',
             duration: 10000,
-            closable: true,
           })
         }
 
@@ -159,25 +160,34 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
 
           // Update toast based on real status
           if (payload.status === 'pending') {
-            toaster.update(toastId, {
+            notification.show({
+              id: toastId,
               title: t('willStartSoon'),
               type: 'loading',
+              duration: Infinity,
             })
           } else if (payload.status === 'processing') {
-            toaster.update(toastId, {
+            notification.show({
+              id: toastId,
               title: t('workingOnIt'),
               type: 'loading',
+              duration: Infinity,
             })
           } else if (payload.status === 'ready') {
-            // Success! Quiz is ready
             const quizUrl = `/quiz?q=${encodeURIComponent(newSessionToken)}`
 
-            toaster.update(toastId, {
+            notification.show({
+              id: toastId,
               title: t('quizReady'),
-              description: openInNewTab ? t('clickToOpenNewTab') : t('clickToOpen'),
               type: 'success',
               duration: Infinity,
-              closable: true,
+              action: {
+                label: openInNewTab ? t('openInNewTab') : t('open'),
+                onClick: () => {
+                  window.location.href = quizUrl
+                  notification.dismiss(toastId)
+                },
+              },
             })
 
             makeToastClickable(toastId, quizUrl, openInNewTab)
@@ -202,12 +212,12 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
       const message = _err instanceof Error ? _err.message : 'Unknown error'
       setError(message)
 
-      toaster.update(toastId, {
+      notification.show({
+        id: toastId,
         title: t('generationFailed'),
         description: message,
         type: 'error',
         duration: Infinity,
-        closable: true,
       })
 
       return null

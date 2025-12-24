@@ -1,5 +1,3 @@
-'use server'
-
 import { randomUUID } from 'node:crypto'
 import { execute, queryMaybeSingle, querySingle } from '@/lib/db/supabase-helpers'
 import { supabase } from '@/lib/supabase'
@@ -10,7 +8,7 @@ const INTERNAL_GUEST_DOMAIN = 'diffread.internal'
 
 type Metadata = Record<string, unknown>
 
-function synthesizeGuestEmail(userId: string): string {
+export function synthesizeGuestEmail(userId: string): string {
   return `guest+${userId}@${INTERNAL_GUEST_DOMAIN}`
 }
 
@@ -121,5 +119,3 @@ export async function touchUserLastSeen(userId: string): Promise<void> {
     logger.warn({ userId, err: error }, 'Failed to update last_seen_at')
   }
 }
-
-export { synthesizeGuestEmail }
