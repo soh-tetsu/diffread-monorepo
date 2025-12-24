@@ -64,7 +64,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
 export function NotificationBanner() {
   const context = React.useContext(NotificationContext)
-  if (!context) throw new Error('NotificationBanner must be used within NotificationProvider')
+  if (!context) return null
   const { notifications, dismiss } = context
 
   if (notifications.length === 0) return null
@@ -73,17 +73,17 @@ export function NotificationBanner() {
 
   return (
     <Box
-      zIndex={1999}
       backdropBlur="md"
-      bg={
-        notification.type === 'success'
-          ? 'teal.50'
-          : notification.type === 'error'
-            ? 'red.50'
-            : notification.type === 'loading'
-              ? 'blue.50'
-              : 'yellow.50'
-      }
+      css={{
+        backgroundColor:
+          notification.type === 'success'
+            ? 'rgba(240, 253, 250, 1)'
+            : notification.type === 'error'
+              ? 'rgba(254, 242, 242, 1)'
+              : notification.type === 'loading'
+                ? 'rgba(239, 246, 255, 1)'
+                : 'rgba(254, 252, 232, 1)',
+      }}
     >
       <HStack maxW="960px" mx="auto" px={4} py={3} justify="space-between" align="center">
         <HStack flex={1} align="center" gap={3}>

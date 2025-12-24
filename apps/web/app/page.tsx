@@ -10,8 +10,7 @@ import { ArticleSubmissionForm } from '@/components/forms/ArticleSubmissionForm'
 import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
 import { QuestionList } from '@/components/quiz/QuestionList'
 import { QuizHeader } from '@/components/quiz/QuizHeader'
-import { AppToolbar } from '@/components/ui/AppToolbar'
-import { NotificationBanner, useNotification } from '@/components/ui/NotificationBanner'
+import { useNotification } from '@/components/ui/NotificationBanner'
 import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
 import { useUserProfile } from '@/hooks/useUserProfile'
@@ -125,21 +124,13 @@ function OnboardingSection({
 
   return (
     <>
-      <AppToolbar
-        progressText={t('progressChecking', {
-          answered: answeredCount,
-          total: PRESET_QUIZZES.length,
-        })}
-      />
-      <NotificationBanner />
-
       <Box
         as="section"
         w="100%"
         maxW="960px"
         mx="auto"
         px={4}
-        py={1}
+        pt={6}
         display="flex"
         flexDirection="column"
         gap={6}
@@ -196,17 +187,16 @@ function UrlRegistrationSection() {
   const { stats } = useUserStats()
 
   // Use SWR for queue count - shares cache with AppToolbar
-  const { data: queueData } = useSWR<{ count: number; firstSessionToken: string | null }>(
-    '/api/queue-count',
-    queueCountFetcher,
-    {
-      refreshInterval: 30000,
-      refreshWhenHidden: false,
-      refreshWhenOffline: false,
-      revalidateOnFocus: true,
-      dedupingInterval: 5000,
-    }
-  )
+  const { data: queueData } = useSWR<{
+    count: number
+    firstSessionToken: string | null
+  }>('/api/queue-count', queueCountFetcher, {
+    refreshInterval: 30000,
+    refreshWhenHidden: false,
+    refreshWhenOffline: false,
+    revalidateOnFocus: true,
+    dedupingInterval: 5000,
+  })
 
   const queueCount = queueData?.count ?? 0
   const firstSessionToken = queueData?.firstSessionToken
@@ -217,16 +207,13 @@ function UrlRegistrationSection() {
 
   return (
     <>
-      <AppToolbar />
-      <NotificationBanner />
-
       <Box
         as="section"
         w="100%"
         maxW="960px"
         mx="auto"
         px={4}
-        py={1}
+        pt={6}
         display="flex"
         flexDirection="column"
         gap={6}

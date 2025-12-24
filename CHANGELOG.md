@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.7] - 2025-12-24
+
+### Added
+
+- Tuned NotificationBanner
+- Bug fix
+
 ## [0.3.6] - 2025-12-24
 
 ### Added

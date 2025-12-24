@@ -21,8 +21,7 @@ import { useTranslations } from 'next-intl'
 import { useEffect, useState } from 'react'
 import { LuTrash2 } from 'react-icons/lu'
 import useSWR from 'swr'
-import { AppToolbar } from '@/components/ui/AppToolbar'
-import { NotificationBanner, useNotification } from '@/components/ui/NotificationBanner'
+import { useNotification } from '@/components/ui/NotificationBanner'
 import { Tooltip } from '@/components/ui/tooltip'
 import { readGuestIdFromCookie } from '@/lib/guest/cookie'
 import { formatUrlForDisplay } from '@/lib/utils/format-url'
@@ -189,8 +188,6 @@ export default function BookmarksPage() {
   if (!guestId) {
     return (
       <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)">
-        <AppToolbar progressText="" />
-        <NotificationBanner />
         <Box maxW="960px" mx="auto" px={4} py={8} textAlign="center">
           <Text color="gray.600">{t('noGuestId')}</Text>
         </Box>
@@ -201,8 +198,6 @@ export default function BookmarksPage() {
   if (isLoading) {
     return (
       <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)">
-        <AppToolbar progressText="" />
-        <NotificationBanner />
         <Box maxW="960px" mx="auto" px={4} py={8} textAlign="center">
           <Spinner size="lg" color="teal.500" />
         </Box>
@@ -213,8 +208,6 @@ export default function BookmarksPage() {
   if (error) {
     return (
       <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)">
-        <AppToolbar progressText="" />
-        <NotificationBanner />
         <Box maxW="960px" mx="auto" px={4} py={8}>
           <Text color="red.600">{t('errorLoading')}</Text>
         </Box>
@@ -226,10 +219,7 @@ export default function BookmarksPage() {
 
   return (
     <Box minH="100vh" bg="radial-gradient(circle at top, #ffffff, #f4f7fb 70%)" color="gray.900">
-      <AppToolbar />
-      <NotificationBanner />
-
-      <Box maxW="960px" mx="auto" px={4} py={6}>
+      <Box maxW="960px" mx="auto" px={4} pt={4}>
         <VStack align="stretch" gap={8}>
           {/* Queue Section */}
           <Box>

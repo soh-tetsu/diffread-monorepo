@@ -39,14 +39,11 @@ export function AppToolbar({ progressText }: AppToolbarProps) {
   return (
     <Box
       as="nav"
-      position="sticky"
-      top={0}
-      zIndex={1000}
       px={4}
       py={2}
       css={{
+        backgroundColor: '#ffffff',
         backdropFilter: 'blur(8px)',
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
       }}
     >
       <Flex align="center" gap={2} maxW="960px" mx="auto" justify="space-between">

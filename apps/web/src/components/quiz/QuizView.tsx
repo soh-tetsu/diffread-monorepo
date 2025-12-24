@@ -8,8 +8,7 @@ import { ArticleSubmissionForm } from '@/components/forms/ArticleSubmissionForm'
 import { IntuitionSummaryCard } from '@/components/quiz/IntuitionSummaryCard'
 import { QuestionList } from '@/components/quiz/QuestionList'
 import { QuizHeader } from '@/components/quiz/QuizHeader'
-import { AppToolbar } from '@/components/ui/AppToolbar'
-import { NotificationBanner, useNotification } from '@/components/ui/NotificationBanner'
+import { useNotification } from '@/components/ui/NotificationBanner'
 import { useQuizAnswers } from '@/hooks/useQuizAnswers'
 import { useQuizSubmission } from '@/hooks/useQuizSubmission'
 import { useUserStats } from '@/hooks/useUserStats'
@@ -82,7 +81,10 @@ export function QuizView({
   // Progress text calculation
   const progressText = useMemo(() => {
     if (scaffoldVisible && questions.length > 0) {
-      return t('deepDive', { answered: scaffoldQuiz.answeredCount, total: questions.length })
+      return t('deepDive', {
+        answered: scaffoldQuiz.answeredCount,
+        total: questions.length,
+      })
     }
     if (hookQuestions.length > 0) {
       return t('checkingIntuition', {
@@ -219,16 +221,13 @@ export function QuizView({
 
   return (
     <>
-      <AppToolbar progressText={progressText} />
-      <NotificationBanner />
-
       <Box
         as="section"
         w="100%"
         maxW="960px"
         mx="auto"
         px={4}
-        py={1}
+        pt={6}
         display="flex"
         flexDirection="column"
         gap={6}

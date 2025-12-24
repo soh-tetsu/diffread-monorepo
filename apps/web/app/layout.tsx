@@ -4,6 +4,7 @@ import { GuestIdRenewal } from '@/components/providers/GuestIdRenewal'
 import { LocaleProvider } from '@/components/providers/LocaleProvider'
 import { ServiceWorkerRegistration } from '@/components/ServiceWorkerRegistration'
 import { NotificationProvider } from '@/components/ui/NotificationBanner'
+import { StickyHeaderContainer } from '@/components/ui/StickyHeaderContainer'
 import { Providers } from './providers'
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -23,12 +24,9 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  // Orange theme for dev, teal for production
   themeColor: isDev ? '#ea580c' : '#0d9488',
 }
 
-// IMPORTANT: No async/await here = enables static generation
-// Locale detection happens client-side in LocaleProvider
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -37,7 +35,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <NotificationProvider>
             <ServiceWorkerRegistration />
             <GuestIdRenewal />
-            <LocaleProvider>{children}</LocaleProvider>
+            <LocaleProvider>
+              <StickyHeaderContainer />
+              {children}
+            </LocaleProvider>
           </NotificationProvider>
         </Providers>
       </body>
