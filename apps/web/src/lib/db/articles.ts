@@ -103,6 +103,7 @@ export async function updateArticleStatus(
           { articleId, attempts, err: error },
           'Failed to update article status after all retries'
         )
+        return undefined
       },
     }
   )

@@ -27,6 +27,9 @@ export function proxy(request: NextRequest) {
   // Apply Nosecone security headers with STATIC configuration (no nonces)
   // By explicitly setting directives without using defaults, we avoid nonce generation
   // This allows Next.js to use static generation instead of dynamic rendering
+  const supabaseConnectSrc = (process.env.SUPABASE_URL ?? 'https://*.supabase.co') as
+    | `${string}://${string}.${string}`
+    | `${string}://${string}.${string}:*`
   const securityHeaders = nosecone({
     contentSecurityPolicy: {
       // CRITICAL: Do not spread defaults here - it would include nonce()
@@ -40,11 +43,7 @@ export function proxy(request: NextRequest) {
         baseUri: ["'self'"],
         formAction: ["'self'"],
         frameAncestors: ["'none'"],
-        connectSrc: [
-          "'self'",
-          process.env.SUPABASE_URL || 'https://*.supabase.co',
-          'https://generativelanguage.googleapis.com',
-        ] as any, // Type assertion for strict types
+        connectSrc: ["'self'", supabaseConnectSrc, 'https://generativelanguage.googleapis.com'],
       },
     },
   })

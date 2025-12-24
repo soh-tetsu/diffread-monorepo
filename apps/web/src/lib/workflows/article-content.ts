@@ -114,6 +114,7 @@ async function loadStoredArticleContent(article: ArticleRow): Promise<string> {
             { articleId: article.id, attempts, err: error },
             'Failed to load stored content after all retries'
           )
+          return undefined
         },
       }
     )

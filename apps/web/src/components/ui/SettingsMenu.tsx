@@ -1,17 +1,6 @@
 'use client'
 
-import {
-  Badge,
-  Box,
-  Button,
-  Card,
-  Flex,
-  HStack,
-  Link,
-  SegmentGroup,
-  Text,
-  VStack,
-} from '@chakra-ui/react'
+import { Badge, Box, Button, Card, Flex, HStack, Link, Text, VStack } from '@chakra-ui/react'
 import NextLink from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'

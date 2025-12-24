@@ -179,7 +179,7 @@ export default function BookmarksPage() {
         title: t('archive'),
         description: 'Session archived successfully',
       })
-    } catch (err) {
+    } catch (_err) {
       toaster.error({
         title: 'Error',
         description: 'Failed to archive session',
@@ -203,17 +203,17 @@ export default function BookmarksPage() {
         throw new Error('Failed to delete session')
       }
 
-      // Refresh the bookmarks list
+      // Refresh bookmarks list
       await mutate()
 
       toaster.success({
-        title: t('delete'),
-        description: 'Session deleted successfully',
+        title: t('retry'),
+        description: 'Quiz generation re-triggered',
       })
-    } catch (err) {
+    } catch (_err) {
       toaster.error({
         title: 'Error',
-        description: 'Failed to delete session',
+        description: 'Failed to retry session',
       })
     } finally {
       setDeletingToken(null)

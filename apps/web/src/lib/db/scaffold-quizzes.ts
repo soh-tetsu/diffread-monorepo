@@ -1,7 +1,6 @@
-import type { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { execute, queryMaybeSingle, querySingle } from '@/lib/db/supabase-helpers'
 import { supabase } from '@/lib/supabase'
-import type { ClaimedScaffoldQuiz, ScaffoldQuizRow, ScaffoldQuizStatus } from '@/types/db'
+import type { ScaffoldQuizRow, ScaffoldQuizStatus } from '@/types/db'
 
 export async function getScaffoldQuizById(id: number): Promise<ScaffoldQuizRow | null> {
   const result = await supabase.from('scaffold_quizzes').select('*').eq('id', id).maybeSingle()

@@ -117,8 +117,8 @@ export function IntuitionSummaryCard({
                         studyStatus: 'archived',
                       }),
                     })
-                  } catch (err) {
-                    console.error('Failed to archive session:', err)
+                  } catch (_err) {
+                    console.error('Failed to archive session:', _err)
                   }
                 }
                 onRecordSkip?.()

@@ -12,7 +12,7 @@
 
 import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
-import { isSuccessWithData, type ProcessResult, successResult } from '@/lib/workers/process-result'
+import { type ProcessResult, successResult } from '@/lib/workers/process-result'
 import { callRpc } from '@/lib/workers/rpc-helpers'
 import type { ArticleRow, QuizRow } from '@/types/db'
 

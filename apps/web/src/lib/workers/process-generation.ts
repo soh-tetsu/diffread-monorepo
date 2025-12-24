@@ -35,7 +35,7 @@ import {
 } from '@diffread/question-engine'
 import { getArticleById, updateArticleMetadata } from '@/lib/db/articles'
 import { getCuriosityQuizById, updateCuriosityQuiz } from '@/lib/db/curiosity-quizzes'
-import { QuizRetryableError, QuizTerminalError } from '@/lib/errors/quiz-errors'
+import { QuizRetryableError } from '@/lib/errors/quiz-errors'
 import { logger } from '@/lib/logger'
 import { supabase } from '@/lib/supabase'
 import { withRetry } from '@/lib/utils/retry'
@@ -159,6 +159,7 @@ async function extractPedagogy(
           { curiosityQuizId, attempts, err: error },
           'Pedagogy extraction failed after all retries'
         )
+        return undefined
       },
     })
   } catch (error) {
@@ -228,6 +229,7 @@ async function generateCuriosityQuestions(
           { curiosityQuizId, attempts, err: error },
           'Question generation failed after all retries'
         )
+        return undefined
       },
     })
   } catch (error) {

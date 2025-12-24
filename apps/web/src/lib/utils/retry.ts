@@ -4,7 +4,7 @@ export interface RetryOptions<T> {
   maxAttempts: number
   delayMs?: number
   onRetry?: (attempt: number, error: Error) => void
-  onFailure?: (attempts: number, error: Error) => T | Promise<T> | void
+  onFailure?: (attempts: number, error: Error) => T | Promise<T> | undefined
 }
 
 /**

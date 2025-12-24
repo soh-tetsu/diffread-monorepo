@@ -1,10 +1,9 @@
 'use client'
 
-import { Box, Button, Flex, HStack, Spinner, Stack, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, Spinner, Stack, Text } from '@chakra-ui/react'
 import NextLink from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { LuArrowRight } from 'react-icons/lu'
 import useSWR from 'swr'
 import { AchievementCard } from '@/components/achievement/AchievementCard'
 import { ArticleSubmissionForm } from '@/components/forms/ArticleSubmissionForm'
@@ -190,7 +189,7 @@ const queueCountFetcher = async (url: string) => {
   return res.json()
 }
 
-function UrlRegistrationSection({ guestId }: { guestId: string }) {
+function UrlRegistrationSection() {
   const t = useTranslations('home')
   const { isSubmitting, error, submit } = useQuizSubmission()
   const { stats } = useUserStats()
@@ -398,7 +397,7 @@ export default function HomePage() {
     mode === 'onboarding' ? (
       <OnboardingSection onUnlock={handleUnlock} isUnlocking={isUnlocking} />
     ) : (
-      guestId && <UrlRegistrationSection guestId={guestId} />
+      guestId && <UrlRegistrationSection />
     )
 
   return (

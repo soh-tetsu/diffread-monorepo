@@ -198,8 +198,8 @@ export function useQuizSubmission(): UseQuizSubmissionReturn {
       }
 
       throw new Error(t('takingLonger'))
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
+    } catch (_err) {
+      const message = _err instanceof Error ? _err.message : 'Unknown error'
       setError(message)
 
       toaster.update(toastId, {

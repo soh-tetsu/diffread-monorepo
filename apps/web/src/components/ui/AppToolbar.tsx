@@ -1,9 +1,9 @@
 'use client'
 
-import { Badge, Box, Button, Flex, HStack, IconButton } from '@chakra-ui/react'
+import { Badge, Box, Flex, HStack, IconButton } from '@chakra-ui/react'
 import NextLink from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LuBookmark, LuHouse, LuMenu } from 'react-icons/lu'
+import { LuBookmark, LuHouse } from 'react-icons/lu'
 import useSWR from 'swr'
 import { SettingsMenu } from '@/components/ui/SettingsMenu'
 

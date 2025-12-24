@@ -114,6 +114,7 @@ export async function updateSessionStatus(quizId: number, status: SessionStatus)
           { quizId, attempts, err: error },
           'Failed to update sessions status after all retries'
         )
+        return undefined
       },
     }
   )
