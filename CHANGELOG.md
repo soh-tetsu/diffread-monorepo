@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.7] - 2025-12-25
+
+### Changed
+
+- Bugfix: Adjust the z-index of setting panel
+
 ## [0.3.7] - 2025-12-24
 
 ### Added

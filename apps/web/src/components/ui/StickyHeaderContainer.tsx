@@ -17,7 +17,7 @@ export function StickyHeaderContainer() {
   }
 
   return (
-    <Box position="sticky" top="0" zIndex={2000} display="flex" flexDirection="column">
+    <Box position="sticky" top="0" zIndex="sticky" display="flex" flexDirection="column">
       <AppToolbar />
       <NotificationBanner />
     </Box>
